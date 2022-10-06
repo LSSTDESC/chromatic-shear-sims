@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+"""
+Staging file for generating simulations and running metadetect
+"""
+
+import argparse
+import copy
+import os
+import shutil
+from tempfile import mkdtemp
+
+from loguru import logger
+import yaml
+import numpy as np
+from joblib import Parallel, delayed
+
+import fitsio
+import galsim
+import ngmix
+import metadetect
+
+from shear_bias_sims import run_utils
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Metadetection configuration file [yaml]",
+    )
+    parser.add_argument(
+        "--sim",
+        type=str,
+        required=True,
+        help="GalSim configuration file [yaml]",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=None,
+        help="RNG seed [int]",
+    )
+    parser.add_argument(
+        "--n_sims",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of sims to run [int]",
+    )
+    parser.add_argument(
+        "--n_jobs",
+        type=int,
+        required=False,
+        default=None,
+        help="Number of CPUs to use [int]",
+    )
+    parser.add_argument("--output", type=str, required=True, help="Output file [fits]")
+    return parser.parse_args()
+
+
+def main():
+    """
+    Run the simulation and measurement for metadetect noise bias cancellation.
+    """
+    args = get_args()
+
+    with open(args.config, "r") as fp:
+        config = yaml.safe_load(fp.read())
+
+    # copy the config for safekeeping
+    _config = copy.deepcopy(config)
+
+    logger.info(f"Running: {vars(args)}")
+
+    for galsim_config in galsim.config.ReadConfig(args.sim):
+        # copy the config for safekeeping
+        _galsim_config = copy.deepcopy(galsim_config)
+
+        rng = np.random.default_rng(args.seed)
+
+        # TODO: break jobs up into chunks?
+        # chunk_size = 100  # TODO: placeholder
+        # slices = [slice(start, start + chunk_size)
+        #           for start in range(0, args.n_sims - chunk_size, chunk_size)]
+
+        # memmap_filename = os.path.join(mkdtemp(), "data_memmap.dat")
+        memmap_filename = os.path.join("./", "memmap")
+
+        logger.info(f"Creating memmap at {memmap_filename}")
+        memmap = np.memmap(
+            memmap_filename,
+            dtype=run_utils._get_dtype(),
+            shape=(run_utils._get_size(args.n_sims), 2),
+            mode="w+",
+        )
+
+        memmap_dict = {
+            "filename": memmap_filename,
+            "dtype": run_utils._get_dtype(),
+            "shape": (run_utils._get_size(args.n_sims), 2),
+            "mode": "r+",
+        }
+
+        logger.info("Running simulation and measurement jobs")
+        with Parallel(args.n_jobs, verbose=10) as parallel:
+            parallel(
+                delayed(run_utils.measurement_builder)(**a)
+                for a in run_utils.generate_arguments(
+                    config, galsim_config, rng, args.n_sims, memmap_dict, None
+                )
+            )
+
+        logger.info(f"Writing output to {args.output}")
+        with fitsio.FITS(args.output, "rw", clobber=True) as fits:
+            fits.write(memmap[:, 0], extname="plus")
+            fits.write(memmap[:, 1], extname="minus")
+
+        logger.info(f"Finished processing")
+
+
+if __name__ == "__main__":
+    main()

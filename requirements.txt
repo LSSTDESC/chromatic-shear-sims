@@ -1,0 +1,10 @@
+fitsio
+galsim
+joblib
+loguru
+matplotlib
+metadetect
+ngmix
+numpy
+psutil
+yaml

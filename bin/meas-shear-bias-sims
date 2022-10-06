@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+"""
+Staging file for generating simulations and running metadetect
+"""
+
+import argparse
+import copy
+
+import yaml
+import numpy as np
+from loguru import logger
+
+import fitsio
+import galsim
+import ngmix
+import metadetect
+
+from shear_bias_sims import run_utils
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Metadetection configuration file [yaml]",
+    )
+    parser.add_argument("--output", type=str, required=True, help="Output file [fits]")
+    return parser.parse_args()
+
+
+def main():
+    """
+    Run the simulation and measurement for metadetect noise bias cancellation.
+    """
+    args = get_args()
+
+    with open(args.config, "r") as fp:
+        config = yaml.safe_load(fp.read())
+
+    # copy the config for safekeeping
+    _config = copy.deepcopy(config)
+
+    logger.info(f"Measuring: {vars(args)}")
+
+    logger.info(f"Reading output from {args.output}")
+    with fitsio.FITS(args.output, "r") as fits:
+        meas_p = fits["plus"].read()
+        meas_m = fits["minus"].read()
+
+    logger.info(f"Measuring multiplicative and additive biases")
+    calibration_shear = ngmix.metacal.DEFAULT_STEP
+    cosmic_shear = config["shear"]["g"]
+    m_est, c_est = run_utils.estimate_biases(
+        meas_p, meas_m, calibration_shear, cosmic_shear
+    )
+    logger.info(f"multiplicative bias: {m_est}")
+    logger.info(f"additive bias: {c_est}")
+    print(f"multiplicative bias: {m_est}")
+    print(f"additive bias: {c_est}")
+
+
+if __name__ == "__main__":
+    main()
