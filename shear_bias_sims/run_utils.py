@@ -175,7 +175,8 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     mbobs_m.append(obslist_m)
 
     # TODO: how do we handle all of the RNGs? when are they shared?
-    mdet_rng = np.random.RandomState()
+    mdet_seed = rng.integers(low=1, high=2**29)
+    mdet_rng = np.random.default_rng(mdet_seed)
 
     res_p = metadetect.do_metadetect(
         config["metadetect"],
