@@ -55,8 +55,7 @@ def main():
     m_est, c_est = run_utils.estimate_biases(
         meas_p, meas_m, calibration_shear, cosmic_shear
     )
-    logger.info(f"multiplicative bias: {m_est}")
-    logger.info(f"additive bias: {c_est}")
+
     print(f"multiplicative bias: {m_est}")
     print(f"additive bias: {c_est}")
 
