@@ -118,6 +118,9 @@ def main():
             fits.write(memmap[:, 0], extname="plus")
             fits.write(memmap[:, 1], extname="minus")
 
+        logger.info(f"Removing {memmap_filename}")
+        os.remove(memmap_filename)
+
         logger.info(f"Finished processing")
 
 
