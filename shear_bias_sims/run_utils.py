@@ -49,10 +49,11 @@ def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
     """
     i = 0
     while i < n:
+        seed = rng.integers(low=1, high=2**29)
         arg_dict = {
             "config": copy.deepcopy(config),
             "galsim_config": copy.deepcopy(galsim_config),
-            "rng": rng,
+            "rng": np.random.default_rng(seed),
             "memmap_dict": memmap_dict,
             "idx": i,
             "logger": logger,
