@@ -26,6 +26,21 @@ def get_args():
         required=True,
         help="Metadetection configuration file [yaml]",
     )
+    parser.add_argument(
+        '--s2n-cut', type=int, default=10,
+    )
+    # parser.add_argument(
+    #     '--jackknife', type=int, default=None,
+    #     help='number of jackknife subsets to use',
+    # )
+    parser.add_argument(
+        '--ormask-cut', type=int, default=None,
+        help='Cut to make on ormask. 0 indicates make a cut, 1 indicates no cut.',
+    )
+    parser.add_argument(
+        '--mfrac-cut', type=int, default=None,
+        help='Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.',
+    )
     parser.add_argument("--output", type=str, required=True, help="Output file [fits]")
     return parser.parse_args()
 
@@ -46,18 +61,34 @@ def main():
 
     logger.info(f"Reading output from {args.output}")
     with fitsio.FITS(args.output, "r") as fits:
-        meas_p = fits["plus"].read()
-        meas_m = fits["minus"].read()
+        pdata = fits["plus"].read()
+        mdata = fits["minus"].read()
+
+    logger.info(f"Applying cuts")
+    pmsk = (pdata["s2n_cut"] == args.s2n_cut)
+    if args.ormask_cut is not None:
+        pmsk = pmsk & (pdata["ormask_cut"] == args.ormask_cut)
+    else:
+        pmsk = pmsk & (pdata["ormask_cut"] == -1)
+    if args.mfrac_cut is not None:
+        pmsk = pmsk & (pdata["mfrac_cut"] == args.mfrac_cut)
+    else:
+        pmsk = pmsk & (pdata["mfrac_cut"] == -1)
+
+    n_sims_msk = np.sum(pdata["weight"][pmsk])
+    if n_sims_msk <= 0:
+        raise RuntimeError("Cuts did not keep any sims!")
 
     logger.info(f"Measuring multiplicative and additive biases")
     calibration_shear = ngmix.metacal.DEFAULT_STEP
     cosmic_shear = config["shear"]["g"]
-    m_est, c_est = run_utils.estimate_biases(
-        meas_p, meas_m, calibration_shear, cosmic_shear
+    m_est, m_std, c_est, c_std = run_utils.estimate_biases(
+        pdata[pmsk], mdata[pmsk], calibration_shear, cosmic_shear,
+        weights=pdata["weight"][pmsk],
     )
 
-    print(f"multiplicative bias: {m_est}")
-    print(f"additive bias: {c_est}")
+    print(f"multiplicative bias: {m_est} +/- {m_std}")
+    print(f"additive bias: {c_est} +/- {c_std}")
 
 
 if __name__ == "__main__":

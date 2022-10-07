@@ -204,61 +204,55 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     return
 
 
-def compute_responsivity(meas, calibration_shear):
+def _bootstrap(x1, y1, x2, y2, w, n_iter=1000):
     """
-    Compute the 11 element of the responsivity matrix.
+    Estimate the standard deviation via bootstrapping
     """
-    return (np.mean(meas["g1p"]) - np.mean(meas["g1m"])) / (2 * calibration_shear)
+    rng = np.random.default_rng()  # TODO: seed this?
 
+    size = len(x1)
 
-def estimate_shear(meas, responsivity):
-    """
-    Compute the responsivity-calibrated shear.
-    """
-    return (1 / responsivity) * np.mean(meas["g1"])
+    m_bootstrap = np.empty(n_iter)
+    c_bootstrap = np.empty(n_iter)
 
-
-def estimate_multiplicative_bias(meas_p, meas_m, calibration_shear, cosmic_shear):
-    """
-    Estimate the multiplicative bias with noise bias cancellation.
-    """
-    # TODO: we want to average estimate_shear over many simulations (?)
-    responsivity_p = compute_responsivity(meas_p, calibration_shear)
-    responsivity_m = compute_responsivity(meas_m, calibration_shear)
-    return (
-        estimate_shear(meas_p, responsivity_p) - estimate_shear(meas_m, responsivity_m)
-    ) / (2.0 * np.abs(cosmic_shear)) - 1.0
-
-
-def estimate_additive_bias(meas_p, meas_m, calibration_shear):
-    """
-    Estimate the additive bias with noise bias cancellation.
-    """
-    # TODO: we want to average estimate_shear over many simulations (?)
-    responsivity_p = compute_responsivity(meas_p, calibration_shear)
-    responsivity_m = compute_responsivity(meas_m, calibration_shear)
+    for _i in range(n_iter):
+        # perform bootstrap resampling
+        _r = rng.choice(size, size=n_iter, replace=True)  # resample indices
+        _w = w[_r].copy()  # resample weights
+        _w /= np.sum(_w)
+        m_bootstrap[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.
+        c_bootstrap[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)
 
     return (
-        estimate_shear(meas_p, responsivity_p) + estimate_shear(meas_m, responsivity_m)
-    ) / 2.0
+        np.mean(y1 * w) / np.mean(x1 * w) - 1., np.std(m_bootstrap),
+        np.mean(y2 * w) / np.mean(x2 * w), np.std(c_bootstrap),
+    )
 
 
-def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear):
+def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None):
     """
     Estimate both additive and multiplicative biases with noise bias
-    cancellation.
+    cancellation and bootstrapped standard deviations.
     """
-    responsivity_p = compute_responsivity(meas_p, calibration_shear)
-    responsivity_m = compute_responsivity(meas_m, calibration_shear)
+    g1p = meas_p["g1"]
+    R11p = (meas_p["g1p"] - meas_p["g1m"]) / (2 * calibration_shear)
 
-    m = (
-        estimate_shear(meas_p, responsivity_p) - estimate_shear(meas_m, responsivity_m)
-    ) / (2.0 * np.abs(cosmic_shear)) - 1.0
-    c = (
-        estimate_shear(meas_p, responsivity_p) + estimate_shear(meas_m, responsivity_m)
-    ) / 2.0
+    g1m = meas_m["g1"]
+    R11m = (meas_m["g1m"] - meas_m["g1m"]) / (2 * calibration_shear)
 
-    return m, c
+    x1 = (R11p + R11m) * np.abs(cosmic_shear)
+    y1 = (g1p - g1m) / 2.
+
+    x2 = (R11p + R11m)
+    y2 = (g1p + g1m) / 2.
+
+    if weights is not None:
+        w = np.asarray(weights)
+    else:
+        w = np.ones(len(g1p))
+        w /= np.sum(w)
+
+    return _bootstrap(x1, y1, x2, y2, w, n_iter=1000)
 
 
 def measure_shear_metadetect(
