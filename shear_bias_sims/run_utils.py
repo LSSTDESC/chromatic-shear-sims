@@ -40,7 +40,7 @@ def _get_size(n_sims):
 def _make_res_arrays(n_sims):
     dt = _get_dtype()
     n = _get_size(n_sims)
-    return np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)
+    return np.stack([np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)], axis=-1)
 
 
 def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
@@ -198,15 +198,19 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
 
     measurements = measure_pairs(config, res_p, res_m)
 
-    # return measurements
+    # this pads the measurements with zeros to be the same size as expected by
+    # the memmap
+    full_measurements = _make_res_arrays(1)
+    full_measurements[:len(measurements)] = measurements
 
     # TODO: a bit of a hack but works for now
     slice_length = _get_size(1)
     idx_start = idx * slice_length
     idx_stop = (idx + 1) * slice_length
+    logger.info(f"writing memmap[{idx_start}:{idx_stop}]")
     memmap = np.memmap(**memmap_dict)
-    memmap[idx_start:idx_stop] = measurements
-    memmap.flush()  # TODO: I'm not sure if this call is necessary
+    memmap[idx_start:idx_stop] = full_measurements
+    memmap.flush()
 
     return
 

@@ -109,14 +109,16 @@ def main():
             parallel(
                 delayed(run_utils.measurement_builder)(**a)
                 for a in run_utils.generate_arguments(
-                    config, galsim_config, rng, args.n_sims, memmap_dict, None
+                    config, galsim_config, rng, args.n_sims, memmap_dict, logger,
                 )
             )
 
+        zeros_cut = ~np.all(memmap == np.stack([np.zeros(1, dtype=run_utils._get_dtype()), np.zeros(1, dtype=run_utils._get_dtype())], axis=-1), axis=1)
+
         logger.info(f"Writing output to {args.output}")
         with fitsio.FITS(args.output, "rw", clobber=True) as fits:
-            fits.write(memmap[:, 0], extname="plus")
-            fits.write(memmap[:, 1], extname="minus")
+            fits.write(memmap[zeros_cut][:, 0], extname="plus")
+            fits.write(memmap[zeros_cut][:, 1], extname="minus")
 
         logger.info(f"Removing {memmap_filename}")
         os.remove(memmap_filename)
