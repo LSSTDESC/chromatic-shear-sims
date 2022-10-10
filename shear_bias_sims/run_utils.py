@@ -198,7 +198,7 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     idx_start = idx * _get_size(1)
     idx_stop = (idx + 1) * _get_size(1)
     memmap = np.memmap(**memmap_dict)
-    memmap[idx_start:idx_stop] = np.stack(measurements[0], axis=-1)
+    memmap[idx_start:idx_stop] = measurements  # np.stack(measurements[0], axis=-1)
     memmap.flush()  # TODO: I'm not sure if this call is necessary
 
     return
@@ -219,9 +219,9 @@ def _bootstrap(x1, y1, x2, y2, w, n_iter=1000):
         # perform bootstrap resampling
         _r = rng.choice(size, size=n_iter, replace=True)  # resample indices
         _w = w[_r].copy()  # resample weights
-        _w /= np.sum(_w)
-        m_bootstrap[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.
-        c_bootstrap[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)
+        _w /= np.sum(_w)  # normalize resampled weights
+        m_bootstrap[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.  # compute the multiplicative bias of the sample
+        c_bootstrap[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)  # compute the additive bias of the sample
 
     return (
         np.mean(y1 * w) / np.mean(x1 * w) - 1., np.std(m_bootstrap),
@@ -362,7 +362,7 @@ def measure_pairs(config, res_p, res_m):
     if len(res_p) > 0:
         wgt = len(res_p)
 
-        # TODO: stack datap and datam into a single array of depth 2?
+        # TODO: stack datap and datam into a single array of depth 2 here?
         dtype = _get_dtype()
         datap = []
         datam = []
@@ -418,6 +418,6 @@ def measure_pairs(config, res_p, res_m):
                 datap.append(tuple(list(pgm) + [s2n_cut, -1, mfrac_cut, wgt]))
                 datam.append(tuple(list(mgm) + [s2n_cut, -1, mfrac_cut, wgt]))
 
-        return [(np.array(datap, dtype=dtype), np.array(datam, dtype=dtype))]
+        return np.stack([np.array(datap, dtype=dtype), np.array(datam, dtype=dtype)], axis=-1)
     else:
-        return [(None, None)]
+        return np.stack([None, None], axis=-1)
