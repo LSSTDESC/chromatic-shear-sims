@@ -80,6 +80,7 @@ def main():
         raise RuntimeError("Cuts did not keep any sims!")
 
     logger.info(f"Measuring multiplicative and additive biases")
+    m_req = 0.002
     calibration_shear = ngmix.metacal.DEFAULT_STEP
     cosmic_shear = config["shear"]["g"]
     m_est, m_std, c_est, c_std = run_utils.estimate_biases(
@@ -87,8 +88,13 @@ def main():
         weights=pdata["weight"][pmsk],
     )
 
-    print(f"multiplicative bias: {m_est:.3E} +/- {m_std:.3E}")
-    print(f"additive bias: {c_est:.3E} +/- {c_std:.3E}")
+    logger.info(f"multiplicative bias: {m_est:.3E} +/- {m_std:.3E}")
+    logger.info(f"additive bias: {c_est:.3E} +/- {c_std:.3E}")
+
+    if np.abs(m_est) < 0.002:
+        logger.success(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3E} < {m_req:.3E})")
+    else:
+        logger.warning(f"mean multiplicative bias exceeds nominal requirement! ({np.abs(m_est):.3E} > {m_req:.3E})")
 
 
 if __name__ == "__main__":
