@@ -87,8 +87,8 @@ def main():
         weights=pdata["weight"][pmsk],
     )
 
-    print(f"multiplicative bias: {m_est} +/- {m_std}")
-    print(f"additive bias: {c_est} +/- {c_std}")
+    print(f"multiplicative bias: {m_est:.3E} +/- {m_std:.3E}")
+    print(f"additive bias: {c_est:.3E} +/- {c_std:.3E}")
 
 
 if __name__ == "__main__":
