@@ -127,7 +127,10 @@ def observation_builder(config, rng, logger):
     im_jac = ngmix.jacobian.Jacobian(
         x=im_cen,
         y=im_cen,
-        wcs=wcs,
+        dudx=wcs.dudx,
+        dudy=wcs.dudy,
+        dvdx=wcs.dvdx,
+        dvdy=wcs.dvdy,
     )
     obs = ngmix.Observation(
         image.array.copy(),
