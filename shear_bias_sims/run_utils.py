@@ -201,10 +201,11 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     # return measurements
 
     # TODO: a bit of a hack but works for now
-    idx_start = idx * _get_size(1)
-    idx_stop = (idx + 1) * _get_size(1)
+    slice_length = _get_size(1)
+    idx_start = idx * slice_length
+    idx_stop = (idx + 1) * slice_length
     memmap = np.memmap(**memmap_dict)
-    memmap[idx_start:idx_stop] = measurements  # np.stack(measurements[0], axis=-1)
+    memmap[idx_start:idx_stop] = measurements
     memmap.flush()  # TODO: I'm not sure if this call is necessary
 
     return
