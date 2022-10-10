@@ -112,7 +112,10 @@ def observation_builder(config, rng, logger):
     psf_jac = ngmix.jacobian.Jacobian(
         x=psf_cen,
         y=psf_cen,
-        wcs=wcs,
+        dudx=wcs.dudx,
+        dudy=wcs.dudy,
+        dvdx=wcs.dvdx,
+        dvdy=wcs.dvdy,
     )
     psf_obs = ngmix.Observation(
         psf.array.copy(),
