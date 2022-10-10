@@ -246,11 +246,19 @@ def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=Non
     g1m = meas_m["g1"]
     R11m = (meas_m["g1m"] - meas_m["g1m"]) / (2 * calibration_shear)
 
-    x1 = (R11p + R11m) * np.abs(cosmic_shear)
-    y1 = (g1p - g1m) / 2.
+    g2p = meas_p["g2"]
+    R22p = (meas_p["g2p"] - meas_p["g2m"]) / (2 * calibration_shear)
 
-    x2 = (R11p + R11m)
-    y2 = (g1p + g1m) / 2.
+    g2m = meas_m["g2"]
+    R22m = (meas_m["g2m"] - meas_m["g2m"]) / (2 * calibration_shear)
+
+    # Use g1 axis for multiplicative bias
+    x1 = (R11p + R11m)
+    y1 = (g1p - g1m) / 2. / np.abs(cosmic_shear)
+
+    # Use g2 axis for additive bias
+    x2 = (R22p + R22m)
+    y2 = (g2p + g2m) / 2.
 
     if weights is not None:
         w = np.asarray(weights)
