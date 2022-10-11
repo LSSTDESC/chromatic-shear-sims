@@ -237,7 +237,7 @@ def _bootstrap(x1, y1, x2, y2, w, n_iter=1000):
         c_bootstrap[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)  # compute the additive bias of the sample
 
     return (
-        np.mean(y1 * w) / np.mean(x1 * w) - 1., np.std(m_bootstrap),
+        np.mean(y1 * w) / np.mean(x1 * w) - 1, np.std(m_bootstrap),
         np.mean(y2 * w) / np.mean(x2 * w), np.std(c_bootstrap),
     )
 
@@ -261,11 +261,11 @@ def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=Non
 
     # Use g1 axis for multiplicative bias
     x1 = (R11p + R11m)
-    y1 = (g1p - g1m) / 2. / np.abs(cosmic_shear)
+    y1 = (g1p - g1m) / 2 / np.abs(cosmic_shear)
 
     # Use g2 axis for additive bias
     x2 = (R22p + R22m)
-    y2 = (g2p + g2m) / 2.
+    y2 = (g2p + g2m) / 2
 
     if weights is not None:
         w = np.asarray(weights)
