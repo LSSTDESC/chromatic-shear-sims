@@ -102,7 +102,7 @@ def main():
     if np.abs(m_est) < 0.002:
         logger.success(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3E} < {m_req:.3E})")
     else:
-        logger.warning(f"mean multiplicative bias exceeds nominal requirement! ({np.abs(m_est):.3E} > {m_req:.3E})")
+        logger.error(f"mean multiplicative bias exceeds nominal requirement! ({np.abs(m_est):.3E} > {m_req:.3E})")
 
 
 if __name__ == "__main__":
