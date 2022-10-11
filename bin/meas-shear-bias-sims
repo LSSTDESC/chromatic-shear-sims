@@ -84,6 +84,8 @@ def main():
     n_sims_msk = np.sum(pdata["weight"][pmsk])
     if n_sims_msk <= 0:
         raise RuntimeError("Cuts did not keep any sims!")
+    else:
+        logger.info(f"{n_sims_msk} sims pass cuts")
 
     logger.info(f"Measuring multiplicative and additive biases")
     m_req = 0.002
