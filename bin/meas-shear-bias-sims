@@ -96,8 +96,8 @@ def main():
         weights=pdata["weight"][pmsk],
     )
 
-    logger.info(f"multiplicative bias: {m_est:.3E} +/- {m_std:.3E}")
-    logger.info(f"additive bias: {c_est:.3E} +/- {c_std:.3E}")
+    logger.info(f"multiplicative bias: {m_est:.3E} +/- {m_std*3:.3E} (3 sigma)")
+    logger.info(f"additive bias: {c_est:.3E} +/- {c_std*3:.3E} (3 sigma)")
 
     if np.abs(m_est) < 0.002:
         logger.success(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3E} < {m_req:.3E})")
