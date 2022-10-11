@@ -207,7 +207,7 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     slice_length = _get_size(1)
     idx_start = idx * slice_length
     idx_stop = (idx + 1) * slice_length
-    logger.info(f"writing memmap_dict['filename'][{idx_start}:{idx_stop}]")
+    logger.info(f"writing {memmap_dict['filename']}[{idx_start}:{idx_stop}]")
     memmap = np.memmap(**memmap_dict)
     memmap[idx_start:idx_stop] = full_measurements
     memmap.flush()
