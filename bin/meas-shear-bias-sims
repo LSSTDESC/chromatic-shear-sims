@@ -27,21 +27,21 @@ def get_args():
         help="Metadetection configuration file [yaml]",
     )
     parser.add_argument(
-        '--s2n-cut', type=int, default=10,
+        "--s2n-cut", type=int, default=10,
     )
     # parser.add_argument(
-    #     '--jackknife', type=int, default=None,
-    #     help='number of jackknife subsets to use',
+    #     "--jackknife", type=int, default=None,
+    #     help="number of jackknife subsets to use",
     # )
     parser.add_argument(
-        '--ormask-cut', type=int, default=None,
-        help='Cut to make on ormask. 0 indicates make a cut, 1 indicates no cut.',
+        "--ormask-cut", type=int, default=None,
+        help="Cut to make on ormask. 0 indicates make a cut, 1 indicates no cut.",
     )
     parser.add_argument(
-        '--mfrac-cut', type=int, default=None,
-        help='Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.',
+        "--mfrac-cut", type=int, default=None,
+        help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
     )
-    parser.add_argument("--output", type=str, required=True, help="Output file [fits]")
+    parser.add_argument("--output", type=str, required=True, nargs="*", help="Output files [fits]")
     return parser.parse_args()
 
 
@@ -59,10 +59,16 @@ def main():
 
     logger.info(f"Measuring: {vars(args)}")
 
-    logger.info(f"Reading output from {args.output}")
-    with fitsio.FITS(args.output, "r") as fits:
-        pdata = fits["plus"].read()
-        mdata = fits["minus"].read()
+    logger.info(f"Reading and concatenating output from {args.output}")
+    pdata = []
+    mdata = []
+    for output in args.output:
+        with fitsio.FITS(output, "r") as fits:
+            pdata.append(fits["plus"].read())
+            mdata.append(fits["minus"].read())
+
+    pdata = np.concatenate(pdata)
+    mdata = np.concatenate(mdata)
 
     logger.info(f"Applying cuts")
     pmsk = (pdata["s2n_cut"] == args.s2n_cut)
