@@ -17,6 +17,10 @@ gal:
   half_light_radius: 0.5
   signal_to_noise: 100
 
+  shift:
+    type: RandomCircle
+    radius: 0.1  # arcsec
+
 image:
   type: Tiled
   nx_tiles: 10
