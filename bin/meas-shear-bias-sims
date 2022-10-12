@@ -73,13 +73,13 @@ def main():
     logger.info(f"Applying cuts")
     pmsk = (pdata["s2n_cut"] == args.s2n_cut)
     if args.ormask_cut is not None:
-        pmsk = pmsk & (pdata["ormask_cut"] == args.ormask_cut)
+        pmsk &= (pdata["ormask_cut"] == args.ormask_cut)
     else:
-        pmsk = pmsk & (pdata["ormask_cut"] == -1)
+        pmsk &= (pdata["ormask_cut"] == -1)
     if args.mfrac_cut is not None:
-        pmsk = pmsk & (pdata["mfrac_cut"] == args.mfrac_cut)
+        pmsk &= (pdata["mfrac_cut"] == args.mfrac_cut)
     else:
-        pmsk = pmsk & (pdata["mfrac_cut"] == -1)
+        pmsk &= (pdata["mfrac_cut"] == -1)
 
     n_sims_msk = np.sum(pdata["weight"][pmsk])
     if n_sims_msk <= 0:
