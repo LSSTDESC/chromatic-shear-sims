@@ -242,7 +242,7 @@ def _bootstrap(x1, y1, x2, y2, w, n_iter=1000):
     )
 
 
-def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None):
+def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None, n_iter=1000):
     """
     Estimate both additive and multiplicative biases with noise bias
     cancellation and bootstrapped standard deviations.
@@ -293,7 +293,7 @@ def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=Non
     x2 = (R22p + R22m) / 2
     y2 = (g2p + g2m) / 2
 
-    return _bootstrap(x1, y1, x2, y2, w, n_iter=1000)
+    return _bootstrap(x1, y1, x2, y2, w, n_iter=n_iter)
 
 
 def measure_shear_metadetect(

@@ -42,6 +42,7 @@ def get_args():
         help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
     )
     parser.add_argument("--output", type=str, required=True, nargs="*", help="Output files [fits]")
+    parser.add_argument("--n_iter", type=int, required=False, help="Number of bootstrap iterations")
     return parser.parse_args()
 
 
@@ -94,6 +95,7 @@ def main():
     m_est, m_std, c_est, c_std = run_utils.estimate_biases(
         pdata[pmsk], mdata[pmsk], calibration_shear, cosmic_shear,
         weights=pdata["weight"][pmsk],
+        n_iter=args.n_iter,
     )
 
     logger.info(f"multiplicative bias: {m_est:.3E} +/- {m_std*3:.3E} (3 sigma)")
