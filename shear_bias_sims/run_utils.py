@@ -75,7 +75,7 @@ def observation_builder(config, rng, logger):
 
     # build the GalSim object representation of the PSF
     psf_obj = galsim.config.BuildGSObject(config, "psf", logger=None)[0]
-    psf_nx = 53  # N.B. this must be odd as ngmix likes PSFs centered on a single pixel
+    psf_nx = 53  # N.B. this should must be odd as ngmix likes PSFs centered on a single pixel
     psf_ny = psf_nx
     psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=config["image"]["pixel_scale"])
 
