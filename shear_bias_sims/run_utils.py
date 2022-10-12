@@ -251,27 +251,47 @@ def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=Non
     R11p = (meas_p["g1p"] - meas_p["g1m"]) / (2 * calibration_shear)
 
     g1m = meas_m["g1"]
-    R11m = (meas_m["g1m"] - meas_m["g1m"]) / (2 * calibration_shear)
+    R11m = (meas_m["g1p"] - meas_m["g1m"]) / (2 * calibration_shear)
 
     g2p = meas_p["g2"]
     R22p = (meas_p["g2p"] - meas_p["g2m"]) / (2 * calibration_shear)
 
     g2m = meas_m["g2"]
-    R22m = (meas_m["g2m"] - meas_m["g2m"]) / (2 * calibration_shear)
+    R22m = (meas_m["g2p"] - meas_m["g2m"]) / (2 * calibration_shear)
+
+    if weights is not None:
+        w = np.asarray(weights).astype(np.float64)
+    else:
+        w = np.ones(len(g1p)).astype(np.float64)
+    w /= np.sum(w)
+
+    msk = (
+        np.isfinite(g1p) &
+        np.isfinite(R11p) &
+        np.isfinite(g1m) &
+        np.isfinite(R11m) &
+        np.isfinite(g2p) &
+        np.isfinite(R22p) &
+        np.isfinite(g2m) &
+        np.isfinite(R22m)
+    )
+    g1p = g1p[msk]
+    R11p = R11p[msk]
+    g1m = g1m[msk]
+    R11m = R11m[msk]
+    g2p = g2p[msk]
+    R22p = R22p[msk]
+    g2m = g2m[msk]
+    R22m = R22m[msk]
+    w = w[msk]
 
     # Use g1 axis for multiplicative bias
-    x1 = (R11p + R11m)
+    x1 = (R11p + R11m) / 2  # N.B. we assume that these are the same and average
     y1 = (g1p - g1m) / 2 / np.abs(cosmic_shear)
 
     # Use g2 axis for additive bias
-    x2 = (R22p + R22m)
+    x2 = (R22p + R22m) / 2
     y2 = (g2p + g2m) / 2
-
-    if weights is not None:
-        w = np.asarray(weights)
-    else:
-        w = np.ones(len(g1p))
-        w /= np.sum(w)
 
     return _bootstrap(x1, y1, x2, y2, w, n_iter=1000)
 
