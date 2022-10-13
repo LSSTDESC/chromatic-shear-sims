@@ -217,32 +217,122 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     return
 
 
-def _bootstrap(x1, y1, x2, y2, w, n_iter=1000):
+def _bootstrap(x1, y1, x2, y2, w, n_resample=1000):
     """
     Estimate the standard deviation via bootstrapping
     """
     rng = np.random.default_rng()  # TODO: seed this?
 
-    size = len(x1)
+    n_sample = len(x1)
 
-    m_bootstrap = np.empty(n_iter)
-    c_bootstrap = np.empty(n_iter)
+    m_bootstrap = np.empty(n_resample)
+    c_bootstrap = np.empty(n_resample)
 
-    for _i in range(n_iter):
+    for _i in range(n_resample):
         # perform bootstrap resampling
-        _r = rng.choice(size, size=n_iter, replace=True)  # resample indices
+        _r = rng.choice(n_sample, size=n_resample, replace=True)  # resample indices
         _w = w[_r].copy()  # resample weights
         _w /= np.sum(_w)  # normalize resampled weights
-        m_bootstrap[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.  # compute the multiplicative bias of the sample
-        c_bootstrap[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)  # compute the additive bias of the sample
+        m_bootstrap[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.  # compute the multiplicative bias of the resample
+        c_bootstrap[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)  # compute the additive bias of the resample
+
+    m_est = np.mean(y1 * w) / np.mean(x1 * w) - 1
+    m_var = np.var(m_bootstrap)
+    c_est = np.mean(y2 * w) / np.mean(x2 * w)
+    c_var = np.var(c_bootstrap)
 
     return (
-        np.mean(y1 * w) / np.mean(x1 * w) - 1, np.std(m_bootstrap),
-        np.mean(y2 * w) / np.mean(x2 * w), np.std(c_bootstrap),
+        m_est, np.sqrt(m_var),
+        c_est, np.sqrt(c_var),
     )
 
 
-def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None, n_iter=1000):
+# def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
+#     """
+#     Estimate the standard deviation via jackknifing
+#     """
+#     # TODO: this is actually a parital implementation of a delete-d jackknife;
+#     #       we should actually incorporate _all-possible_ resamples of patch
+#     #       size d, not just the simple cases seen here...
+#     n_sample = len(x1)
+#     patch_size = n_sample // n_resample
+# 
+#     m_jackknife = np.empty(n_resample)
+#     c_jackknife = np.empty(n_resample)
+# 
+#     for _i in range(n_resample):
+#         # perform jackknife resampling
+#         _r = ~(np.isin(np.arange(n_sample), np.arange(_i * patch_size, (_i + 1) * patch_size)))  # resample indices
+#         _w = w[_r].copy()  # resample weights
+#         _w /= np.sum(_w)  # normalize resampled weights
+#         m_jackknife[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.  # compute the multiplicative bias of the resample
+#         c_jackknife[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)  # compute the additive bias of the resample
+# 
+#     m_est = np.mean(m_jackknife)
+#     m_var = np.var(m_jackknife)
+# 
+#     c_est = np.mean(c_jackknife)
+#     c_var = np.var(c_jackknife)
+# 
+#     return (
+#         m_est, np.sqrt(m_var),
+#         c_est, np.sqrt(c_var),
+#     )
+
+def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
+    """
+    Estimate the standard deviation via the delete-m jackknife as defined in
+    https://doi.org/10.1023/A:1008800423698
+    """
+    n = len(x1)  # sample size
+    m = n // n_resample  # resample size
+    _n = m * n_resample
+
+    # estimators given all samples
+    m_hat_n = np.mean(y1[:_n] * w[:_n]) / np.mean(x1[:_n] * w[:_n]) - 1
+    c_hat_n = np.mean(y2[:_n] * w[:_n]) / np.mean(x2[:_n] * w[:_n])
+
+    x1_j = np.empty(n_resample)
+    y1_j = np.empty(n_resample)
+    x2_j = np.empty(n_resample)
+    y2_j = np.empty(n_resample)
+    w_j = np.empty(n_resample)
+
+    # precompute chunks to jackknife more efficiently
+    for _i in range(n_resample):
+        # perform jackknife resampling
+        _r = slice(_i * m, (_i + 1) * m)  # resample indices
+        w_j[_i] = np.sum(w[_r])
+        x1_j[_i] = np.sum(x1[_r] * w[_r]) / w_j[_i]
+        y1_j[_i] = np.sum(y1[_r] * w[_r]) / w_j[_i]
+        x2_j[_i] = np.sum(x2[_r] * w[_r]) / w_j[_i]
+        y2_j[_i] = np.sum(y2[_r] * w[_r]) / w_j[_i]
+
+    # construct estimators of each observable based on subsamples each of size n - m
+    m_hat_j = np.empty(n_resample)
+    c_hat_j = np.empty(n_resample)
+
+    for _i in range(n_resample):
+        # perform jackknife resampling
+        _r = ~(np.isin(np.arange(n_resample), _i))  # remove one chunk from the jackknife samples
+        m_hat_j[_i] = np.sum(y1_j[_r] * w_j[_r]) / np.sum(x1_j[_r] * w_j[_r]) - 1
+        c_hat_j[_i] = np.sum(y2_j[_r] * w_j[_r]) / np.sum(x2_j[_r] * w_j[_r])
+
+    m_hat_J = n_resample * m_hat_n - np.sum((1 - w_j / np.sum(w_j)) * m_hat_j)
+    c_hat_J = n_resample * c_hat_n - np.sum((1 - w_j / np.sum(w_j)) * c_hat_j)
+
+    h_j = np.sum(w_j) / w_j
+    m_tilde_j = h_j * m_hat_n - (h_j - 1) * m_hat_j
+    c_tilde_j = h_j * c_hat_n - (h_j - 1) * c_hat_j
+    m_var_J = np.sum(np.square(m_tilde_j - m_hat_J) / (h_j - 1)) / n_resample
+    c_var_J = np.sum(np.square(c_tilde_j - c_hat_J) / (h_j - 1)) / n_resample
+
+    return (
+        m_hat_J, np.sqrt(m_var_J),
+        c_hat_J, np.sqrt(c_var_J),
+    )
+
+def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
     """
     Estimate both additive and multiplicative biases with noise bias
     cancellation and bootstrapped standard deviations.
@@ -293,7 +383,10 @@ def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=Non
     x2 = (R22p + R22m) / 2
     y2 = (g2p + g2m) / 2
 
-    return _bootstrap(x1, y1, x2, y2, w, n_iter=n_iter)
+    if method == "bootstrap":
+        return _bootstrap(x1, y1, x2, y2, w, n_resample=n_resample)
+    else:
+        return _jackknife(x1, y1, x2, y2, w, n_resample=n_resample)
 
 
 def measure_shear_metadetect(
