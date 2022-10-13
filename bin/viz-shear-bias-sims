@@ -33,6 +33,13 @@ def get_args():
         required=True,
         help="GalSim configuration file [yaml]",
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        default=None,
+        help="Output file [png, pdf]",
+    )
     return parser.parse_args()
 
 
@@ -103,7 +110,11 @@ def main():
             ax.set_xticks([])
             ax.set_yticks([])
 
-        plt.show()
+        if args.output is None:
+            plt.show()
+        else:
+            logger.info(f"Writing visualization to disk")
+            plt.savefig(args.output)
 
 
 if __name__ == "__main__":
