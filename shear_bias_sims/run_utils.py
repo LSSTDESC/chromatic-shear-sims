@@ -247,38 +247,6 @@ def _bootstrap(x1, y1, x2, y2, w, n_resample=1000):
     )
 
 
-# def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
-#     """
-#     Estimate the standard deviation via jackknifing
-#     """
-#     # TODO: this is actually a parital implementation of a delete-d jackknife;
-#     #       we should actually incorporate _all-possible_ resamples of patch
-#     #       size d, not just the simple cases seen here...
-#     n_sample = len(x1)
-#     patch_size = n_sample // n_resample
-# 
-#     m_jackknife = np.empty(n_resample)
-#     c_jackknife = np.empty(n_resample)
-# 
-#     for _i in range(n_resample):
-#         # perform jackknife resampling
-#         _r = ~(np.isin(np.arange(n_sample), np.arange(_i * patch_size, (_i + 1) * patch_size)))  # resample indices
-#         _w = w[_r].copy()  # resample weights
-#         _w /= np.sum(_w)  # normalize resampled weights
-#         m_jackknife[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.  # compute the multiplicative bias of the resample
-#         c_jackknife[_i] = np.mean(y2[_r] * _w) / np.mean(x2[_r] * _w)  # compute the additive bias of the resample
-# 
-#     m_est = np.mean(m_jackknife)
-#     m_var = np.var(m_jackknife)
-# 
-#     c_est = np.mean(c_jackknife)
-#     c_var = np.var(c_jackknife)
-# 
-#     return (
-#         m_est, np.sqrt(m_var),
-#         c_est, np.sqrt(c_var),
-#     )
-
 def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
     """
     Estimate the standard deviation via the delete-m jackknife as defined in
