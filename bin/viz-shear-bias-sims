@@ -15,7 +15,6 @@ from loguru import logger
 import fitsio
 import galsim
 
-import shear_bias_sims.extra_noise
 import shear_bias_sims.image_lattice
 
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["#000000", "#FFFFFF"])
@@ -68,7 +67,7 @@ def main():
         # build the image
         logger.info(f"Building image")
         image = galsim.config.BuildImage(galsim_config, logger=None)
-        image_shape = (config["image_ysize"], config["image_xsize"])
+        image_shape = (galsim_config["image_ysize"], galsim_config["image_xsize"])
 
         # build the PSF image
         logger.info(f"Building PSF image")
@@ -81,6 +80,7 @@ def main():
         logger.info(f"Building weight image")
         weight = galsim.Image(np.zeros(image_shape))
         galsim.config.noise.AddNoiseVariance(galsim_config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
+        weight.invertSelf()
 
         # build the noise image
         logger.info(f"Building noise image")

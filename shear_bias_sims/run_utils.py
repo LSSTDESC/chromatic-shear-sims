@@ -81,6 +81,7 @@ def observation_builder(config, rng, logger):
     # build the weight image
     weight = galsim.Image(np.zeros(image_shape))
     galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
+    weight.invertSelf()
 
     # build the noise image
     noise = galsim.Image(np.zeros(image_shape))
