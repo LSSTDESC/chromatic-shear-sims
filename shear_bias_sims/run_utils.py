@@ -13,6 +13,8 @@ import galsim
 import ngmix
 import metadetect
 
+import shear_bias_sims.image_lattice
+
 
 ORMASK_CUTS = [True, False]
 S2N_CUTS = [7, 8, 9, 10, 15, 20]
@@ -66,30 +68,22 @@ def observation_builder(config, rng, logger):
     """
     Build an ngmix Observation from a GalSim config dictionary.
     """
+    # build the image
     image = galsim.config.BuildImage(config, logger=None)
-    # TODO: alternatively...
-    # image = galsim.config.BuildImage(config, logger=None)
-    # psf = galsim.config.GetFinalExtraOutput("psf", config, logger=None)[0]
-    # weight = galsim.config.GetFinalExtraOutput("weight", config, logger=None)[0]
-    # badpix = galsim.config.GetFinalExtraOutput("badpix", config, logger=None)[0]
 
-    # build the GalSim object representation of the PSF
+    # build the PSF image
     psf_obj = galsim.config.BuildGSObject(config, "psf", logger=None)[0]
     psf_nx = 53  # N.B. this should must be odd as ngmix likes PSFs centered on a single pixel
     psf_ny = psf_nx
     psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=config["image"]["pixel_scale"])
 
-    # build the weight array
-    # TODO: we should get the weight image from GalSim as an extra output
-    #       since we don't know how to do this without writing the output
-    #       to a file, we will do this hack for now
-    weight = np.full(image.array.shape, 1 / config["image"]["noise"]["sigma"] ** 2)
+    # build the weight image
+    weight = galsim.Image(np.zeros((config["image_ysize"], config["image_xsize"])))
+    galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
 
-    # build the noise array
-    # TODO: we should get the noise image from GalSim as an extra output
-    #       since we don't know how to do this without writing the output
-    #       to a file, we will do this hack for now
-    noise = rng.normal(0, config["image"]["noise"]["sigma"], image.array.shape)
+    # build the noise image
+    noise = galsim.Image(np.zeros((config["image_ysize"], config["image_xsize"])))
+    galsim.config.noise.AddNoise(config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
 
     # build the bmask array
     # TODO: what is this anyways
@@ -136,12 +130,12 @@ def observation_builder(config, rng, logger):
     )
     obs = ngmix.Observation(
         image.array.copy(),
-        weight=weight.copy(),
+        weight=weight.array.copy(),
         bmask=bmask.copy(),
         ormask=ormask.copy(),
         jacobian=im_jac,
         psf=psf_obs,
-        noise=noise.copy(),
+        noise=noise.array.copy(),
     )
 
     return obs

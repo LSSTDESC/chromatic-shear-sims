@@ -15,6 +15,8 @@ from loguru import logger
 import fitsio
 import galsim
 
+import shear_bias_sims.extra_noise
+import shear_bias_sims.image_lattice
 
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["#000000", "#FFFFFF"])
 
@@ -63,34 +65,26 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
+        # build the image
+        logger.info(f"Building image")
         image = galsim.config.BuildImage(galsim_config, logger=None)
-        # TODO: alternatively...
-        # image = galsim.config.BuildImage(galsim_config, logger=None)
-        # psf = galsim.config.GetFinalExtraOutput("psf", galsim_config, logger=None)[0]
-        # weight = galsim.config.GetFinalExtraOutput("weight", galsim_config, logger=None)[0]
-        # badpix = galsim.config.GetFinalExtraOutput("badpix", galsim_config, logger=None)[0]
 
-        # build the GalSim object representation of the PSF
+        # build the PSF image
+        logger.info(f"Building PSF image")
         psf_obj = galsim.config.BuildGSObject(galsim_config, "psf", logger=None)[0]
         psf_nx = 53  # N.B. this should must be odd as ngmix likes PSFs centered on a single pixel
         psf_ny = psf_nx
         psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=galsim_config["image"]["pixel_scale"])
 
-        # build the weight array
-        # TODO: we should get the weight image from GalSim as an extra output
-        #       since we don't know how to do this without writing the output
-        #       to a file, we will do this hack for now
-        weight = np.full(
-            image.array.shape, 1 / galsim_config["image"]["noise"]["sigma"] ** 2
-        )
+        # build the weight image
+        logger.info(f"Building weight image")
+        weight = galsim.Image(np.zeros((galsim_config["image_ysize"], galsim_config["image_xsize"])))
+        galsim.config.noise.AddNoiseVariance(galsim_config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
 
-        # build the noise array
-        # TODO: we should get the noise image from GalSim as an extra output
-        #       since we don't know how to do this without writing the output
-        #       to a file, we will do this hack for now
-        noise = rng.normal(
-            0, galsim_config["image"]["noise"]["sigma"], image.array.shape
-        )
+        # build the noise image
+        logger.info(f"Building noise image")
+        noise = galsim.Image(np.zeros((galsim_config["image_ysize"], galsim_config["image_xsize"])))
+        galsim.config.noise.AddNoise(galsim_config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
 
         fig, axs = plt.subplots(nrows=1, ncols=4)
 
@@ -100,10 +94,10 @@ def main():
         axs[1].imshow(psf.array, origin="lower", cmap=cmap)
         axs[1].set_title("PSF")
 
-        axs[2].imshow(weight, origin="lower", cmap=cmap)
+        axs[2].imshow(weight.array, origin="lower", cmap=cmap)
         axs[2].set_title("Weight")
 
-        axs[3].imshow(noise, origin="lower", cmap=cmap)
+        axs[3].imshow(noise.array, origin="lower", cmap=cmap)
         axs[3].set_title("Noise Realization")
 
         for ax in axs.ravel():
