@@ -68,6 +68,7 @@ def main():
         # build the image
         logger.info(f"Building image")
         image = galsim.config.BuildImage(galsim_config, logger=None)
+        image_shape = (config["image_ysize"], config["image_xsize"])
 
         # build the PSF image
         logger.info(f"Building PSF image")
@@ -78,12 +79,12 @@ def main():
 
         # build the weight image
         logger.info(f"Building weight image")
-        weight = galsim.Image(np.zeros((galsim_config["image_ysize"], galsim_config["image_xsize"])))
+        weight = galsim.Image(np.zeros(image_shape))
         galsim.config.noise.AddNoiseVariance(galsim_config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
 
         # build the noise image
         logger.info(f"Building noise image")
-        noise = galsim.Image(np.zeros((galsim_config["image_ysize"], galsim_config["image_xsize"])))
+        noise = galsim.Image(np.zeros(image_shape))
         galsim.config.noise.AddNoise(galsim_config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
 
         fig, axs = plt.subplots(nrows=1, ncols=4)

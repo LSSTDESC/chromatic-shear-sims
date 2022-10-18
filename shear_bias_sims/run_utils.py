@@ -70,6 +70,7 @@ def observation_builder(config, rng, logger):
     """
     # build the image
     image = galsim.config.BuildImage(config, logger=None)
+    image_shape = (config["image_ysize"], config["image_xsize"])
 
     # build the PSF image
     psf_obj = galsim.config.BuildGSObject(config, "psf", logger=None)[0]
@@ -78,20 +79,20 @@ def observation_builder(config, rng, logger):
     psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=config["image"]["pixel_scale"])
 
     # build the weight image
-    weight = galsim.Image(np.zeros((config["image_ysize"], config["image_xsize"])))
+    weight = galsim.Image(np.zeros(image_shape))
     galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
 
     # build the noise image
-    noise = galsim.Image(np.zeros((config["image_ysize"], config["image_xsize"])))
+    noise = galsim.Image(np.zeros(image_shape))
     galsim.config.noise.AddNoise(config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
 
     # build the bmask array
     # TODO: what is this anyways
-    bmask = np.full(image.array.shape, int(0))
+    bmask = np.full(image_shape, int(0))
 
     # build the ormask array
     # TODO: what is this anyways
-    ormask = np.full(image.array.shape, int(0))
+    ormask = np.full(image_shape, int(0))
 
     # construct the WCS
     # TODO: verify that this is the correct WCS to be using
