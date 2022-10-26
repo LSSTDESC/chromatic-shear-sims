@@ -31,7 +31,8 @@ from galsim import random
 # This file adds image type Lattice, which builds a larger image by tiling nx x ny individual
 # postage stamps.
 
-def build_lattice(full_xsize, full_ysize, nx, ny, v1, v2, rot=None):
+# def build_lattice(full_xsize, full_ysize, nx, ny, v1, v2, rot=None):
+def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None):
     """
     Build a lattice from primitive translation vectors.
     Adapted from https://stackoverflow.com/a/6145068 and
@@ -41,13 +42,11 @@ def build_lattice(full_xsize, full_ysize, nx, ny, v1, v2, rot=None):
     v1 /= np.sqrt(v1.dot(v1))
     v2 /= np.sqrt(v2.dot(v2))
 
-    # compute the size of the lattice cells
-    dx = full_xsize // nx
-    dy = full_ysize // ny
-
     # first, create a square lattice that covers the full image
-    xs = np.arange(-nx, nx + 1) * dx
-    ys = np.arange(-ny, ny + 1) * dy
+    # scale: arcsec / pixel
+    # sep: arcsec
+    xs = np.arange(-full_xsize // 2, full_xsize // 2 + 1) * sep / scale
+    ys = np.arange(-full_ysize // 2, full_ysize // 2 + 1) * sep / scale
     x_square, y_square = np.meshgrid(xs, ys)
 
     # apply the lattice vectors to the lattice
@@ -106,50 +105,26 @@ class LatticeImageBuilder(ImageBuilder):
         logger.debug('image %d: Building Lattice: image, obj = %d,%d',image_num,image_num,obj_num)
 
         extra_ignore = [ 'image_pos' ] # We create this below, so on subequent passes, we ignore it.
-        req = { 'nx_tiles' : int , 'ny_tiles' : int }
-        opt = { 'stamp_size' : int , 'stamp_xsize' : int , 'stamp_ysize' : int ,
-                'border' : int , 'xborder' : int , 'yborder' : int , 'order' : str }
+        req = { 'sep' : float , 'xsize' : int , 'ysize' : int }
+        opt = {}
         params = GetAllParams(config, base, req=req, opt=opt, ignore=ignore+extra_ignore)[0]
 
-        self.nx_tiles = params['nx_tiles']  # We'll need this again later, so save them in self.
-        self.ny_tiles = params['ny_tiles']
-        logger.debug('image %d: n_tiles = %d, %d',image_num,self.nx_tiles,self.ny_tiles)
+        self.sep = params["sep"]
 
-        stamp_size = params.get('stamp_size',0)
-        self.stamp_xsize = params.get('stamp_xsize',stamp_size)
-        self.stamp_ysize = params.get('stamp_ysize',stamp_size)
+        size = params.get('size',0)
+        full_xsize = params.get('xsize',size)
+        full_ysize = params.get('ysize',size)
 
-        if (self.stamp_xsize <= 0) or (self.stamp_ysize <= 0):
+        if (full_xsize <= 0) or (full_ysize <= 0):
             raise GalSimConfigError(
-                "Both image.stamp_xsize and image.stamp_ysize need to be defined and > 0.")
-
-        border = params.get("border",0)
-        self.xborder = params.get("xborder",border)
-        self.yborder = params.get("yborder",border)
-
-        # Store the net grid spacing in the config dict as grid_xsize, grid_ysize for things like
-        # PowerSpectrum that might want to know the grid spacing.
-        base['grid_xsize'] = self.stamp_xsize + self.xborder
-        base['grid_ysize'] = self.stamp_ysize + self.yborder
-
-        # self.do_noise_in_stamps = self.xborder >= 0 and self.yborder >= 0
-        # TODO: Note: if one of these is < 0 and the other is > 0, then
-        #       this will add noise to the border region.  Not exactly the
-        #       design, but I didn't bother to do the bookkeeping right to
-        #       make the borders pure 0 in that case.
-
-        full_xsize = (self.stamp_xsize + self.xborder) * self.nx_tiles - self.xborder
-        full_ysize = (self.stamp_ysize + self.yborder) * self.ny_tiles - self.yborder
+                "Both image.xsize and image.ysize need to be defined and > 0.")
 
         # If image_force_xsize and image_force_ysize were set in config, make sure it matches.
         if ( ('image_force_xsize' in base and full_xsize != base['image_force_xsize']) or
              ('image_force_ysize' in base and full_ysize != base['image_force_ysize']) ):
             raise GalSimConfigError(
                 "Unable to reconcile required image xsize and ysize with provided "
-                "nx_tiles=%d, ny_tiles=%d, xborder=%d, yborder=%d\n"
-                "Calculated full_size = (%d,%d) != required (%d,%d)."%(
-                    self.nx_tiles, self.ny_tiles, self.xborder, self.yborder,
-                    full_xsize, full_ysize, base['image_force_xsize'],base['image_force_ysize']))
+                "xsize=%d, ysize=%d, "%(full_xsize,full_ysize))
 
         return full_xsize, full_ysize
 
@@ -179,14 +154,13 @@ class LatticeImageBuilder(ImageBuilder):
         full_image.setZero()
         base['current_image'] = full_image
 
-        # nobjects = self.nx_tiles * self.ny_tiles  # TODO: use scattered format for this
-
         # Make a list of ix,iy values according to the specified order:
         rng = np.random.default_rng()
         theta = rng.uniform(0, 360)  # TODO: grab from config
-        v1 = np.asarray([1, 0], dtype=float)  # TODO: grab from config
-        v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)  # TODO: grab from config
-        x_lattice, y_lattice = build_lattice(full_xsize-1, full_ysize-1, self.nx_tiles, self.ny_tiles, v1, v2, theta)
+        # TODO: pull lattice vectors from config
+        v1 = np.asarray([1, 0], dtype=float)
+        v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
+        x_lattice, y_lattice = build_lattice(full_xsize-1, full_ysize-1, self.sep, base["pixel_scale"], v1, v2, theta)
         nobjects = len(x_lattice)
 
         # Define a 'image_pos' field so the stamps can set their position appropriately in case
@@ -202,8 +176,8 @@ class LatticeImageBuilder(ImageBuilder):
         }
 
         stamps, current_vars = BuildStamps(
-                nobjects, base, logger=logger, obj_num=obj_num,
-                xsize=self.stamp_xsize, ysize=self.stamp_ysize, do_noise=False)
+            nobjects, base, logger=logger, obj_num=obj_num,do_noise=False
+        )
 
         base['index_key'] = 'image_num'
 
@@ -263,29 +237,29 @@ class LatticeImageBuilder(ImageBuilder):
         AddSky(base,image)
         AddNoise(base,image,current_var,logger)
 
-    def getNObj(self, config, base, image_num, logger=None):
-        """Get the number of objects that will be built for this image.
+    # def getNObj(self, config, base, image_num, logger=None):
+    #     """Get the number of objects that will be built for this image.
 
-        Parameters:
-            config:     The configuration dict for the image field.
-            base:       The base configuration dict.
-            image_num:  The current image number.
-            logger:     If given, a logger object to log progress.
+    #     Parameters:
+    #         config:     The configuration dict for the image field.
+    #         base:       The base configuration dict.
+    #         image_num:  The current image number.
+    #         logger:     If given, a logger object to log progress.
 
-        Returns:
-            the number of objects
-        """
-        orig_index_key = base.get('index_key',None)
-        base['index_key'] = 'image_num'
-        base['image_num'] = image_num
+    #     Returns:
+    #         the number of objects
+    #     """
+    #     orig_index_key = base.get('index_key',None)
+    #     base['index_key'] = 'image_num'
+    #     base['image_num'] = image_num
 
-        if 'nx_tiles' not in config or 'ny_tiles' not in config:
-            raise GalSimConfigError(
-                "Attributes nx_tiles and ny_tiles are required for image.type = Lattice")
-        nx = ParseValue(config,'nx_tiles',base,int)[0]
-        ny = ParseValue(config,'ny_tiles',base,int)[0]
-        base['index_key'] = orig_index_key
-        return nx*ny
+    #     if 'nx_tiles' not in config or 'ny_tiles' not in config:
+    #         raise GalSimConfigError(
+    #             "Attributes nx_tiles and ny_tiles are required for image.type = Lattice")
+    #     nx = ParseValue(config,'nx_tiles',base,int)[0]
+    #     ny = ParseValue(config,'ny_tiles',base,int)[0]
+    #     base['index_key'] = orig_index_key
+    #     return nx*ny
 
 # Register this as a valid image type
 RegisterImageType('Lattice', LatticeImageBuilder())
