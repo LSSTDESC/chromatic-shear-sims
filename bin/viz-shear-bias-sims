@@ -17,8 +17,6 @@ import galsim
 
 import shear_bias_sims.image_lattice
 
-cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["#000000", "#FFFFFF"])
-
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -89,16 +87,16 @@ def main():
 
         fig, axs = plt.subplots(nrows=1, ncols=4)
 
-        axs[0].imshow(image.array, origin="lower", cmap=cmap)
+        axs[0].imshow(image.array, origin="lower")
         axs[0].set_title("Image")
 
-        axs[1].imshow(psf.array, origin="lower", cmap=cmap)
+        axs[1].imshow(psf.array, origin="lower")
         axs[1].set_title("PSF")
 
-        axs[2].imshow(weight.array, origin="lower", cmap=cmap)
+        axs[2].imshow(weight.array, origin="lower")
         axs[2].set_title("Weight")
 
-        axs[3].imshow(noise.array, origin="lower", cmap=cmap)
+        axs[3].imshow(noise.array, origin="lower")
         axs[3].set_title("Noise Realization")
 
         for ax in axs.ravel():
