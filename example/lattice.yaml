@@ -1,3 +1,6 @@
+modules:
+  - image_lattice
+
 stamp:
   type: Ring
   num: 2
@@ -25,11 +28,11 @@ gal:
     radius: 0.1  # arcsec
 
 image:
-  type: Tiled
-  nx_tiles: 10
-  ny_tiles: 10
-  stamp_size: 32
+  type: Lattice
+  xsize: 320
+  ysize: 320
   pixel_scale: 0.2  # arcsec / pixel
+  sep: 5.0  # arcsec
 
   random_seed : 42
 
