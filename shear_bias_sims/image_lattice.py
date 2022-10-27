@@ -38,8 +38,8 @@ def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None):
     # construct the roation matrix and rotate the lattice points
     rotation = np.array(
         [
-            [np.cos(np.radians(rot)), np.sin(np.radians(rot))],
-            [-np.sin(np.radians(rot)), np.cos(np.radians(rot))],
+            [np.cos(np.radians(rot)), -np.sin(np.radians(rot))],
+            [np.sin(np.radians(rot)), np.cos(np.radians(rot))],
         ]
     )
     xy_lattice_rot = np.stack(
@@ -88,10 +88,11 @@ class LatticeImageBuilder(ImageBuilder):
 
         extra_ignore = [ 'image_pos' ] # We create this below, so on subequent passes, we ignore it.
         req = { 'sep' : float , 'xsize' : int , 'ysize' : int }
-        opt = {}
+        opt = { 'rotation' : float }
         params = GetAllParams(config, base, req=req, opt=opt, ignore=ignore+extra_ignore)[0]
 
         self.sep = params["sep"]
+        self.rotation = params.get("rotation", 0)
 
         size = params.get('size',0)
         full_xsize = params.get('xsize',size)
@@ -138,11 +139,10 @@ class LatticeImageBuilder(ImageBuilder):
 
         # Make a list of ix,iy values according to the specified order:
         rng = np.random.default_rng()
-        theta = rng.uniform(0, 360)  # TODO: grab from config
         # TODO: pull lattice vectors from config
         v1 = np.asarray([1, 0], dtype=float)
         v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
-        x_lattice, y_lattice = build_lattice(full_xsize-1, full_ysize-1, self.sep, base["pixel_scale"], v1, v2, theta)
+        x_lattice, y_lattice = build_lattice(full_xsize-1, full_ysize-1, self.sep, base["pixel_scale"], v1, v2, self.rotation)
         nobjects = len(x_lattice)
 
         # Define a 'image_pos' field so the stamps can set their position appropriately in case

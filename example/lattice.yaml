@@ -33,6 +33,10 @@ image:
   ysize: 320
   pixel_scale: 0.2  # arcsec / pixel
   sep: 5.0  # arcsec
+  rotation:
+    type: Random
+    min: 0.0  # deg
+    max: 360.0  # deg
 
   random_seed : 42
 
