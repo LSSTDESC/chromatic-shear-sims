@@ -15,7 +15,7 @@ from loguru import logger
 import fitsio
 import galsim
 
-import shear_bias_sims.image_lattice
+import shear_bias_sims.run_utils
 
 
 def get_args():
