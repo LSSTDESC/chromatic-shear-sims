@@ -32,6 +32,7 @@ image:
   xsize: 320
   ysize: 320
   pixel_scale: 0.2  # arcsec / pixel
+  border_ratio: 0.8
   sep: 5.0  # arcsec
   rotation:
     type: Random

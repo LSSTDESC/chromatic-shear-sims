@@ -13,8 +13,7 @@ from galsim import random
 # This file adds image type Lattice, which builds a larger image by tiling nx x ny individual
 # postage stamps.
 
-# def build_lattice(full_xsize, full_ysize, nx, ny, v1, v2, rot=None):
-def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None):
+def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None, border_ratio=1):
     """
     Build a lattice from primitive translation vectors.
     Adapted from https://stackoverflow.com/a/6145068 and
@@ -48,18 +47,15 @@ def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None):
     ) @ rotation.T
     x_lattice_rot, y_lattice_rot = np.split(xy_lattice_rot, 2, axis=1)
 
-    # return x_lattice_rot, y_lattice_rot
-
     # remove points outside of the full image
     bounds_x = (-(full_xsize - 1) // 2, (full_xsize - 1) // 2)
     bounds_y = (-(full_ysize - 1) // 2, (full_ysize - 1) // 2)
 
-    # TODO: make the border ratio configurable
     mask = (
-        (x_lattice_rot > bounds_x[0] * 0.8)
-        & (x_lattice_rot < bounds_x[1] * 0.8)
-        & (y_lattice_rot > bounds_y[0] * 0.8)
-        & (y_lattice_rot < bounds_y[1] * 0.8)
+        (x_lattice_rot > bounds_x[0] * border_ratio)
+        & (x_lattice_rot < bounds_x[1] * border_ratio)
+        & (y_lattice_rot > bounds_y[0] * border_ratio)
+        & (y_lattice_rot < bounds_y[1] * border_ratio)
     )
 
     return x_lattice_rot[mask] + bounds_x[1], y_lattice_rot[mask] + bounds_y[1]
@@ -88,11 +84,12 @@ class LatticeImageBuilder(ImageBuilder):
 
         extra_ignore = [ 'image_pos' ] # We create this below, so on subequent passes, we ignore it.
         req = { 'sep' : float , 'xsize' : int , 'ysize' : int }
-        opt = { 'rotation' : float }
+        opt = { 'rotation' : float , "border_ratio" : float }
         params = GetAllParams(config, base, req=req, opt=opt, ignore=ignore+extra_ignore)[0]
 
         self.sep = params["sep"]
         self.rotation = params.get("rotation", 0)
+        self.border_ratio = params.get("border_ratio", 1)
 
         size = params.get('size',0)
         full_xsize = params.get('xsize',size)
@@ -142,7 +139,7 @@ class LatticeImageBuilder(ImageBuilder):
         # TODO: pull lattice vectors from config
         v1 = np.asarray([1, 0], dtype=float)
         v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
-        x_lattice, y_lattice = build_lattice(full_xsize-1, full_ysize-1, self.sep, base["pixel_scale"], v1, v2, self.rotation)
+        x_lattice, y_lattice = build_lattice(full_xsize-1, full_ysize-1, self.sep, base["pixel_scale"], v1, v2, self.rotation, self.border_ratio)
         nobjects = len(x_lattice)
 
         # Define a 'image_pos' field so the stamps can set their position appropriately in case
