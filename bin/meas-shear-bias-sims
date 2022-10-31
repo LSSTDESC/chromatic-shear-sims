@@ -103,6 +103,11 @@ def main():
     logger.info(f"multiplicative bias: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma)")
     logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma)")
 
+    if np.abs(m_est) < np.abs(m_std * 3):
+        logger.error(f"reliable measurement (3-sigma uncertainty > mean measurement)")
+    else:
+        logger.success(f"unreliable measurement (3-sigma uncertainty < mean measurement)")
+
     if np.abs(m_est) < 0.002:
         logger.success(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3e} < {m_req:.3e})")
     else:
