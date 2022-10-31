@@ -1,5 +1,5 @@
 modules:
-  - image_lattice
+  - galsim_extra
 
 stamp:
   type: Ring

@@ -14,8 +14,7 @@ from loguru import logger
 
 import fitsio
 import galsim
-
-import shear_bias_sims.run_utils
+import galsim_extra
 
 
 def get_args():

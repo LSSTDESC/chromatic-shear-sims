@@ -10,10 +10,9 @@ import numpy as np
 
 import fitsio
 import galsim
+import galsim_extra
 import ngmix
 import metadetect
-
-import shear_bias_sims.image_lattice
 
 
 ORMASK_CUTS = [True, False]

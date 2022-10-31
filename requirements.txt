@@ -1,5 +1,6 @@
 fitsio
 galsim
+galsim_extra
 joblib
 loguru
 matplotlib
