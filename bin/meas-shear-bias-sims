@@ -8,6 +8,7 @@ import copy
 
 import yaml
 import numpy as np
+import joblib
 from loguru import logger
 
 import fitsio
@@ -18,6 +19,20 @@ import metadetect
 from shear_bias_sims import run_utils
 
 
+def _read_ext(fname, ext):
+    return fitsio.read(fname, ext=ext)
+
+
+def _read_output(files, ext, n_jobs=1):
+    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
+        data = parallel([
+            joblib.delayed(_read_ext)(fname, ext)
+            for fname in files
+        ])
+
+    return data
+
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -25,6 +40,13 @@ def get_args():
         type=str,
         required=True,
         help="Metadetection configuration file [yaml]",
+    )
+    parser.add_argument(
+        "--n_jobs",
+        type=int,
+        required=False,
+        default=None,
+        help="Number of CPUs to use [int]",
     )
     parser.add_argument(
         "--s2n-cut", type=int, default=10,
@@ -61,14 +83,17 @@ def main():
 
     logger.info(f"Measuring: {vars(args)}")
 
-    logger.info(f"Reading and concatenating output")
+    logger.info(f"Reading output files")
     pdata = []
     mdata = []
-    for output in args.output:
-        with fitsio.FITS(output, "r") as fits:
-            pdata.append(fits["plus"].read())
-            mdata.append(fits["minus"].read())
+    pdata = _read_output(args.output, "plus", n_jobs=args.n_jobs)
+    mdata = _read_output(args.output, "minus", n_jobs=args.n_jobs)
+    # for output in args.output:
+    #     with fitsio.FITS(output, "r") as fits:
+    #         pdata.append(fits["plus"].read())
+    #         mdata.append(fits["minus"].read())
 
+    logger.info(f"Concatenating output files")
     pdata = np.concatenate(pdata)
     mdata = np.concatenate(mdata)
 
@@ -104,9 +129,9 @@ def main():
     logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma)")
 
     if np.abs(m_est) < np.abs(m_std * 3):
-        logger.error(f"reliable measurement (3-sigma uncertainty > mean measurement)")
+        logger.error(f"unreliable measurement (3-sigma uncertainty > mean measurement)")
     else:
-        logger.success(f"unreliable measurement (3-sigma uncertainty < mean measurement)")
+        logger.success(f"reliable measurement (3-sigma uncertainty < mean measurement)")
 
     if np.abs(m_est) < 0.002:
         logger.success(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3e} < {m_req:.3e})")
