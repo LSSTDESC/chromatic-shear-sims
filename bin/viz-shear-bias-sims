@@ -5,26 +5,31 @@ Staging file for generating simulations and running metadetect
 
 import argparse
 import copy
+import logging  #
+import sys  #
+import os  #
 
 import yaml
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from loguru import logger
+# from loguru import logger
 
 import fitsio
 import galsim
 import galsim_extra
 
+from shear_bias_sims import run_utils
+
 
 def get_args():
     parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--config",
-    #     type=str,
-    #     required=True,
-    #     help="Metadetection configuration file [yaml]",
-    # )
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Metadetection configuration file [yaml]",
+    )
     parser.add_argument(
         "--sim",
         type=str,
@@ -47,13 +52,15 @@ def main():
     """
     args = get_args()
 
-    # with open(args.config, "r") as fp:
-    #     config = yaml.safe_load(fp.read())
+    with open(args.config, "r") as fp:
+        config = yaml.safe_load(fp.read())
 
-    # # copy the config for safekeeping
-    # _config = copy.deepcopy(config)
+    # copy the config for safekeeping
+    _config = copy.deepcopy(config)
 
-    logger.info(f"Visualizing: {vars(args)}")
+    # logger.info(f"Visualizing: {vars(args)}")
+    logging.basicConfig(format="%(message)s", level=logging.INFO, stream=sys.stdout)
+    logger = logging.getLogger("demo1")
 
     rng = np.random.default_rng()
 
@@ -61,46 +68,118 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
-        # build the image
-        logger.info(f"Building image")
-        image = galsim.config.BuildImage(galsim_config, logger=None)
-        image_shape = (galsim_config["image_ysize"], galsim_config["image_xsize"])
+        # TODO
+        mbobs = run_utils.multibandobservation_builder(
+            config,
+            galsim_config,
+            rng,
+            logger
+        )
 
-        # build the PSF image
-        logger.info(f"Building PSF image")
-        psf_obj = galsim.config.BuildGSObject(galsim_config, "psf", logger=None)[0]
-        psf_nx = 53  # N.B. this should must be odd as ngmix likes PSFs centered on a single pixel
-        psf_ny = psf_nx
-        psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=galsim_config["image"]["pixel_scale"])
+        # fig, axs = plt.subplots(2, 6)
 
-        # build the weight image
-        logger.info(f"Building weight image")
-        weight = galsim.Image(np.zeros(image_shape))
-        galsim.config.noise.AddNoiseVariance(galsim_config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
-        weight.invertSelf()
+        # f = "u"
+        # axs[0, 0].imshow(mbobs[0][0].image, origin="lower")
+        # axs[0, 0].set_title(f)
+        # axs[0, 1].imshow(mbobs[0][0].psf.image, origin="lower")
+        # axs[0, 1].set_title(f)
+        # f = "g"
+        # axs[0, 2].imshow(mbobs[1][0].image, origin="lower")
+        # axs[0, 2].set_title(f)
+        # axs[0, 3].imshow(mbobs[1][0].psf.image, origin="lower")
+        # axs[0, 3].set_title(f)
+        # f = "r"
+        # axs[0, 4].imshow(mbobs[2][0].image, origin="lower")
+        # axs[0, 4].set_title(f)
+        # axs[0, 5].imshow(mbobs[2][0].psf.image, origin="lower")
+        # axs[0, 5].set_title(f)
+        # f = "i"
+        # axs[1, 0].imshow(mbobs[3][0].image, origin="lower")
+        # axs[1, 0].set_title(f)
+        # axs[1, 1].imshow(mbobs[3][0].psf.image, origin="lower")
+        # axs[1, 1].set_title(f)
+        # f = "z"
+        # axs[1, 2].imshow(mbobs[4][0].image, origin="lower")
+        # axs[1, 2].set_title(f)
+        # axs[1, 3].imshow(mbobs[4][0].psf.image, origin="lower")
+        # axs[1, 3].set_title(f)
+        # f = "y"
+        # axs[1, 4].imshow(mbobs[5][0].image, origin="lower")
+        # axs[1, 4].set_title(f)
+        # axs[1, 5].imshow(mbobs[5][0].psf.image, origin="lower")
+        # axs[1, 5].set_title(f)
 
-        # build the noise image
-        logger.info(f"Building noise image")
-        noise = galsim.Image(np.zeros(image_shape))
-        galsim.config.noise.AddNoise(galsim_config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
+        # for ax in axs.ravel():
+        #     ax.set_xticks([])
+        #     ax.set_yticks([])
+        # plt.show()
+        # exit()
 
-        fig, axs = plt.subplots(nrows=1, ncols=4)
+        # # build the image
+        # logger.info(f"Building image")
+        # image = galsim.config.BuildImage(galsim_config, logger=None)
 
-        axs[0].imshow(image.array, origin="lower")
-        axs[0].set_title("Image")
+        # # build the PSF image
+        # logger.info(f"Building PSF image")
+        # psf_size = 53
+        # psf = run_utils.draw_psf(galsim_config, psf_size, logger=logger)
 
-        axs[1].imshow(psf.array, origin="lower")
-        axs[1].set_title("PSF")
+        # # build the weight image
+        # logger.info(f"Building weight image")
+        # weight = run_utils.draw_weight(galsim_config, logger=logger)
 
-        axs[2].imshow(weight.array, origin="lower")
-        axs[2].set_title("Weight")
+        # # build the noise image
+        # logger.info(f"Building noise image")
+        # noise = run_utils.draw_noise(galsim_config, logger=logger)
 
-        axs[3].imshow(noise.array, origin="lower")
-        axs[3].set_title("Noise Realization")
+        #---
 
-        for ax in axs.ravel():
-            ax.set_xticks([])
-            ax.set_yticks([])
+        # fig, axs = plt.subplots(nrows=1, ncols=4)
+
+        # axs[0].imshow(image.array, origin="lower")
+        # axs[0].set_title("Image")
+
+        # axs[1].imshow(psf.array, origin="lower")
+        # axs[1].set_title("PSF")
+
+        # axs[2].imshow(weight.array, origin="lower")
+        # axs[2].set_title("Weight")
+
+        # axs[3].imshow(noise.array, origin="lower")
+        # axs[3].set_title("Noise Realization")
+
+        # for ax in axs.ravel():
+        #     ax.set_xticks([])
+        #     ax.set_yticks([])
+
+        # if args.output is None:
+        #     plt.show()
+        # else:
+        #     logger.info(f"Writing visualization to disk")
+        #     plt.savefig(args.output)
+
+        #---
+
+        for obslist in mbobs:
+            for obs in obslist:
+
+                fig, axs = plt.subplots(nrows=1, ncols=4)
+
+                axs[0].imshow(obs.image, origin="lower")
+                axs[0].set_title("Image")
+
+                axs[1].imshow(obs.psf.image, origin="lower")
+                axs[1].set_title("PSF")
+
+                axs[2].imshow(obs.weight, origin="lower")
+                axs[2].set_title("Weight")
+
+                axs[3].imshow(obs.noise, origin="lower")
+                axs[3].set_title("Noise Realization")
+
+                for ax in axs.ravel():
+                    ax.set_xticks([])
+                    ax.set_yticks([])
 
         if args.output is None:
             plt.show()

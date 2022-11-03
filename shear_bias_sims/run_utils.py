@@ -63,6 +63,65 @@ def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
         i += 1
 
 
+def draw_psf(config, size, logger=None):
+    """
+    Draw the PSF by convolving against a chromatic star.
+    """
+    psf = galsim.config.BuildGSObject(config, "psf", logger=logger)[0]
+    if "star" in config.keys():
+        star = galsim.config.BuildGSObject(config, "star", logger=logger)[0]
+    else:
+        star = galsim.DeltaFunction()
+
+    stellar_psf = galsim.Convolve([star, psf])
+
+    if "bandpass" in config.keys():
+        return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"], bandpass=config["bandpass"])
+    else:
+        return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"])
+
+
+def draw_weight(config, logger=None):
+    """
+    Draw the weight.
+    """
+    image_shape = (config["image_ysize"], config["image_xsize"])
+    weight = galsim.Image(np.zeros(image_shape))
+    galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
+    weight.invertSelf()
+    return weight
+
+
+def draw_noise(config, logger=None):
+    """
+    Draw the noise realization.
+    """
+    image_shape = (config["image_ysize"], config["image_xsize"])
+    noise = galsim.Image(np.zeros(image_shape))
+    galsim.config.noise.AddNoise(config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
+    return noise
+
+
+def draw_bmask(config, logger=None):
+    """
+    Draw the bmask.
+    """
+    # build the bmask array
+    # TODO: what is this anyways
+    image_shape = (config["image_ysize"], config["image_xsize"])
+    return np.full(image_shape, int(0))
+
+
+def draw_ormask(config, logger=None):
+    """
+    Draw the ormask.
+    """
+    # build the ormask array
+    # TODO: what is this anyways
+    image_shape = (config["image_ysize"], config["image_xsize"])
+    return np.full(image_shape, int(0))
+
+
 def observation_builder(config, rng, logger):
     """
     Build an ngmix Observation from a GalSim config dictionary.
@@ -71,28 +130,12 @@ def observation_builder(config, rng, logger):
     image = galsim.config.BuildImage(config, logger=None)
     image_shape = (config["image_ysize"], config["image_xsize"])
 
-    # build the PSF image
-    psf_obj = galsim.config.BuildGSObject(config, "psf", logger=None)[0]
-    psf_nx = 53  # N.B. this should must be odd as ngmix likes PSFs centered on a single pixel
-    psf_ny = psf_nx
-    psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=config["image"]["pixel_scale"])
-
-    # build the weight image
-    weight = galsim.Image(np.zeros(image_shape))
-    galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
-    weight.invertSelf()
-
-    # build the noise image
-    noise = galsim.Image(np.zeros(image_shape))
-    galsim.config.noise.AddNoise(config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
-
-    # build the bmask array
-    # TODO: what is this anyways
-    bmask = np.full(image_shape, int(0))
-
-    # build the ormask array
-    # TODO: what is this anyways
-    ormask = np.full(image_shape, int(0))
+    psf_size = 53
+    psf = draw_psf(config, psf_size, logger=None)
+    weight = draw_weight(config, logger=None)
+    noise = draw_noise(config, logger=None)
+    bmask = draw_bmask(config, logger=None)
+    ormask = draw_ormask(config, logger=None)
 
     # construct the WCS
     # TODO: verify that this is the correct WCS to be using
@@ -105,10 +148,9 @@ def observation_builder(config, rng, logger):
     )
 
     # build the ngmix Observation of the PSF
-    psf_cen = (psf.array.shape[0] - 1) / 2
     psf_jac = ngmix.jacobian.Jacobian(
-        x=psf_cen,
-        y=psf_cen,
+        x=(psf.array.shape[1] - 1) / 2,
+        y=(psf.array.shape[0] - 1) / 2,
         dudx=wcs.dudx,
         dudy=wcs.dudy,
         dvdx=wcs.dvdx,
@@ -120,10 +162,9 @@ def observation_builder(config, rng, logger):
     )
 
     # build the ngmix Observation of the image
-    im_cen = (image.array.shape[0] - 1) / 2
     im_jac = ngmix.jacobian.Jacobian(
-        x=im_cen,
-        y=im_cen,
+        x=(image.array.shape[1] - 1) / 2,
+        y=(image.array.shape[0] - 1) / 2,
         dudx=wcs.dudx,
         dudy=wcs.dudy,
         dvdx=wcs.dvdx,
@@ -139,7 +180,34 @@ def observation_builder(config, rng, logger):
         noise=noise.array.copy(),
     )
 
-    return obs
+    obslist = ngmix.ObsList()
+    obslist.append(obs)
+
+    return obslist
+
+
+def multibandobservation_builder(config, galsim_config, rng, logger):
+    """
+    Build an ngmix MultiBandObservationList from a dictionary of GalSim config dictionary.
+    """
+    mbobs = ngmix.MultiBandObsList()
+    if "chroma" in config.keys():
+        filters = config["chroma"]["filters"]
+        bandpass = config["chroma"]["bandpass"]
+
+        galsim_configs = {}
+        for f in filters:
+            _galsim_config = copy.deepcopy(galsim_config)
+            _galsim_config["image"]["bandpass"] = copy.deepcopy(bandpass)
+            _galsim_config["image"]["bandpass"]["file_name"] = bandpass["file_name"].format(f)
+            galsim_configs[f] = _galsim_config
+
+        for k, v in galsim_configs.items():
+            mbobs.append(observation_builder(v, rng, logger))
+    else:
+        mbobs.append(observation_builder(galsim_config, rng, logger))
+
+    return mbobs
 
 
 def make_pair_config(config, g=0.02):
@@ -161,21 +229,11 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     Build measurements of simulations and write to a memmap
     """
     cosmic_shear = config["shear"]["g"]
-    config_p, config_m = make_pair_config(galsim_config, cosmic_shear)
+    galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
-    obs_p = observation_builder(config_p, rng, logger)
-    obs_m = observation_builder(config_m, rng, logger)
-    obslist_p = ngmix.ObsList()
-    obslist_p.append(obs_p)
-    obslist_m = ngmix.ObsList()
-    obslist_m.append(obs_m)
-
-    # TODO: this should really be grabbing an ObsList for each band
-    mbobs_p = ngmix.MultiBandObsList()
-    mbobs_p.append(obslist_p)
-    mbobs_m = ngmix.MultiBandObsList()
-    mbobs_m.append(obslist_m)
+    mbobs_p = multibandobservation_builder(config, galsim_config_p, rng, logger)
+    mbobs_m = multibandobservation_builder(config, galsim_config_m, rng, logger)
 
     # TODO: how do we handle all of the RNGs? when are they shared?
     mdet_seed = rng.integers(low=1, high=2**29)

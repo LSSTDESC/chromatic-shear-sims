@@ -1,0 +1,70 @@
+modules:
+  - galsim_extra
+
+stamp:
+  type: Ring
+  num: 2
+
+  # for ring simulations, we apply the shear in the stamp
+  shear:
+    type: G1G2
+    g1: 0.0
+    g2: 0.0
+
+  sky_pos:
+    type: RADec
+    ra: 14:03:13 hours
+    dec: 54:20:57 degrees
+
+psf:
+  type: ChromaticAtmosphere
+  base_profile:
+      type: Moffat
+      fwhm: 0.5
+      beta: 2.5
+  base_wavelength: 500
+  latitude: 19.8207 deg
+  HA: -1.0 hour
+
+star:
+  type: DeltaFunction
+  sed:
+    file_name: CWW_Im_ext.sed
+    wave_type: Ang
+    flux_type: flambda
+
+gal:
+  type: Exponential
+  half_light_radius: 0.5
+  signal_to_noise: 100
+
+  shift:
+    type: RandomCircle
+    radius: 0.1  # arcsec
+
+  sed:
+    file_name: CWW_E_ext.sed
+    wave_type: Ang
+    flux_type: flambda
+    norm_flux_density: 1.0
+    norm_wavelength: 500
+
+  redshift: 0.8
+
+image:
+  type: Lattice
+  xsize: 320
+  ysize: 320
+  pixel_scale: 0.2  # arcsec / pixel
+  border_ratio: 0.8
+  sep: 5.0  # arcsec
+  rotation:
+    type: Random
+    min: 0.0  # deg
+    max: 360.0  # deg
+
+  random_seed : 42
+
+  noise:
+    type: Gaussian
+    sigma: 0.02
