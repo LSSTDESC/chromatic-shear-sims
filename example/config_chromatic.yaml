@@ -2,7 +2,7 @@ shear:
   g: 0.02
 
 chroma:
-  filters: [u, g, r, i, z, y]
+  filters: [g]
 
   bandpass:
     file_name: "LSST_{}.dat"

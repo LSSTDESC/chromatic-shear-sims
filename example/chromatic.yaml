@@ -23,8 +23,8 @@ psf:
       fwhm: 0.5
       beta: 2.5
   base_wavelength: 500
-  latitude: 19.8207 deg
-  HA: -1.0 hour
+  parallactic_angle: 0 deg  # set to 0 to disable DCR
+  zenith_angle: 0 deg  # set to 0 to disable DCR
 
 star:
   type: DeltaFunction
