@@ -5,7 +5,7 @@ eval_variables:
     # It will be convenient to have the single-character filter name to use in Eval items.
     sfilter:
         type: List
-        items: [g]
+        items: [g, i]
         index_key: image_num
 
 stamp:
