@@ -80,8 +80,6 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
-        rng = np.random.default_rng(args.seed)
-
         # TODO: break jobs up into chunks?
         # chunk_size = 100  # TODO: placeholder
         # slices = [slice(start, start + chunk_size)
