@@ -44,22 +44,22 @@ def _make_res_arrays(n_sims):
     return np.stack([np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)], axis=-1)
 
 
-def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
+def generate_arguments(config, galsim_config, seed, n, memmap_dict, logger):
     """
     Generate arguments for the measurement builder.
     """
     i = 0
     while i < n:
-        seed = rng.integers(low=1, high=2**29)
         arg_dict = {
             "config": copy.deepcopy(config),
             "galsim_config": copy.deepcopy(galsim_config),
-            "rng": np.random.default_rng(seed),
+            "seed": seed,
             "memmap_dict": memmap_dict,
             "idx": i,
             "logger": logger,
         }
         yield arg_dict
+        seed += 1
         i += 1
 
 
@@ -107,7 +107,6 @@ def draw_bmask(config, logger=None):
     Draw the bmask.
     """
     # build the bmask array
-    # TODO: what is this anyways
     image_shape = (config["image_ysize"], config["image_xsize"])
     return np.full(image_shape, int(0))
 
@@ -117,95 +116,91 @@ def draw_ormask(config, logger=None):
     Draw the ormask.
     """
     # build the ormask array
-    # TODO: what is this anyways
     image_shape = (config["image_ysize"], config["image_xsize"])
     return np.full(image_shape, int(0))
 
 
-def observation_builder(config, rng, logger):
+def observation_builder(config, galsim_config, seed=None, logger=None):
     """
-    Build an ngmix Observation from a GalSim config dictionary.
+    Build an ngmix MultiBandObsList from a GalSim config dictionary.
     """
-    # build the image
-    image = galsim.config.BuildImage(config, logger=None)
-    image_shape = (config["image_ysize"], config["image_xsize"])
-
-    psf_size = 53
-    psf = draw_psf(config, psf_size, logger=None)
-    weight = draw_weight(config, logger=None)
-    noise = draw_noise(config, logger=None)
-    bmask = draw_bmask(config, logger=None)
-    ormask = draw_ormask(config, logger=None)
-
-    # construct the WCS
-    # TODO: verify that this is the correct WCS to be using
-    wcs = galsim.AffineTransform(
-        config["pixel_scale"],
-        0.0,
-        0.0,
-        config["pixel_scale"],
-        origin=image.center,
+    # Setup the RNGs with a fixed default
+    seed = seed or 42  # TODO: backpropagate this default?
+                       # note that GalSim doesn't like 0 as a default here
+    galsim.config.SetInConfig(
+        galsim_config,
+        "image.random_seed",
+        [
+            {'type': 'Sequence', 'first': seed, 'index_key': 'image_num'},
+            {'type': 'Sequence', 'first': seed, 'index_key': 'file_num'},
+        ]
     )
 
-    # build the ngmix Observation of the PSF
-    psf_jac = ngmix.jacobian.Jacobian(
-        x=(psf.array.shape[1] - 1) / 2,
-        y=(psf.array.shape[0] - 1) / 2,
-        dudx=wcs.dudx,
-        dudy=wcs.dudy,
-        dvdx=wcs.dvdx,
-        dvdy=wcs.dvdy,
-    )
-    psf_obs = ngmix.Observation(
-        psf.array.copy(),
-        jacobian=psf_jac,
-    )
-
-    # build the ngmix Observation of the image
-    im_jac = ngmix.jacobian.Jacobian(
-        x=(image.array.shape[1] - 1) / 2,
-        y=(image.array.shape[0] - 1) / 2,
-        dudx=wcs.dudx,
-        dudy=wcs.dudy,
-        dvdx=wcs.dvdx,
-        dvdy=wcs.dvdy,
-    )
-    obs = ngmix.Observation(
-        image.array.copy(),
-        weight=weight.array.copy(),
-        bmask=bmask.copy(),
-        ormask=ormask.copy(),
-        jacobian=im_jac,
-        psf=psf_obs,
-        noise=noise.array.copy(),
-    )
-
-    obslist = ngmix.ObsList()
-    obslist.append(obs)
-
-    return obslist
-
-
-def multibandobservation_builder(config, galsim_config, rng, logger):
-    """
-    Build an ngmix MultiBandObservationList from a dictionary of GalSim config dictionary.
-    """
-    mbobs = ngmix.MultiBandObsList()
-    if "chroma" in config.keys():
-        filters = config["chroma"]["filters"]
-        bandpass = config["chroma"]["bandpass"]
-
-        galsim_configs = {}
-        for f in filters:
-            _galsim_config = copy.deepcopy(galsim_config)
-            _galsim_config["image"]["bandpass"] = copy.deepcopy(bandpass)
-            _galsim_config["image"]["bandpass"]["file_name"] = bandpass["file_name"].format(f)
-            galsim_configs[f] = _galsim_config
-
-        for k, v in galsim_configs.items():
-            mbobs.append(observation_builder(v, rng, logger))
+    # TODO: I don't prefer this method of searching for multiband info
+    # support single-band or multi-band observations of a scene
+    if ("eval_variables" in galsim_config.keys()) and ("sfilter" in galsim_config["eval_variables"].keys()):
+        nimages = len(galsim.config.GetFromConfig(galsim_config, "eval_variables.sfilter.items"))
     else:
-        mbobs.append(observation_builder(galsim_config, rng, logger))
+        nimages = 1
+
+    mbobs = ngmix.MultiBandObsList()
+    for _i in range(nimages):
+        image = galsim.config.BuildImage(galsim_config, _i, logger=None)
+
+        # draw images used for each ngmix Observation
+        psf_size = 53  # TODO: would be good to specify in global config
+        psf = draw_psf(galsim_config, psf_size, logger=None)
+        weight = draw_weight(galsim_config, logger=None)
+        noise = draw_noise(galsim_config, logger=None)
+        bmask = draw_bmask(galsim_config, logger=None)
+        ormask = draw_ormask(galsim_config, logger=None)
+
+        # construct the WCS
+        # TODO: verify that this is the correct WCS to be using
+        wcs = galsim.AffineTransform(
+            galsim_config["pixel_scale"],
+            0.0,
+            0.0,
+            galsim_config["pixel_scale"],
+            origin=image.center,
+        )
+
+        # build the ngmix Observation of the PSF
+        psf_jac = ngmix.jacobian.Jacobian(
+            x=(psf.array.shape[1] - 1) / 2,
+            y=(psf.array.shape[0] - 1) / 2,
+            dudx=wcs.dudx,
+            dudy=wcs.dudy,
+            dvdx=wcs.dvdx,
+            dvdy=wcs.dvdy,
+        )
+        psf_obs = ngmix.Observation(
+            psf.array.copy(),
+            jacobian=psf_jac,
+        )
+
+        # build the ngmix Observation of the image
+        im_jac = ngmix.jacobian.Jacobian(
+            x=(image.array.shape[1] - 1) / 2,
+            y=(image.array.shape[0] - 1) / 2,
+            dudx=wcs.dudx,
+            dudy=wcs.dudy,
+            dvdx=wcs.dvdx,
+            dvdy=wcs.dvdy,
+        )
+        obs = ngmix.Observation(
+            image.array.copy(),
+            weight=weight.array.copy(),
+            bmask=bmask.copy(),
+            ormask=ormask.copy(),
+            jacobian=im_jac,
+            psf=psf_obs,
+            noise=noise.array.copy(),
+        )
+
+        obslist = ngmix.ObsList()
+        obslist.append(obs)
+        mbobs.append(obslist)
 
     return mbobs
 
@@ -213,18 +208,40 @@ def multibandobservation_builder(config, galsim_config, rng, logger):
 def make_pair_config(config, g=0.02):
     """
     Create a pair of configs to simulate scenes sheared with equal and opposite
-    shears for the noise bias cancellation algorithm.
+    shears for noise bias cancellation.
     """
     config_p = copy.deepcopy(config)
     config_m = copy.deepcopy(config)
 
-    config_p["stamp"]["shear"]["g1"] = g
-    config_m["stamp"]["shear"]["g1"] = -g
+    # TODO: this assumes we're applying the shear at the stamp stage (i.e., when doing
+    # ring simulations. This won't work in general...
+    # config_p["stamp"]["shear"]["g1"] = g
+    # config_m["stamp"]["shear"]["g1"] = -g
+    galsim.config.SetInConfig(config_p, "stamp.shear.g1", g)
+    galsim.config.SetInConfig(config_m, "stamp.shear.g1", -g)
 
     return config_p, config_m
 
 
-def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
+# TODO: currently unused
+def make_multiband_config(galsim_config, bandpass=None, bands=None):
+    """
+    Create a list of configs for each band.
+    """
+    if (bandpass is not None) and (bands is not None):
+        galsim_configs = []
+        for band in bands:
+            _galsim_config = copy.deepcopy(galsim_config)
+            _galsim_config["image"]["bandpass"] = copy.deepcopy(bandpass)
+            _galsim_config["image"]["bandpass"]["file_name"] = bandpass["file_name"].format(band)
+            galsim_configs.append(_galsim_config)
+        return galsim_configs
+    else:
+        _galsim_config = copy.deepcopy(galsim_config)
+        return [_galsim_config]
+
+
+def measurement_builder(config, galsim_config, seed, memmap_dict, idx, logger):
     """
     Build measurements of simulations and write to a memmap
     """
@@ -232,12 +249,11 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
-    mbobs_p = multibandobservation_builder(config, galsim_config_p, rng, logger)
-    mbobs_m = multibandobservation_builder(config, galsim_config_m, rng, logger)
+    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=logger)
+    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=logger)
 
     # TODO: how do we handle all of the RNGs? when are they shared?
-    mdet_seed = rng.integers(low=1, high=2**29)
-    mdet_rng = np.random.default_rng(mdet_seed)
+    mdet_rng = np.random.default_rng(seed)
 
     res_p = metadetect.do_metadetect(
         config["metadetect"],

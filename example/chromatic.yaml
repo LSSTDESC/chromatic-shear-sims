@@ -1,20 +1,22 @@
 modules:
   - galsim_extra
 
+eval_variables:
+    # It will be convenient to have the single-character filter name to use in Eval items.
+    sfilter:
+        type: List
+        items: [g]
+        index_key: image_num
+
 stamp:
   type: Ring
   num: 2
 
-  # for ring simulations, we apply the shear in the stamp
+  # for ring simulations, we can apply the shear in the stamp
   shear:
     type: G1G2
     g1: 0.0
     g2: 0.0
-
-  sky_pos:
-    type: RADec
-    ra: 14:03:13 hours
-    dec: 54:20:57 degrees
 
 psf:
   type: ChromaticAtmosphere
@@ -23,8 +25,8 @@ psf:
       fwhm: 0.5
       beta: 2.5
   base_wavelength: 500
-  parallactic_angle: 0 deg  # set to 0 to disable DCR
   zenith_angle: 0 deg  # set to 0 to disable DCR
+  parallactic_angle: 0 deg  # set to 0 to disable DCR
 
 star:
   type: DeltaFunction
@@ -39,8 +41,10 @@ gal:
   signal_to_noise: 100
 
   shift:
-    type: RandomCircle
-    radius: 0.1  # arcsec
+    type: XY
+    x: { 'type' : 'Random' , 'min' : '$ -1 * @image.pixel_scale', 'max' : '$ 1 * @image.pixel_scale' }
+    y: { 'type' : 'Random' , 'min' : '$ -1 * @image.pixel_scale', 'max' : '$ 1 * @image.pixel_scale' }
+    rng_num: 1
 
   sed:
     file_name: CWW_E_ext.sed
@@ -62,9 +66,25 @@ image:
     type: Random
     min: 0.0  # deg
     max: 360.0  # deg
+    rng_num: 1
 
-  random_seed : 42
+  bandpass:
+    file_name:
+      type: FormattedStr
+      format: "LSST_%s.dat"
+      items:
+        - $filter
+    wave_type: nm   # Wavelength in these files is in nm.
+    thin: 1.e-4
+
+  random_seed:
+    # Used for observational conditions (noise, etc.)
+    - {type: Sequence, first: 42, index_key: 'image_num'}
+
+    # Used for defining the scene (positions, etc.)
+    - {type: Sequence, first: 42, index_key: 'file_num'}
 
   noise:
     type: Gaussian
     sigma: 0.02
+    rng_num: 0

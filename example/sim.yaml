@@ -21,8 +21,9 @@ gal:
   signal_to_noise: 100
 
   shift:
-    type: RandomCircle
-    radius: 0.1  # arcsec
+    type: XY
+    x: { 'type' : 'Random' , 'min' : '$ -1 * @image.pixel_scale', 'max' : '$ 1 * @image.pixel_scale' }
+    y: { 'type' : 'Random' , 'min' : '$ -1 * @image.pixel_scale', 'max' : '$ 1 * @image.pixel_scale' }
 
 image:
   type: Tiled

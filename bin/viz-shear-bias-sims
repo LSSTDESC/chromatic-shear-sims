@@ -5,15 +5,12 @@ Staging file for generating simulations and running metadetect
 
 import argparse
 import copy
-import logging  #
-import sys  #
-import os  #
 
 import yaml
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-# from loguru import logger
+from loguru import logger
 
 import fitsio
 import galsim
@@ -43,6 +40,13 @@ def get_args():
         default=None,
         help="Output file [png, pdf]",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=None,
+        help="RNG seed [int]",
+    )
     return parser.parse_args()
 
 
@@ -58,107 +62,18 @@ def main():
     # copy the config for safekeeping
     _config = copy.deepcopy(config)
 
-    # logger.info(f"Visualizing: {vars(args)}")
-    logging.basicConfig(format="%(message)s", level=logging.INFO, stream=sys.stdout)
-    logger = logging.getLogger("demo1")
-
-    rng = np.random.default_rng()
+    logger.info(f"Visualizing: {vars(args)}")
 
     for galsim_config in galsim.config.ReadConfig(args.sim):
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
-        # TODO
-        mbobs = run_utils.multibandobservation_builder(
+        mbobs = run_utils.observation_builder(
             config,
             galsim_config,
-            rng,
-            logger
+            seed=args.seed,
+            logger=None,
         )
-
-        # fig, axs = plt.subplots(2, 6)
-
-        # f = "u"
-        # axs[0, 0].imshow(mbobs[0][0].image, origin="lower")
-        # axs[0, 0].set_title(f)
-        # axs[0, 1].imshow(mbobs[0][0].psf.image, origin="lower")
-        # axs[0, 1].set_title(f)
-        # f = "g"
-        # axs[0, 2].imshow(mbobs[1][0].image, origin="lower")
-        # axs[0, 2].set_title(f)
-        # axs[0, 3].imshow(mbobs[1][0].psf.image, origin="lower")
-        # axs[0, 3].set_title(f)
-        # f = "r"
-        # axs[0, 4].imshow(mbobs[2][0].image, origin="lower")
-        # axs[0, 4].set_title(f)
-        # axs[0, 5].imshow(mbobs[2][0].psf.image, origin="lower")
-        # axs[0, 5].set_title(f)
-        # f = "i"
-        # axs[1, 0].imshow(mbobs[3][0].image, origin="lower")
-        # axs[1, 0].set_title(f)
-        # axs[1, 1].imshow(mbobs[3][0].psf.image, origin="lower")
-        # axs[1, 1].set_title(f)
-        # f = "z"
-        # axs[1, 2].imshow(mbobs[4][0].image, origin="lower")
-        # axs[1, 2].set_title(f)
-        # axs[1, 3].imshow(mbobs[4][0].psf.image, origin="lower")
-        # axs[1, 3].set_title(f)
-        # f = "y"
-        # axs[1, 4].imshow(mbobs[5][0].image, origin="lower")
-        # axs[1, 4].set_title(f)
-        # axs[1, 5].imshow(mbobs[5][0].psf.image, origin="lower")
-        # axs[1, 5].set_title(f)
-
-        # for ax in axs.ravel():
-        #     ax.set_xticks([])
-        #     ax.set_yticks([])
-        # plt.show()
-        # exit()
-
-        # # build the image
-        # logger.info(f"Building image")
-        # image = galsim.config.BuildImage(galsim_config, logger=None)
-
-        # # build the PSF image
-        # logger.info(f"Building PSF image")
-        # psf_size = 53
-        # psf = run_utils.draw_psf(galsim_config, psf_size, logger=logger)
-
-        # # build the weight image
-        # logger.info(f"Building weight image")
-        # weight = run_utils.draw_weight(galsim_config, logger=logger)
-
-        # # build the noise image
-        # logger.info(f"Building noise image")
-        # noise = run_utils.draw_noise(galsim_config, logger=logger)
-
-        #---
-
-        # fig, axs = plt.subplots(nrows=1, ncols=4)
-
-        # axs[0].imshow(image.array, origin="lower")
-        # axs[0].set_title("Image")
-
-        # axs[1].imshow(psf.array, origin="lower")
-        # axs[1].set_title("PSF")
-
-        # axs[2].imshow(weight.array, origin="lower")
-        # axs[2].set_title("Weight")
-
-        # axs[3].imshow(noise.array, origin="lower")
-        # axs[3].set_title("Noise Realization")
-
-        # for ax in axs.ravel():
-        #     ax.set_xticks([])
-        #     ax.set_yticks([])
-
-        # if args.output is None:
-        #     plt.show()
-        # else:
-        #     logger.info(f"Writing visualization to disk")
-        #     plt.savefig(args.output)
-
-        #---
 
         for obslist in mbobs:
             for obs in obslist:
