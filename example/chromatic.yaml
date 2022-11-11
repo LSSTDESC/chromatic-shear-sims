@@ -19,14 +19,17 @@ stamp:
     g2: 0.0
 
 psf:
-  type: ChromaticAtmosphere
-  base_profile:
-      type: Moffat
-      fwhm: 0.5
-      beta: 2.5
-  base_wavelength: 500
-  zenith_angle: 0 deg  # set to 0 to disable DCR
-  parallactic_angle: 0 deg  # set to 0 to disable DCR
+  type: Moffat
+  fwhm: 0.5
+  beta: 2.5
+  # type: ChromaticAtmosphere
+  # base_profile:
+  #     type: Moffat
+  #     fwhm: 0.5
+  #     beta: 2.5
+  # base_wavelength: 500
+  # zenith_angle: 0 deg  # set to 0 to disable DCR
+  # parallactic_angle: 0 deg  # set to 0 to disable DCR
 
 star:
   type: DeltaFunction
@@ -53,7 +56,7 @@ gal:
     norm_flux_density: 1.0
     norm_wavelength: 500
 
-  redshift: 0.8
+  redshift: 0.0
 
 image:
   type: Lattice
