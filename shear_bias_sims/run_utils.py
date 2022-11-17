@@ -67,18 +67,20 @@ def draw_psf(config, size, logger=None):
     """
     Draw the PSF by convolving against a chromatic star.
     """
-    psf = galsim.config.BuildGSObject(config, "psf", logger=logger)[0]
+    psf, _ = galsim.config.BuildGSObject(config, "psf", logger=logger)
     if "star" in config.keys():
-        star = galsim.config.BuildGSObject(config, "star", logger=logger)[0]
+        star, _ = galsim.config.BuildGSObject(config, "star", logger=logger)
     else:
         star = galsim.DeltaFunction()
 
     stellar_psf = galsim.Convolve([star, psf])
 
+    # this should be set following the building of an image with a bandpass
     if "bandpass" in config.keys():
         return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"], bandpass=config["bandpass"])
     else:
         return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"])
+
 
 
 def draw_weight(config, logger=None):
