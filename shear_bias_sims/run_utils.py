@@ -44,7 +44,7 @@ def _make_res_arrays(n_sims):
     return np.stack([np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)], axis=-1)
 
 
-def generate_arguments(config, galsim_config, seed, n, memmap_dict, logger):
+def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
     """
     Generate arguments for the measurement builder.
     """
@@ -53,13 +53,12 @@ def generate_arguments(config, galsim_config, seed, n, memmap_dict, logger):
         arg_dict = {
             "config": copy.deepcopy(config),
             "galsim_config": copy.deepcopy(galsim_config),
-            "seed": seed,
+            "rng": rng,
             "memmap_dict": memmap_dict,
             "idx": i,
             "logger": logger,
         }
         yield arg_dict
-        seed += 1
         i += 1
 
 
@@ -122,19 +121,21 @@ def draw_ormask(config, logger=None):
     return np.full(image_shape, int(0))
 
 
-def observation_builder(config, galsim_config, seed=None, logger=None):
+def observation_builder(config, galsim_config, rng, logger=None):
     """
     Build an ngmix MultiBandObsList from a GalSim config dictionary.
     """
-    # Setup the RNGs with a fixed default
-    seed = seed or 42  # TODO: backpropagate this default?
-                       # note that GalSim doesn't like 0 as a default here
+    # # Setup the RNGs with a fixed default
+    # seed = seed or 42  # TODO: backpropagate this default?
+    #                    # note that GalSim doesn't like 0 as a default here
+    seed = rng.integers(0, 2**64 // 2 - 1)
     galsim.config.SetInConfig(
         galsim_config,
         "image.random_seed",
         [
             {'type': 'Sequence', 'first': seed, 'index_key': 'image_num'},
             {'type': 'Sequence', 'first': seed, 'index_key': 'file_num'},
+            {'type': 'Sequence', 'first': seed, 'index_key': 'obj_num_in_file'},
         ]
     )
 
@@ -222,6 +223,9 @@ def make_pair_config(config, g=0.02):
     galsim.config.SetInConfig(config_p, "stamp.shear.g1", g)
     galsim.config.SetInConfig(config_m, "stamp.shear.g1", -g)
 
+    # galsim.config.SetInConfig(config_p, "gal.shear.g1", g)
+    # galsim.config.SetInConfig(config_m, "gal.shear.g1", -g)
+
     return config_p, config_m
 
 
@@ -243,7 +247,7 @@ def make_multiband_config(galsim_config, bandpass=None, bands=None):
         return [_galsim_config]
 
 
-def measurement_builder(config, galsim_config, seed, memmap_dict, idx, logger):
+def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     """
     Build measurements of simulations and write to a memmap
     """
@@ -251,11 +255,11 @@ def measurement_builder(config, galsim_config, seed, memmap_dict, idx, logger):
     galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
-    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=logger)
-    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=logger)
+    mbobs_p = observation_builder(config, galsim_config_p, rng=rng, logger=logger)
+    mbobs_m = observation_builder(config, galsim_config_m, rng=rng, logger=logger)
 
     # TODO: how do we handle all of the RNGs? when are they shared?
-    mdet_rng = np.random.default_rng(seed)
+    mdet_rng = rng
 
     res_p = metadetect.do_metadetect(
         config["metadetect"],

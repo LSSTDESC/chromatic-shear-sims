@@ -106,12 +106,13 @@ def main():
             "mode": "r+",
         }
 
+        rng = np.random.default_rng(args.seed)
         logger.info("Running simulation and measurement jobs")
         with Parallel(args.n_jobs, verbose=10) as parallel:
             parallel(
                 delayed(run_utils.measurement_builder)(**a)
                 for a in run_utils.generate_arguments(
-                    config, galsim_config, args.seed, args.n_sims, memmap_dict, logger,
+                    config, galsim_config, rng, args.n_sims, memmap_dict, logger,
                 )
             )
 

@@ -68,10 +68,11 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
+        rng = np.random.default_rng(args.seed)
         mbobs = run_utils.observation_builder(
             config,
             galsim_config,
-            seed=args.seed,
+            rng=rng,
             logger=None,
         )
 
