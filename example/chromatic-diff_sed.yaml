@@ -1,0 +1,96 @@
+modules:
+  - galsim_extra
+
+eval_variables:
+    # It will be convenient to have the single-character filter name to use in Eval items.
+    sfilter:
+        type: List
+        items: [g]
+        index_key: image_num
+
+stamp:
+  type: MixedScene
+
+  shear_scene: "$@current_obj_type == 'gal'"
+
+  objects:
+    star: 0
+    gal: 1
+
+  shear:
+    type: G1G2
+    g1: 0.0
+    g2: 0.0
+
+psf:
+  type: ChromaticAtmosphere
+  base_profile:
+      type: Gaussian
+      fwhm: 0.9
+  base_wavelength: 500
+  zenith_angle: 0 deg  # set to 0 to disable DCR
+  parallactic_angle: 0 deg  # set to 0 to disable DCR
+
+star:
+  type: DeltaFunction
+  sed:
+    file_name: CWW_Im_ext.sed
+    wave_type: Ang
+    flux_type: flambda
+
+gal:
+  type: Exponential
+  half_light_radius: 0.5
+  signal_to_noise: 1e6
+
+  shift:
+    type: XY
+    x: { 'type' : 'Random' , 'min' : '$ -0.5 * @image.pixel_scale', 'max' : '$ 0.5 * @image.pixel_scale' }
+    y: { 'type' : 'Random' , 'min' : '$ -0.5 * @image.pixel_scale', 'max' : '$ 0.5 * @image.pixel_scale' }
+    rng_num: 2
+
+  sed:
+    file_name: CWW_E_ext.sed
+    wave_type: Ang
+    flux_type: flambda
+    norm_flux_density: 1.0
+    norm_wavelength: 500
+
+  redshift: 0.0
+
+image:
+  type: Lattice
+  xsize: 320
+  ysize: 320
+  pixel_scale: 0.2  # arcsec / pixel
+  border_ratio: 0.8
+  sep: 10.0  # arcsec
+  rotation:
+    type: Random
+    min: 0.0  # deg
+    max: 360.0  # deg
+    rng_num: 1
+
+  bandpass:
+    file_name:
+      type: FormattedStr
+      format: "LSST_%s.dat"
+      items:
+        - $filter
+    wave_type: nm   # Wavelength in these files is in nm.
+    thin: 1.e-4
+
+  random_seed:
+    # Used for observational conditions (noise, etc.)
+    - {type: Sequence, first: 42, index_key: 'image_num'}
+
+    # Used for defining the scene (positions, etc.)
+    - {type: Sequence, first: 42, index_key: 'file_num'}
+
+    # Used for defining individual object parameters
+    - {type: Sequence, first: 42, index_key: 'obj_num'}
+
+  noise:
+    type: Gaussian
+    sigma: 0.02
+    rng_num: 0
