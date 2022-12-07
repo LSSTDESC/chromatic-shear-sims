@@ -16,7 +16,7 @@ import galsim
 import ngmix
 import metadetect
 
-from shear_bias_sims import run_utils
+from chromatic_shear_bias import run_utils
 
 
 def _read_ext(fname, ext):

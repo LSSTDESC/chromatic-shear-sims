@@ -1,11 +1,11 @@
-# shear-bias-sims
+# chromatic-shear-bias
 Simulations to validate calibration of shear bias
 
 ## bin
 
-- `viz-shear-bias-sims`: visualize a simulation
-- `run-shear-bias-sims`: run simulation and shear measurement
-- `meas-shear-bias-sims`: measure multiplicative and additive bias of shear
+- `viz-chromatic-shear-bias`: visualize a simulation
+- `run-chromatic-shear-bias`: run simulation and shear measurement
+- `meas-chromatic-shear-bias`: measure multiplicative and additive bias of shear
 
 ## note about `psutil`
 
