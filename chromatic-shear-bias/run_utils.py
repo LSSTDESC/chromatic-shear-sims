@@ -50,11 +50,10 @@ def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
     """
     i = 0
     while i < n:
-        seed = rng.integers(low=1, high=2**29)
         arg_dict = {
             "config": copy.deepcopy(config),
             "galsim_config": copy.deepcopy(galsim_config),
-            "rng": np.random.default_rng(seed),
+            "rng": rng,
             "memmap_dict": memmap_dict,
             "idx": i,
             "logger": logger,
@@ -63,97 +62,189 @@ def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
         i += 1
 
 
-def observation_builder(config, rng, logger):
+def draw_psf(config, size, logger=None):
     """
-    Build an ngmix Observation from a GalSim config dictionary.
+    Draw the PSF by convolving against a chromatic star.
     """
-    # build the image
-    image = galsim.config.BuildImage(config, logger=None)
+    psf, _ = galsim.config.BuildGSObject(config, "psf", logger=logger)
+    if "star" in config.keys():
+        star, _ = galsim.config.BuildGSObject(config, "star", logger=logger)
+    else:
+        star = galsim.DeltaFunction()
+
+    stellar_psf = galsim.Convolve([star, psf])
+
+    # this should be set following the building of an image with a bandpass
+    if "bandpass" in config.keys():
+        return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"], bandpass=config["bandpass"])
+    else:
+        return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"])
+
+
+
+def draw_weight(config, logger=None):
+    """
+    Draw the weight.
+    """
     image_shape = (config["image_ysize"], config["image_xsize"])
-
-    # build the PSF image
-    psf_obj = galsim.config.BuildGSObject(config, "psf", logger=None)[0]
-    psf_nx = 53  # N.B. this should must be odd as ngmix likes PSFs centered on a single pixel
-    psf_ny = psf_nx
-    psf = psf_obj.drawImage(nx=psf_nx, ny=psf_ny, scale=config["image"]["pixel_scale"])
-
-    # build the weight image
     weight = galsim.Image(np.zeros(image_shape))
     galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
     weight.invertSelf()
+    return weight
 
-    # build the noise image
+
+def draw_noise(config, logger=None):
+    """
+    Draw the noise realization.
+    """
+    image_shape = (config["image_ysize"], config["image_xsize"])
     noise = galsim.Image(np.zeros(image_shape))
     galsim.config.noise.AddNoise(config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
+    return noise
 
+
+def draw_bmask(config, logger=None):
+    """
+    Draw the bmask.
+    """
     # build the bmask array
-    # TODO: what is this anyways
-    bmask = np.full(image_shape, int(0))
+    image_shape = (config["image_ysize"], config["image_xsize"])
+    return np.full(image_shape, int(0))
 
+
+def draw_ormask(config, logger=None):
+    """
+    Draw the ormask.
+    """
     # build the ormask array
-    # TODO: what is this anyways
-    ormask = np.full(image_shape, int(0))
+    image_shape = (config["image_ysize"], config["image_xsize"])
+    return np.full(image_shape, int(0))
 
-    # construct the WCS
-    # TODO: verify that this is the correct WCS to be using
-    wcs = galsim.AffineTransform(
-        config["pixel_scale"],
-        0.0,
-        0.0,
-        config["pixel_scale"],
-        origin=image.center,
-    )
 
-    # build the ngmix Observation of the PSF
-    psf_cen = (psf.array.shape[0] - 1) / 2
-    psf_jac = ngmix.jacobian.Jacobian(
-        x=psf_cen,
-        y=psf_cen,
-        dudx=wcs.dudx,
-        dudy=wcs.dudy,
-        dvdx=wcs.dvdx,
-        dvdy=wcs.dvdy,
-    )
-    psf_obs = ngmix.Observation(
-        psf.array.copy(),
-        jacobian=psf_jac,
+def observation_builder(config, galsim_config, rng, logger=None):
+    """
+    Build an ngmix MultiBandObsList from a GalSim config dictionary.
+    """
+    # # Setup the RNGs with a fixed default
+    # seed = seed or 42  # TODO: backpropagate this default?
+    #                    # note that GalSim doesn't like 0 as a default here
+    seed = rng.integers(0, 2**64 // 2 - 1)
+    galsim.config.SetInConfig(
+        galsim_config,
+        "image.random_seed",
+        [
+            {'type': 'Sequence', 'first': seed, 'index_key': 'image_num'},
+            {'type': 'Sequence', 'first': seed, 'index_key': 'file_num'},
+            {'type': 'Sequence', 'first': seed, 'index_key': 'obj_num_in_file'},
+        ]
     )
 
-    # build the ngmix Observation of the image
-    im_cen = (image.array.shape[0] - 1) / 2
-    im_jac = ngmix.jacobian.Jacobian(
-        x=im_cen,
-        y=im_cen,
-        dudx=wcs.dudx,
-        dudy=wcs.dudy,
-        dvdx=wcs.dvdx,
-        dvdy=wcs.dvdy,
-    )
-    obs = ngmix.Observation(
-        image.array.copy(),
-        weight=weight.array.copy(),
-        bmask=bmask.copy(),
-        ormask=ormask.copy(),
-        jacobian=im_jac,
-        psf=psf_obs,
-        noise=noise.array.copy(),
-    )
+    # TODO: I don't prefer this method of searching for multiband info
+    # support single-band or multi-band observations of a scene
+    if ("eval_variables" in galsim_config.keys()) and ("sfilter" in galsim_config["eval_variables"].keys()):
+        nimages = len(galsim.config.GetFromConfig(galsim_config, "eval_variables.sfilter.items"))
+    else:
+        nimages = 1
 
-    return obs
+    mbobs = ngmix.MultiBandObsList()
+    for _i in range(nimages):
+        image = galsim.config.BuildImage(galsim_config, _i, logger=None)
+
+        # draw images used for each ngmix Observation
+        psf_size = 53  # TODO: would be good to specify in global config
+        psf = draw_psf(galsim_config, psf_size, logger=None)
+        weight = draw_weight(galsim_config, logger=None)
+        noise = draw_noise(galsim_config, logger=None)
+        bmask = draw_bmask(galsim_config, logger=None)
+        ormask = draw_ormask(galsim_config, logger=None)
+
+        # construct the WCS
+        # TODO: verify that this is the correct WCS to be using
+        wcs = galsim.AffineTransform(
+            galsim_config["pixel_scale"],
+            0.0,
+            0.0,
+            galsim_config["pixel_scale"],
+            origin=image.center,
+        )
+
+        # build the ngmix Observation of the PSF
+        psf_jac = ngmix.jacobian.Jacobian(
+            x=(psf.array.shape[1] - 1) / 2,
+            y=(psf.array.shape[0] - 1) / 2,
+            dudx=wcs.dudx,
+            dudy=wcs.dudy,
+            dvdx=wcs.dvdx,
+            dvdy=wcs.dvdy,
+        )
+        psf_obs = ngmix.Observation(
+            psf.array.copy(),
+            jacobian=psf_jac,
+        )
+
+        # build the ngmix Observation of the image
+        im_jac = ngmix.jacobian.Jacobian(
+            x=(image.array.shape[1] - 1) / 2,
+            y=(image.array.shape[0] - 1) / 2,
+            dudx=wcs.dudx,
+            dudy=wcs.dudy,
+            dvdx=wcs.dvdx,
+            dvdy=wcs.dvdy,
+        )
+        obs = ngmix.Observation(
+            image.array.copy(),
+            weight=weight.array.copy(),
+            bmask=bmask.copy(),
+            ormask=ormask.copy(),
+            jacobian=im_jac,
+            psf=psf_obs,
+            noise=noise.array.copy(),
+        )
+
+        obslist = ngmix.ObsList()
+        obslist.append(obs)
+        mbobs.append(obslist)
+
+    return mbobs
 
 
 def make_pair_config(config, g=0.02):
     """
     Create a pair of configs to simulate scenes sheared with equal and opposite
-    shears for the noise bias cancellation algorithm.
+    shears for noise bias cancellation.
     """
     config_p = copy.deepcopy(config)
     config_m = copy.deepcopy(config)
 
-    config_p["stamp"]["shear"]["g1"] = g
-    config_m["stamp"]["shear"]["g1"] = -g
+    # TODO: this assumes we're applying the shear at the stamp stage (i.e., when doing
+    # ring simulations. This won't work in general...
+    # config_p["stamp"]["shear"]["g1"] = g
+    # config_m["stamp"]["shear"]["g1"] = -g
+    galsim.config.SetInConfig(config_p, "stamp.shear.g1", g)
+    galsim.config.SetInConfig(config_m, "stamp.shear.g1", -g)
+
+    # galsim.config.SetInConfig(config_p, "gal.shear.g1", g)
+    # galsim.config.SetInConfig(config_m, "gal.shear.g1", -g)
 
     return config_p, config_m
+
+
+# TODO: currently unused
+def make_multiband_config(galsim_config, bandpass=None, bands=None):
+    """
+    Create a list of configs for each band.
+    """
+    if (bandpass is not None) and (bands is not None):
+        galsim_configs = []
+        for band in bands:
+            _galsim_config = copy.deepcopy(galsim_config)
+            _galsim_config["image"]["bandpass"] = copy.deepcopy(bandpass)
+            _galsim_config["image"]["bandpass"]["file_name"] = bandpass["file_name"].format(band)
+            galsim_configs.append(_galsim_config)
+        return galsim_configs
+    else:
+        _galsim_config = copy.deepcopy(galsim_config)
+        return [_galsim_config]
 
 
 def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
@@ -161,25 +252,14 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
     Build measurements of simulations and write to a memmap
     """
     cosmic_shear = config["shear"]["g"]
-    config_p, config_m = make_pair_config(galsim_config, cosmic_shear)
+    galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
-    obs_p = observation_builder(config_p, rng, logger)
-    obs_m = observation_builder(config_m, rng, logger)
-    obslist_p = ngmix.ObsList()
-    obslist_p.append(obs_p)
-    obslist_m = ngmix.ObsList()
-    obslist_m.append(obs_m)
-
-    # TODO: this should really be grabbing an ObsList for each band
-    mbobs_p = ngmix.MultiBandObsList()
-    mbobs_p.append(obslist_p)
-    mbobs_m = ngmix.MultiBandObsList()
-    mbobs_m.append(obslist_m)
+    mbobs_p = observation_builder(config, galsim_config_p, rng=rng, logger=logger)
+    mbobs_m = observation_builder(config, galsim_config_m, rng=rng, logger=logger)
 
     # TODO: how do we handle all of the RNGs? when are they shared?
-    mdet_seed = rng.integers(low=1, high=2**29)
-    mdet_rng = np.random.default_rng(mdet_seed)
+    mdet_rng = rng
 
     res_p = metadetect.do_metadetect(
         config["metadetect"],

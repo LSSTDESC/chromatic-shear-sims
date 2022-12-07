@@ -2,15 +2,15 @@ import os
 from setuptools import setup, find_packages
 
 scripts = [
-    "bin/run-shear-bias-sims",
-    "bin/meas-shear-bias-sims",
-    "bin/viz-shear-bias-sims",
+    "bin/run-chromatic-shear-bias",
+    "bin/meas-chromatic-shear-bias",
+    "bin/viz-chromatic-shear-bias",
 ]
 
 setup(
-    name="shear-bias-sims",
+    name="chromatic-shear-bias",
     version=0.1,
-    description="sims for testing shear estimation bias",
+    description="Studies of the contribution to shear calibration bias from chromatic effects ",
     author="smau",
     packages=find_packages(),
     scripts=scripts,

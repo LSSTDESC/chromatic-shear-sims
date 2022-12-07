@@ -19,7 +19,7 @@ import galsim
 import ngmix
 import metadetect
 
-from shear_bias_sims import run_utils
+from chromatic_shear_bias import run_utils
 
 
 def get_args():
@@ -80,8 +80,6 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
-        rng = np.random.default_rng(args.seed)
-
         # TODO: break jobs up into chunks?
         # chunk_size = 100  # TODO: placeholder
         # slices = [slice(start, start + chunk_size)
@@ -108,6 +106,7 @@ def main():
             "mode": "r+",
         }
 
+        rng = np.random.default_rng(args.seed)
         logger.info("Running simulation and measurement jobs")
         with Parallel(args.n_jobs, verbose=10) as parallel:
             parallel(
