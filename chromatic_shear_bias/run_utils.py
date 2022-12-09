@@ -88,7 +88,7 @@ def draw_weight(config, logger=None):
     """
     image_shape = (config["image_ysize"], config["image_xsize"])
     weight = galsim.Image(np.zeros(image_shape))
-    galsim.config.noise.AddNoiseVariance(config, weight, logger=None)  # TODO: check if we need to do this with a "clean" config
+    galsim.config.noise.AddNoiseVariance(config, weight, logger=logger)  # TODO: check if we need to do this with a "clean" config
     weight.invertSelf()
     return weight
 
@@ -99,7 +99,7 @@ def draw_noise(config, logger=None):
     """
     image_shape = (config["image_ysize"], config["image_xsize"])
     noise = galsim.Image(np.zeros(image_shape))
-    galsim.config.noise.AddNoise(config, noise, logger=None)  # TODO: check if we need to do this with a "clean" config
+    galsim.config.noise.AddNoise(config, noise, logger=logger)  # TODO: check if we need to do this with a "clean" config
     return noise
 
 
@@ -121,7 +121,7 @@ def draw_ormask(config, logger=None):
     return np.full(image_shape, int(0))
 
 
-def observation_builder(config, galsim_config, rng, logger=None):
+def observation_builder(config, galsim_config, rng, logger=logger):
     """
     Build an ngmix MultiBandObsList from a GalSim config dictionary.
     """
@@ -148,15 +148,15 @@ def observation_builder(config, galsim_config, rng, logger=None):
 
     mbobs = ngmix.MultiBandObsList()
     for _i in range(nimages):
-        image = galsim.config.BuildImage(galsim_config, _i, logger=None)
+        image = galsim.config.BuildImage(galsim_config, _i, logger=logger)
 
         # draw images used for each ngmix Observation
         psf_size = 53  # TODO: would be good to specify in global config
-        psf = draw_psf(galsim_config, psf_size, logger=None)
-        weight = draw_weight(galsim_config, logger=None)
-        noise = draw_noise(galsim_config, logger=None)
-        bmask = draw_bmask(galsim_config, logger=None)
-        ormask = draw_ormask(galsim_config, logger=None)
+        psf = draw_psf(galsim_config, psf_size, logger=logger)
+        weight = draw_weight(galsim_config, logger=logger)
+        noise = draw_noise(galsim_config, logger=logger)
+        bmask = draw_bmask(galsim_config, logger=logger)
+        ormask = draw_ormask(galsim_config, logger=logger)
 
         # construct the WCS
         # TODO: verify that this is the correct WCS to be using
