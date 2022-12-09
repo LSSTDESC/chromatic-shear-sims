@@ -2,7 +2,6 @@ fitsio
 galsim
 galsim_extra
 joblib
-loguru
 matplotlib
 metadetect
 ngmix

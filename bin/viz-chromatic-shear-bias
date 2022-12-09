@@ -5,12 +5,12 @@ Staging file for generating simulations and running metadetect
 
 import argparse
 import copy
+import logging
 
 import yaml
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from loguru import logger
 
 import fitsio
 import galsim
@@ -50,11 +50,26 @@ def get_args():
     return parser.parse_args()
 
 
+def get_logger():
+    """
+    Format logger.
+    """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    return logger
+
+
 def main():
     """
     Run the simulation and measurement for metadetect noise bias cancellation.
     """
     args = get_args()
+    logger = get_logger()
 
     with open(args.config, "r") as fp:
         config = yaml.safe_load(fp.read())
@@ -73,7 +88,7 @@ def main():
             config,
             galsim_config,
             rng=rng,
-            logger=None,
+            logger=logger,
         )
 
         for obslist in mbobs:
