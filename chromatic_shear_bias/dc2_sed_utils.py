@@ -76,6 +76,7 @@ class DC2_SEDCatalog(Catalog):
             interpolant="linear",
         )  # Linearly interpolate between the tophats
         sed = SED(tophat_lookuptable, wave_type, flux_type, redshift=redshift)
+        sed = sed.withFluxDensity(1., 500)  # TODO use appropriate units rather than rescaled flux density
         # sed = sed.atRedshift(redshift)
 
         return sed
