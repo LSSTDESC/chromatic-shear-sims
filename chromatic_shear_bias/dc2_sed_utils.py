@@ -14,7 +14,6 @@ from galsim.config.value import GetAllParams, SetDefaultIndex, RegisterValueType
 from galsim.errors import GalSimConfigError
 from galsim.sed import SED
 
-
 class DC2_SEDCatalog(Catalog):
     """A class storing the data from a DC2 SED input catalog
     We primarily inherit from Catalog but redefine the readFits method
@@ -38,6 +37,7 @@ class DC2_SEDCatalog(Catalog):
 
     def getSED(self, index):
         # DC2 SEDs are in units of 4.4659e13 W/Hz defined over bins in units of Angstrom
+        # cf. https://github.com/LSSTDESC/gcr-catalogs/blob/master/GCRCatalogs/SCHEMA.md#extragalactic-catalogs
         wave_type = "Ang"
         flux_type = "fnu"  # we convert to this flux type below
 
@@ -61,7 +61,7 @@ class DC2_SEDCatalog(Catalog):
         ) * 4.4659e13 * 1e7 / _rubin_area  # convert from 4.4659e13 W/Hz to erg/Hz/cm^2/s (i.e., nu)
 
         # We sort the SED tophats according to the bins, narrow by a small
-        # factor to avoid overlapping bin edges, and view as a 1-D array.
+        # factor to avoid overlapping bin edges; ravel to a 1-D array.
         _idx = np.argsort(sed_bins_array, axis=0)
         sed_bins_array = np.take_along_axis(sed_bins_array * np.asarray([1, 1 - 1e-9]), _idx, axis=0).ravel()
         sed_values_array = np.take_along_axis(sed_values_array, _idx, axis=0).ravel()
@@ -76,8 +76,9 @@ class DC2_SEDCatalog(Catalog):
             interpolant="linear",
         )  # Linearly interpolate between the tophats
         sed = SED(tophat_lookuptable, wave_type, flux_type, redshift=redshift)
-        sed = sed.withFluxDensity(1., 500)  # TODO use appropriate units rather than rescaled flux density
+        # sed = sed.withFluxDensity(1., 500)  # TODO use appropriate units rather than rescaled flux density
         # sed = sed.atRedshift(redshift)
+        sed = sed.withMagnitude(float(sed_array["mag_r_lsst"]), bps_zp[2])  # use the provided magnitudes to set overall normalization
 
         return sed
 
