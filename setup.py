@@ -2,8 +2,8 @@ import os
 from setuptools import setup, find_packages
 
 scripts = [
-    "bin/run-chromatic-shear-bias",
     "bin/meas-chromatic-shear-bias",
+    "bin/run-chromatic-shear-bias",
     "bin/validate-seds",
     "bin/viz-chromatic-shear-bias",
 ]
