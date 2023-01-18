@@ -8,11 +8,11 @@ import copy
 import logging
 import os
 import shutil
-from tempfile import mkdtemp
+from pathlib import Path
 
 import yaml
 import numpy as np
-from joblib import Parallel, delayed
+from mpi4py import MPI
 
 import fitsio
 import galsim
@@ -20,6 +20,11 @@ import ngmix
 import metadetect
 
 from chromatic_shear_bias import run_utils
+
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 
 def get_args():
@@ -40,7 +45,7 @@ def get_args():
         "--seed",
         type=int,
         required=False,
-        default=None,
+        default=1,
         help="RNG seed [int]",
     )
     parser.add_argument(
@@ -50,15 +55,7 @@ def get_args():
         default=1,
         help="Number of sims to run [int]",
     )
-    parser.add_argument(
-        "--n_jobs",
-        type=int,
-        required=False,
-        default=None,
-        help="Number of CPUs to use [int]",
-    )
     parser.add_argument("--output", type=str, required=True, help="Output file [fits]")
-    parser.add_argument("--memmap", type=str, required=False, default=None, help="memmap file")
     return parser.parse_args()
 
 
@@ -83,65 +80,66 @@ def main():
     args = get_args()
     logger = get_logger()
 
-    with open(args.config, "r") as fp:
-        config = yaml.safe_load(fp.read())
+    # output file path
+    root_path = Path(args.output)
+    path = root_path.with_stem(f"{root_path.stem}-{rank}").with_suffix(".fits")
 
-    # copy the config for safekeeping
-    _config = copy.deepcopy(config)
+    _config = None
+    _galsim_config = None
+    if rank == 0:
+        logger.info(f"Running: {vars(args)}")
+        logger.info(f"Running with {size} MPI processes")
 
-    logger.info(f"Running: {vars(args)}")
+        with open(args.config, "r") as fp:
+            _config = yaml.safe_load(fp.read())
 
-    for galsim_config in galsim.config.ReadConfig(args.sim):
-        # copy the config for safekeeping
-        _galsim_config = copy.deepcopy(galsim_config)
+        galsim_configs = galsim.config.ReadConfig(args.sim)
+        assert len(galsim_configs) == 1, "Expected 1 GalSim config; found {len(galsim_configs)}"
+        _galsim_config = galsim_configs[0]
 
-        # TODO: break jobs up into chunks?
-        # chunk_size = 100  # TODO: placeholder
-        # slices = [slice(start, start + chunk_size)
-        #           for start in range(0, args.n_sims - chunk_size, chunk_size)]
+    # Broadcast configs from rank 0 process
+    config = comm.bcast(_config, root=0)
+    galsim_config = comm.bcast(_galsim_config, root=0)
 
-        if not args.memmap:
-            # memmap_filename = os.path.join(mkdtemp(), "memmap")
-            memmap_filename = os.path.join("./", "memmap")
-        else:
-            memmap_filename = args.memmap
+    rng = np.random.default_rng(args.seed + rank)
 
-        logger.info(f"Creating memmap at {memmap_filename}")
-        memmap = np.memmap(
-            memmap_filename,
-            dtype=run_utils._get_dtype(),
-            shape=(run_utils._get_size(args.n_sims), 2),
-            mode="w+",
-        )
+    for kwargs in run_utils.generate_arguments(
+        config, galsim_config, rng, args.n_sims, logger,
+    ):
+        measurements = run_utils.make_and_measure_pairs(**kwargs)
 
-        memmap_dict = {
-            "filename": memmap_filename,
-            "dtype": run_utils._get_dtype(),
-            "shape": (run_utils._get_size(args.n_sims), 2),
-            "mode": "r+",
-        }
+        # logger.info(f"Writing output to {path}")
+        with fitsio.FITS(path, "rw", clobber=True) as fits:
+            fits.write(measurements[:, 0], extname="plus")
+            fits.write(measurements[:, 1], extname="minus")
 
-        rng = np.random.default_rng(args.seed)
-        logger.info("Running simulation and measurement jobs")
-        with Parallel(args.n_jobs, verbose=10) as parallel:
-            parallel(
-                delayed(run_utils.measurement_builder)(**a)
-                for a in run_utils.generate_arguments(
-                    config, galsim_config, rng, args.n_sims, memmap_dict, logger,
-                )
-            )
+        progress = comm.reduce(kwargs["idx"])
+        if (rank == 0) and (progress > 0) and (progress % 10 == 0):
+            logger.info(f"Proccessed {progress} simulations")
 
-        zeros_cut = ~np.all(memmap == np.stack([np.zeros(1, dtype=run_utils._get_dtype()), np.zeros(1, dtype=run_utils._get_dtype())], axis=-1), axis=1)
+        # if (rank == 0) and (progress is not None) and (progress > 0) and (progress % 100 == 0):
+        #     calibration_shear = ngmix.metacal.DEFAULT_STEP
+        #     with fitsio.FITS(path, "r") as fits:
+        #         pdata = fits["plus"].read()
+        #         mdata = fits["minus"].read()
+        #     pmsk = (pdata["s2n_cut"] == 10)
+        #     pmsk &= (pdata["ormask_cut"] == -1)
+        #     pmsk &= (pdata["mfrac_cut"] == 100)
+        #     n_sims_msk = np.sum(pdata["weight"][pmsk])
+        #     if n_sims_msk <= 0:
+        #         logger.info(f"No sims pass measurement cuts")
+        #     else:
+        #         m_est, m_std, c_est, c_std = estimate_biases(
+        #             pdata[pmsk], mdata[pmsk], calibration_shear, cosmic_shear,
+        #             weights=pdata["weight"][pmsk],
+        #             method="bootstrap",
+        #             n_resample=100,
+        #         )
+        #         logger.info(f"multiplicative bias: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
+        #         logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
 
-        logger.info(f"Writing output to {args.output}")
-        with fitsio.FITS(args.output, "rw", clobber=True) as fits:
-            fits.write(memmap[zeros_cut][:, 0], extname="plus")
-            fits.write(memmap[zeros_cut][:, 1], extname="minus")
 
-        logger.info(f"Removing {memmap_filename}")
-        os.remove(memmap_filename)
-
-        logger.info(f"Finished processing")
+    logger.info(f"MPI -- Finished rank {rank} of {size - 1}")
 
 
 if __name__ == "__main__":

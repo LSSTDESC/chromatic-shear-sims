@@ -8,7 +8,6 @@ import copy
 import yaml
 import numpy as np
 
-import fitsio
 import galsim
 import galsim_extra
 import ngmix
@@ -44,7 +43,7 @@ def _make_res_arrays(n_sims):
     return np.stack([np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)], axis=-1)
 
 
-def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
+def generate_arguments(config, galsim_config, rng, n, logger):
     """
     Generate arguments for the measurement builder.
     """
@@ -54,7 +53,6 @@ def generate_arguments(config, galsim_config, rng, n, memmap_dict, logger):
             "config": copy.deepcopy(config),
             "galsim_config": copy.deepcopy(galsim_config),
             "rng": rng,
-            "memmap_dict": memmap_dict,
             "idx": i,
             "logger": logger,
         }
@@ -247,16 +245,16 @@ def make_multiband_config(galsim_config, bandpass=None, bands=None):
         return [_galsim_config]
 
 
-def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
+def make_and_measure_pairs(config, galsim_config, rng, idx, logger):
     """
-    Build measurements of simulations and write to a memmap
+    Build measurements of simulations
     """
     cosmic_shear = config["shear"]["g"]
     galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
-    mbobs_p = observation_builder(config, galsim_config_p, rng=rng, logger=logger)
-    mbobs_m = observation_builder(config, galsim_config_m, rng=rng, logger=logger)
+    mbobs_p = observation_builder(config, galsim_config_p, rng=rng, logger=None)
+    mbobs_m = observation_builder(config, galsim_config_m, rng=rng, logger=None)
 
     # TODO: how do we handle all of the RNGs? when are they shared?
     mdet_rng = rng
@@ -273,23 +271,7 @@ def measurement_builder(config, galsim_config, rng, memmap_dict, idx, logger):
         mdet_rng,
     )
 
-    measurements = measure_pairs(config, res_p, res_m)
-
-    # this pads the measurements with zeros to be the same size as expected by
-    # the memmap
-    full_measurements = _make_res_arrays(1)
-    full_measurements[:len(measurements)] = measurements
-
-    # TODO: a bit of a hack but works for now
-    slice_length = _get_size(1)
-    idx_start = idx * slice_length
-    idx_stop = (idx + 1) * slice_length
-    # logger.info(f"writing {memmap_dict['filename']}[{idx_start}:{idx_stop}]")
-    memmap = np.memmap(**memmap_dict)
-    memmap[idx_start:idx_stop] = full_measurements
-    memmap.flush()
-
-    return
+    return measure_pairs(config, res_p, res_m)
 
 
 def _bootstrap(x1, y1, x2, y2, w, n_resample=1000):
@@ -375,6 +357,7 @@ def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
         c_hat_J, np.sqrt(c_var_J),
     )
 
+
 def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
     """
     Estimate both additive and multiplicative biases with noise bias
@@ -426,10 +409,10 @@ def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=Non
     x2 = (R22p + R22m) / 2
     y2 = (g2p + g2m) / 2
 
-    if method == "bootstrap":
-        return _bootstrap(x1, y1, x2, y2, w, n_resample=n_resample)
-    else:
+    if method == "jackknife":
         return _jackknife(x1, y1, x2, y2, w, n_resample=n_resample)
+    else:
+        return _bootstrap(x1, y1, x2, y2, w, n_resample=n_resample)
 
 
 def measure_shear_metadetect(
