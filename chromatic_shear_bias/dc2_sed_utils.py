@@ -4,7 +4,7 @@ import re
 import fitsio
 import numpy as np
 
-from galsim import LookupTable
+from galsim import Bandpass, LookupTable
 from galsim.catalog import Catalog
 from galsim.config.bandpass import BuildBandpass
 from galsim.config.input import RegisterInputType, RegisterInputConnectedType, GetInputObj, InputLoader
@@ -78,6 +78,11 @@ class DC2_SEDCatalog(Catalog):
         sed = SED(tophat_lookuptable, wave_type, flux_type, redshift=redshift)
         # sed = sed.withFluxDensity(1., 500)  # TODO use appropriate units rather than rescaled flux density
         # sed = sed.atRedshift(redshift)
+
+        # TODO the following isn't a great solution and is verified to be incorrect at the ~1% level
+        bands = ["u", "g", "r", "i", "z", "y"]
+        bps = [Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm") for band in bands]
+        bps_zp = [bp.withZeropoint("AB") for bp in bps]
         sed = sed.withMagnitude(float(sed_array["mag_r_lsst"]), bps_zp[2])  # use the provided magnitudes to set overall normalization
 
         return sed
