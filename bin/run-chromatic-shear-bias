@@ -94,7 +94,7 @@ def main():
             _config = yaml.safe_load(fp.read())
 
         galsim_configs = galsim.config.ReadConfig(args.sim)
-        assert len(galsim_configs) == 1, "Expected 1 GalSim config; found {len(galsim_configs)}"
+        assert len(galsim_configs) == 1, f"Expected 1 GalSim config in {args.sim}; found {len(galsim_configs)}"
         _galsim_config = galsim_configs[0]
 
     # Broadcast configs from rank 0 process
@@ -113,10 +113,12 @@ def main():
             fits.write(measurements[:, 0], extname="plus")
             fits.write(measurements[:, 1], extname="minus")
 
+        # Track progress over all ranks
         progress = comm.reduce(kwargs["idx"])
         if (rank == 0) and (progress > 0) and (progress % 10 == 0):
-            logger.info(f"Proccessed {progress} simulations")
+            logger.info(f"Proccessed {progress} paired image simulations")
 
+        # Periodically measure bias on rank 0
         # if (rank == 0) and (progress is not None) and (progress > 0) and (progress % 100 == 0):
         #     calibration_shear = ngmix.metacal.DEFAULT_STEP
         #     with fitsio.FITS(path, "r") as fits:
@@ -138,9 +140,9 @@ def main():
         #         logger.info(f"multiplicative bias: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
         #         logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
 
-
     logger.info(f"MPI -- Finished rank {rank} of {size - 1}")
 
 
 if __name__ == "__main__":
     main()
+
