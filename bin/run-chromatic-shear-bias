@@ -103,15 +103,24 @@ def main():
 
     rng = np.random.default_rng(args.seed + rank)
 
+    measurement_array = np.zeros(
+        shape=(run_utils._get_size(args.n_sims), 2),
+        dtype=run_utils._get_dtype(),
+    )
+
     for kwargs in run_utils.generate_arguments(
         config, galsim_config, rng, args.n_sims, logger,
     ):
         measurements = run_utils.make_and_measure_pairs(**kwargs)
+        idx_start = kwargs["idx"] * run_utils._get_size(1)
+        idx_stop = (kwargs["idx"] + 1) * run_utils._get_size(1)
+        measurement_array[idx_start:idx_stop] = measurements
 
+        # TODO clobber overwrites, doesn't append!!! TODO TODO TODO
         # logger.info(f"Writing output to {path}")
         with fitsio.FITS(path, "rw", clobber=True) as fits:
-            fits.write(measurements[:, 0], extname="plus")
-            fits.write(measurements[:, 1], extname="minus")
+            fits.write(measurement_array[:, 0], extname="plus")
+            fits.write(measurement_array[:, 1], extname="minus")
 
         # Track progress over all ranks
         progress = comm.reduce(kwargs["idx"])
