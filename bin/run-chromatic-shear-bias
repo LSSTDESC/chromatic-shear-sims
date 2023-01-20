@@ -114,16 +114,15 @@ def main():
         measurements = run_utils.make_and_measure_pairs(**kwargs)
         idx_start = kwargs["idx"] * run_utils._get_size(1)
         idx_stop = (kwargs["idx"] + 1) * run_utils._get_size(1)
-        measurement_array[idx_start:idx_stop] = measurements
+        measurement_array[idx_start:idx_stop] = measurements  # TODO does this need a copy
 
-        # TODO clobber overwrites, doesn't append!!! TODO TODO TODO
-        # logger.info(f"Writing output to {path}")
+        # Write measurement array to disk
         with fitsio.FITS(path, "rw", clobber=True) as fits:
             fits.write(measurement_array[:, 0], extname="plus")
             fits.write(measurement_array[:, 1], extname="minus")
 
         # Track progress over all ranks
-        progress = comm.reduce(kwargs["idx"])
+        progress = comm.reduce(idx_stop)
         if (rank == 0) and (progress > 0) and (progress % 10 == 0):
             logger.info(f"Proccessed {progress} paired image simulations")
 
