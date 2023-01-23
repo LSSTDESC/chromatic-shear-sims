@@ -114,10 +114,12 @@ def main():
         measurements = run_utils.make_and_measure_pairs(**kwargs)
         idx_start = kwargs["idx"] * run_utils._get_size(1)
         idx_stop = (kwargs["idx"] + 1) * run_utils._get_size(1)
-        measurement_array[idx_start:idx_stop] = measurements  # TODO does this need a copy
+        measurement_array[idx_start:idx_stop] = measurements  # TODO does this need a copy?
 
         # Write measurement array to disk
         with fitsio.FITS(path, "rw", clobber=True) as fits:
+            # It would be better if we could write to a specific block of the
+            # FITS file without needing to overwrite each time
             fits.write(measurement_array[:, 0], extname="plus")
             fits.write(measurement_array[:, 1], extname="minus")
 
