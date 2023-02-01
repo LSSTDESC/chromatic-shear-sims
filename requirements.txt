@@ -1,11 +1,10 @@
 fitsio
 galsim
 galsim_extra
-joblib
 matplotlib
 metadetect
 mpi4py
 ngmix
 numpy
-psutil
+pyarrow
 yaml
