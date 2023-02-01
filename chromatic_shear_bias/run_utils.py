@@ -43,17 +43,18 @@ def _make_res_arrays(n_sims):
     return np.stack([np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)], axis=-1)
 
 
-def generate_arguments(config, galsim_config, rng, n, logger):
+def generate_arguments(config, galsim_config, seed, n, logger):
     """
     Generate arguments for the measurement builder.
     """
     i = 0
+    rng = np.random.default_rng(seed)
     while i < n:
         arg_dict = {
             "config": copy.deepcopy(config),
             "galsim_config": copy.deepcopy(galsim_config),
-            "rng": rng,
-            "idx": i,
+            "seed": rng.integers(1, 2**64 // 2),
+            "index": i,
             "logger": logger,
         }
         yield arg_dict
@@ -79,14 +80,13 @@ def draw_psf(config, size, logger=None):
         return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"])
 
 
-
 def draw_weight(config, logger=None):
     """
     Draw the weight.
     """
     image_shape = (config["image_ysize"], config["image_xsize"])
     weight = galsim.Image(np.zeros(image_shape))
-    galsim.config.noise.AddNoiseVariance(config, weight, logger=logger)  # TODO: check if we need to do this with a "clean" config
+    galsim.config.noise.AddNoiseVariance(config, weight, logger=logger)
     weight.invertSelf()
     return weight
 
@@ -97,7 +97,7 @@ def draw_noise(config, logger=None):
     """
     image_shape = (config["image_ysize"], config["image_xsize"])
     noise = galsim.Image(np.zeros(image_shape))
-    galsim.config.noise.AddNoise(config, noise, logger=logger)  # TODO: check if we need to do this with a "clean" config
+    galsim.config.noise.AddNoise(config, noise, logger=logger)
     return noise
 
 
@@ -119,14 +119,11 @@ def draw_ormask(config, logger=None):
     return np.full(image_shape, int(0))
 
 
-def observation_builder(config, galsim_config, rng, logger=None):
+def observation_builder(config, galsim_config, seed, logger=None):
     """
     Build an ngmix MultiBandObsList from a GalSim config dictionary.
     """
-    # # Setup the RNGs with a fixed default
-    # seed = seed or 42  # TODO: backpropagate this default?
-    #                    # note that GalSim doesn't like 0 as a default here
-    seed = rng.integers(0, 2**64 // 2 - 1)
+    # Setup the RNGs with a fixed default
     galsim.config.SetInConfig(
         galsim_config,
         "image.random_seed",
@@ -216,10 +213,10 @@ def make_pair_config(config, g=0.02):
 
     # TODO: this assumes we're applying the shear at the stamp stage (i.e., when doing
     # ring simulations. This won't work in general...
-    # config_p["stamp"]["shear"]["g1"] = g
-    # config_m["stamp"]["shear"]["g1"] = -g
+    # Though should (?) be ok for MixedScene from galsim_extra
     galsim.config.SetInConfig(config_p, "stamp.shear.g1", g)
     galsim.config.SetInConfig(config_m, "stamp.shear.g1", -g)
+
 
     # galsim.config.SetInConfig(config_p, "gal.shear.g1", g)
     # galsim.config.SetInConfig(config_m, "gal.shear.g1", -g)
@@ -227,25 +224,7 @@ def make_pair_config(config, g=0.02):
     return config_p, config_m
 
 
-# TODO: currently unused
-def make_multiband_config(galsim_config, bandpass=None, bands=None):
-    """
-    Create a list of configs for each band.
-    """
-    if (bandpass is not None) and (bands is not None):
-        galsim_configs = []
-        for band in bands:
-            _galsim_config = copy.deepcopy(galsim_config)
-            _galsim_config["image"]["bandpass"] = copy.deepcopy(bandpass)
-            _galsim_config["image"]["bandpass"]["file_name"] = bandpass["file_name"].format(band)
-            galsim_configs.append(_galsim_config)
-        return galsim_configs
-    else:
-        _galsim_config = copy.deepcopy(galsim_config)
-        return [_galsim_config]
-
-
-def make_and_measure_pairs(config, galsim_config, rng, idx, logger):
+def make_and_measure_pairs(config, galsim_config, seed, index, logger):
     """
     Build measurements of simulations
     """
@@ -253,22 +232,24 @@ def make_and_measure_pairs(config, galsim_config, rng, idx, logger):
     galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
-    mbobs_p = observation_builder(config, galsim_config_p, rng=rng, logger=None)
-    mbobs_m = observation_builder(config, galsim_config_m, rng=rng, logger=None)
+    #       e.g., even rank do p, odd rank do m
+    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=None)
+    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=None)
 
-    # TODO: how do we handle all of the RNGs? when are they shared?
-    mdet_rng = rng
+    # TODO Should these be the same rngs?
+    mdet_rng_p = np.random.default_rng(seed)
+    mdet_rng_m = np.random.default_rng(seed)
 
     res_p = metadetect.do_metadetect(
         config["metadetect"],
         mbobs_p,
-        mdet_rng,
+        mdet_rng_p,
     )
 
     res_m = metadetect.do_metadetect(
         config["metadetect"],
         mbobs_m,
-        mdet_rng,
+        mdet_rng_m,
     )
 
     return measure_pairs(config, res_p, res_m)
@@ -361,19 +342,19 @@ def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
 def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
     """
     Estimate both additive and multiplicative biases with noise bias
-    cancellation and bootstrapped standard deviations.
+    cancellation and resampled standard deviations.
     """
-    g1p = meas_p["g1"]
-    R11p = (meas_p["g1p"] - meas_p["g1m"]) / (2 * calibration_shear)
+    g1p = np.array(meas_p["g1"])
+    R11p = (np.array(meas_p["g1p"]) - np.array(meas_p["g1m"])) / (2 * calibration_shear)
 
-    g1m = meas_m["g1"]
-    R11m = (meas_m["g1p"] - meas_m["g1m"]) / (2 * calibration_shear)
+    g1m = np.array(meas_m["g1"])
+    R11m = (np.array(meas_m["g1p"]) - np.array(meas_m["g1m"])) / (2 * calibration_shear)
 
-    g2p = meas_p["g2"]
-    R22p = (meas_p["g2p"] - meas_p["g2m"]) / (2 * calibration_shear)
+    g2p = np.array(meas_p["g2"])
+    R22p = (np.array(meas_p["g2p"]) - np.array(meas_p["g2m"])) / (2 * calibration_shear)
 
-    g2m = meas_m["g2"]
-    R22m = (meas_m["g2p"] - meas_m["g2m"]) / (2 * calibration_shear)
+    g2m = np.array(meas_m["g2"])
+    R22m = (np.array(meas_m["g2p"]) - np.array(meas_m["g2m"])) / (2 * calibration_shear)
 
     if weights is not None:
         w = np.asarray(weights).astype(np.float64)
@@ -578,6 +559,9 @@ def measure_pairs(config, res_p, res_m):
                 datap.append(tuple(list(pgm) + [s2n_cut, -1, mfrac_cut, wgt]))
                 datam.append(tuple(list(mgm) + [s2n_cut, -1, mfrac_cut, wgt]))
 
-        return np.stack([np.array(datap, dtype=dtype), np.array(datam, dtype=dtype)], axis=-1)
+    #     return np.stack([np.array(datap, dtype=dtype), np.array(datam, dtype=dtype)], axis=-1)
+    # else:
+    #     return np.stack([None, None], axis=-1)
+        return datap, datam
     else:
-        return np.stack([None, None], axis=-1)
+        return None, None

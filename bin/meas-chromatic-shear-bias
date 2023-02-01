@@ -6,26 +6,20 @@ Staging file for generating simulations and running metadetect
 import argparse
 import copy
 import logging
+from pathlib import Path
 
 import yaml
 import numpy as np
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 
-import fitsio
 import galsim
 import ngmix
 import metadetect
 
 from chromatic_shear_bias import run_utils
-
-
-def _read_ext(fname, ext):
-    return fitsio.read(fname, ext=ext)
-
-
-def _read_output(files, ext):
-    data = [_read_ext(fname, ext) for fname in files]
-
-    return data
 
 
 def get_args():
@@ -51,7 +45,7 @@ def get_args():
         "--mfrac-cut", type=int, default=None,
         help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
     )
-    parser.add_argument("--output", type=str, required=True, nargs="*", help="Output files [fits]")
+    parser.add_argument("--output", type=str, required=True, help="Output directory")
     parser.add_argument("--method", type=str, required=False, default="bootstrap", help="Method for calculating variance [bootstrap, jackknife]")
     parser.add_argument("--n_resample", type=int, required=False, default=1000, help="Number of resample iterations")
     return parser.parse_args()
@@ -87,31 +81,32 @@ def main():
     logger.info(f"Measuring: {vars(args)}")
 
     logger.info(f"Reading output files")
-    pdata = []
-    mdata = []
-    pdata = _read_output(args.output, "plus")
-    mdata = _read_output(args.output, "minus")
-    # for output in args.output:
-    #     with fitsio.FITS(output, "r") as fits:
-    #         pdata.append(fits["plus"].read())
-    #         mdata.append(fits["minus"].read())
+    # pdata = []
+    # mdata = []
+    # pdata = _read_output(args.output, "plus")
+    # mdata = _read_output(args.output, "minus")
+    # # for output in args.output:
+    # #     with fitsio.FITS(output, "r") as fits:
+    # #         pdata.append(fits["plus"].read())
+    # #         mdata.append(fits["minus"].read())
+    root_path = Path(args.output)
+    ds_p = ds.dataset(list(root_path.glob("out_p-*.parquet")))
+    ds_m = ds.dataset(list(root_path.glob("out_m-*.parquet")))
 
-    logger.info(f"Concatenating output files")
-    pdata = np.concatenate(pdata)
-    mdata = np.concatenate(mdata)
-
-    logger.info(f"Applying cuts")
-    pmsk = (pdata["s2n_cut"] == args.s2n_cut)
+    predicate = \
+        pc.field("s2n_cut") == args.s2n_cut
     if args.ormask_cut is not None:
-        pmsk &= (pdata["ormask_cut"] == args.ormask_cut)
+        predicate &= (pc.field("ormask_cut") == args.ormask_cut)
     else:
-        pmsk &= (pdata["ormask_cut"] == -1)
+        predicate &= (pc.field("ormask_cut") == -1)
     if args.mfrac_cut is not None:
-        pmsk &= (pdata["mfrac_cut"] == args.mfrac_cut)
+        predicate &= (pc.field("mfrac_cut") == args.mfrac_cut)
     else:
-        pmsk &= (pdata["mfrac_cut"] == -1)
+        predicate &= (pc.field("mfrac_cut") == -1)
 
-    n_sims_msk = np.sum(pdata["weight"][pmsk])
+    pdata = ds_p.to_table(filter=predicate).to_pydict()
+    mdata = ds_m.to_table(filter=predicate).to_pydict()
+    n_sims_msk = np.sum(pdata["weight"])
     if n_sims_msk <= 0:
         raise RuntimeError("Cuts did not keep any sims!")
     else:
@@ -122,11 +117,39 @@ def main():
     calibration_shear = ngmix.metacal.DEFAULT_STEP
     cosmic_shear = config["shear"]["g"]
     m_est, m_std, c_est, c_std = run_utils.estimate_biases(
-        pdata[pmsk], mdata[pmsk], calibration_shear, cosmic_shear,
-        weights=pdata["weight"][pmsk],
+        pdata, mdata, calibration_shear, cosmic_shear,
+        weights=pdata["weight"],
         method=args.method,
         n_resample=args.n_resample,
     )
+
+    # logger.info(f"Applying cuts")
+    # pmsk = (pdata["s2n_cut"] == args.s2n_cut)
+    # if args.ormask_cut is not None:
+    #     pmsk &= (pdata["ormask_cut"] == args.ormask_cut)
+    # else:
+    #     pmsk &= (pdata["ormask_cut"] == -1)
+    # if args.mfrac_cut is not None:
+    #     pmsk &= (pdata["mfrac_cut"] == args.mfrac_cut)
+    # else:
+    #     pmsk &= (pdata["mfrac_cut"] == -1)
+
+    # n_sims_msk = np.sum(pdata["weight"][pmsk])
+    # if n_sims_msk <= 0:
+    #     raise RuntimeError("Cuts did not keep any sims!")
+    # else:
+    #     logger.info(f"{n_sims_msk} sims pass cuts")
+
+    # logger.info(f"Measuring multiplicative and additive biases")
+    # m_req = 0.002
+    # calibration_shear = ngmix.metacal.DEFAULT_STEP
+    # cosmic_shear = config["shear"]["g"]
+    # m_est, m_std, c_est, c_std = run_utils.estimate_biases(
+    #     pdata[pmsk], mdata[pmsk], calibration_shear, cosmic_shear,
+    #     weights=pdata["weight"][pmsk],
+    #     method=args.method,
+    #     n_resample=args.n_resample,
+    # )
 
     logger.info(f"multiplicative bias: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma)")
     logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma)")

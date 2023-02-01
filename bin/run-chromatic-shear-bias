@@ -10,9 +10,13 @@ import os
 import shutil
 from pathlib import Path
 
-import yaml
-import numpy as np
 from mpi4py import MPI
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
+import yaml
 
 import fitsio
 import galsim
@@ -55,7 +59,7 @@ def get_args():
         default=1,
         help="Number of sims to run [int]",
     )
-    parser.add_argument("--output", type=str, required=True, help="Output file [fits]")
+    parser.add_argument("--output", type=str, required=True, help="Output directory")
     return parser.parse_args()
 
 
@@ -82,7 +86,12 @@ def main():
 
     # output file path
     root_path = Path(args.output)
-    path = root_path.with_stem(f"{root_path.stem}-{rank}").with_suffix(".fits")
+    # if root_path.exists() and not root_path.is_dir():
+    #     raise RuntimeError(f"{root_path} exists but is not a directory!")
+    if not root_path.exists():
+        root_path.mkdir(exist_ok=True)
+    path_p = root_path / f"out_p-{rank}.parquet"
+    path_m = root_path / f"out_m-{rank}.parquet"
 
     _config = None
     _galsim_config = None
@@ -101,30 +110,57 @@ def main():
     config = comm.bcast(_config, root=0)
     galsim_config = comm.bcast(_galsim_config, root=0)
 
-    rng = np.random.default_rng(args.seed + rank)
+    # TODO can this help reduce redundant IO?
+    # # Load input objects in advance
+    # all_keys = [str(k) for k in galsim_config['input'].keys() if k in galsim.config.input.valid_input_types]
+    # _input_objs = {}
+    # for key in all_keys:
+    #     fields = galsim_config['input'][key]
+    #     nfields = len(fields) if isinstance(fields, list) else 1
+    #     _input_objs_key = []
+    #     for num in range(nfields):
+    #         _input_obj = galsim.config.input.LoadInputObj(
+    #             galsim_config,
+    #             key,
+    #             num,
+    #         )
+    #         _input_objs_key.append(_input_obj)
+    #     _input_objs[key] = _input_objs_key
+    # # galsim.config.SetInConfig(_galsim_config, "_input_objs", _input_objs)
 
-    measurement_array = np.zeros(
-        shape=(run_utils._get_size(args.n_sims), 2),
-        dtype=run_utils._get_dtype(),
-    )
+
+    # logger.info(f"Processing inputs in GalSim config")
+    # galsim.config.ProcessInput(_galsim_config)  # TODO Is this the best place to call this?
+
+    # Initialize the parquet writers for subsequent writes
+    schema = pa.schema(run_utils._get_dtype())
+    pqwriter_p = pq.ParquetWriter(path_p, schema)
+    pqwriter_m = pq.ParquetWriter(path_m, schema)
+
+    # Setup the seed for each rank
+    seed = args.seed + rank
 
     for kwargs in run_utils.generate_arguments(
-        config, galsim_config, rng, args.n_sims, logger,
+        config, galsim_config, seed, args.n_sims, logger,
     ):
-        measurements = run_utils.make_and_measure_pairs(**kwargs)
-        idx_start = kwargs["idx"] * run_utils._get_size(1)
-        idx_stop = (kwargs["idx"] + 1) * run_utils._get_size(1)
-        measurement_array[idx_start:idx_stop] = measurements  # TODO does this need a copy?
+        index = kwargs["index"]
+        meas_p, meas_m = run_utils.make_and_measure_pairs(**kwargs)
 
-        # Write measurement array to disk
-        with fitsio.FITS(path, "rw", clobber=True) as fits:
-            # It would be better if we could write to a specific block of the
-            # FITS file without needing to overwrite each time
-            fits.write(measurement_array[:, 0], extname="plus")
-            fits.write(measurement_array[:, 1], extname="minus")
+        # TODO add column in dataset for shear; partition along this column?
+        table_p = pa.Table.from_pandas(
+            pd.DataFrame(np.array(meas_p, dtype=run_utils._get_dtype())),
+            schema,
+        )
+        table_m = pa.Table.from_pandas(
+            pd.DataFrame(np.array(meas_m, dtype=run_utils._get_dtype())),
+            schema,
+        )
+
+        pqwriter_p.write_table(table_p)
+        pqwriter_m.write_table(table_m)
 
         # Track progress over all ranks
-        progress = comm.reduce(idx_stop)
+        progress = comm.reduce(index)
         if (rank == 0) and (progress > 0) and (progress % 10 == 0):
             logger.info(f"Proccessed {progress} paired image simulations")
 
@@ -150,7 +186,12 @@ def main():
         #         logger.info(f"multiplicative bias: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
         #         logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
 
-    logger.info(f"MPI -- Finished rank {rank} of {size - 1}")
+
+    # Close connection from writers to parquet files
+    pqwriter_p.close()
+    pqwriter_m.close()
+
+    logger.info(f"MPI -- Finished rank {rank}")
 
 
 if __name__ == "__main__":
