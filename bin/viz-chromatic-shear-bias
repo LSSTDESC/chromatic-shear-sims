@@ -44,7 +44,7 @@ def get_args():
         "--seed",
         type=int,
         required=False,
-        default=None,
+        default=1,
         help="RNG seed [int]",
     )
     return parser.parse_args()
@@ -83,30 +83,46 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
-        rng = np.random.default_rng(args.seed)
-        mbobs = run_utils.observation_builder(
+        cosmic_shear = 5 * _config["shear"]["g"]  # we exaggerate the shear for the visualization script
+        # TODO Can't make copies after processing inputs due to not being able
+        #      to pickle. This means that we'll have a difficult time sharing
+        #      our Arrow Dataset across configs, processes, etc. -- how can we
+        #      effectively handle this?
+        galsim_config_p, galsim_config_m = run_utils.make_pair_config(_galsim_config, cosmic_shear)
+
+        mbobs_p = run_utils.observation_builder(
             config,
-            galsim_config,
-            rng=rng,
+            galsim_config_p,
+            seed=args.seed,
+            logger=logger,
+        )
+        mbobs_m = run_utils.observation_builder(
+            config,
+            galsim_config_m,
+            seed=args.seed,
             logger=logger,
         )
 
-        for obslist in mbobs:
-            for obs in obslist:
+        for obslist_p, obslist_m in zip(mbobs_p, mbobs_m):
+            for obs_p, obs_m in zip(obslist_p, obslist_m):
 
-                fig, axs = plt.subplots(nrows=1, ncols=4)
+                fig, axs = plt.subplots(nrows=2, ncols=3)
 
-                axs[0].imshow(obs.image, origin="lower")
-                axs[0].set_title("Image")
+                axs[0, 0].set_ylabel("$+\gamma$")
+                axs[0, 0].imshow(obs_p.image, origin="lower")
+                axs[0, 0].set_title("Image")
+                axs[0, 1].imshow(obs_p.psf.image, origin="lower")
+                axs[0, 1].set_title("PSF")
+                axs[0, 2].imshow(obs_p.noise, origin="lower")
+                axs[0, 2].set_title("Noise Realization")
 
-                axs[1].imshow(obs.psf.image, origin="lower")
-                axs[1].set_title("PSF")
-
-                axs[2].imshow(obs.weight, origin="lower")
-                axs[2].set_title("Weight")
-
-                axs[3].imshow(obs.noise, origin="lower")
-                axs[3].set_title("Noise Realization")
+                axs[1, 0].set_ylabel("$-\gamma$")
+                axs[1, 0].imshow(obs_m.image, origin="lower")
+                axs[1, 0].set_title("Image")
+                axs[1, 1].imshow(obs_m.psf.image, origin="lower")
+                axs[1, 1].set_title("PSF")
+                axs[1, 2].imshow(obs_m.noise, origin="lower")
+                axs[1, 2].set_title("Noise Realization")
 
                 for ax in axs.ravel():
                     ax.set_xticks([])
