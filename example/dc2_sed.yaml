@@ -1,0 +1,133 @@
+modules:
+  - galsim_extra
+  - chromatic_shear_bias
+
+input:
+  arrow_dataset:
+    -
+      dataset: /oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel.parquet
+      format: parquet
+      columns: ["sedFilename"]
+      predicate:
+          and_kleene:
+             - greater:
+                 - subtract_checked:
+                     - field: gmag
+                     - field: imag
+                 - scalar: 0.76
+             - less:
+                 - subtract_checked:
+                     - field: gmag
+                     - field: imag
+                 - scalar: 1.49
+    -
+      dataset: /oak/stanford/orgs/kipac/users/smau/cosmoDC2_v1.1.4_parquet
+      format: parquet
+      columns: ["redshift", "mag_true_g_lsst", "mag_true_i_lsst", "mag_true_r_lsst", "mag_true_u_lsst", "mag_true_y_lsst", "mag_true_z_lsst", "sed_1000_246_no_host_extinction", "sed_11467_1710_no_host_extinction", "sed_1246_306_no_host_extinction", "sed_13177_1966_no_host_extinction", "sed_15143_2259_no_host_extinction", "sed_1552_381_no_host_extinction", "sed_17402_2596_no_host_extinction", "sed_1933_474_no_host_extinction", "sed_2407_591_no_host_extinction", "sed_2998_186_no_host_extinction", "sed_3184_197_no_host_extinction", "sed_3381_209_no_host_extinction", "sed_3590_222_no_host_extinction", "sed_3812_236_no_host_extinction", "sed_4048_251_no_host_extinction", "sed_4299_266_no_host_extinction", "sed_4565_283_no_host_extinction", "sed_4848_300_no_host_extinction", "sed_5148_319_no_host_extinction", "sed_5467_339_no_host_extinction", "sed_5806_360_no_host_extinction", "sed_6166_382_no_host_extinction", "sed_6548_406_no_host_extinction", "sed_6954_431_no_host_extinction", "sed_7385_458_no_host_extinction", "sed_7843_486_no_host_extinction", "sed_8329_517_no_host_extinction", "sed_8846_549_no_host_extinction", "sed_9395_583_no_host_extinction", "sed_9978_1489_no_host_extinction"]
+      predicate:
+          and_kleene:
+             - greater:
+                 - subtract_checked:
+                     - field: mag_true_g_lsst
+                     - field: mag_true_i_lsst
+                 - scalar: 0.76
+             - less:
+                 - subtract_checked:
+                     - field: mag_true_g_lsst
+                     - field: mag_true_i_lsst
+                 - scalar: 1.49
+
+eval_variables:
+    # It will be convenient to have the single-character filter name to use in Eval items.
+    sfilter:
+        type: List
+        items: [r]
+        index_key: image_num
+
+stamp:
+  type: MixedScene
+
+  shear_scene: "$@current_obj_type == 'gal'"
+
+  objects:
+    star: 0
+    gal: 1
+
+  shear:
+    type: G1G2
+    g1: 0.0
+    g2: 0.0
+
+psf:
+  type: ChromaticAtmosphere
+  base_profile:
+      type: Gaussian
+      fwhm: 0.9
+  base_wavelength: 500
+  zenith_angle: 0 deg  # set to 0 to disable DCR
+  parallactic_angle: 0 deg  # set to 0 to disable DCR
+
+star:
+  type: DeltaFunction
+  sed:
+    type: DC2_SED
+    sed_dir: /oak/stanford/orgs/kipac/users/smau/
+    num: 0
+    index:
+      type: Random
+      rng_num: 1
+
+gal:
+  type: Exponential
+  half_light_radius: 0.5
+  signal_to_noise: 1e6
+
+  shift:
+    type: XY
+    x: { 'type' : 'Random' , 'min' : '$ -0.5 * @image.pixel_scale', 'max' : '$ 0.5 * @image.pixel_scale' }
+    y: { 'type' : 'Random' , 'min' : '$ -0.5 * @image.pixel_scale', 'max' : '$ 0.5 * @image.pixel_scale' }
+    rng_num: 2
+
+  sed:
+    type: cosmoDC2_SED
+    num: 1
+    index:
+      type: Random
+      rng_num: 2
+
+image:
+  type: Lattice
+  xsize: 320
+  ysize: 320
+  pixel_scale: 0.2  # arcsec / pixel
+  border_ratio: 0.8
+  sep: 10.0  # arcsec
+  rotation:
+    type: Random
+    min: 0.0  # deg
+    max: 360.0  # deg
+    rng_num: 1
+
+  bandpass:
+    file_name:
+      type: FormattedStr
+      format: "LSST_%s.dat"
+      items:
+        - $filter
+    wave_type: nm   # Wavelength in these files is in nm.
+    thin: 1.e-4
+
+  random_seed:
+    # Used for observational conditions (noise, etc.)
+    - {type: Sequence, first: 42, index_key: 'image_num'}
+
+    # Used for defining the scene (positions, etc.)
+    - {type: Sequence, first: 42, index_key: 'file_num'}
+
+    # Used for defining individual object parameters
+    - {type: Sequence, first: 42, index_key: 'obj_num'}
+
+  noise:
+    type: Gaussian
+    sigma: 0.02
+    rng_num: 0
