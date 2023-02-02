@@ -5,8 +5,9 @@ Some functions from https://github.com/beckermr/pizza-cutter-sims
 
 import copy
 
-import yaml
 import numpy as np
+import pyarrow as pa
+import yaml
 
 import galsim
 import galsim_extra
@@ -23,8 +24,9 @@ def _get_dtype():
     fkeys = ["g1p", "g1m", "g1", "g2p", "g2m", "g2"]
     ikeys = ["s2n_cut", "ormask_cut", "mfrac_cut"]
     dtype = []
-    for key in fkeys:
-        dtype.append((key, "f8"))
+    for parity in ["p", "m"]:
+        for key in fkeys:
+            dtype.append((f"{parity}.{key}", "f8"))
     for key in ikeys:
         dtype.append((key, "i4"))
 
@@ -32,15 +34,60 @@ def _get_dtype():
 
     return dtype
 
+def _get_type():
+    return pa.struct([
+        ("g1p", pa.float64()),
+        ("g1m", pa.float64()),
+        ("g1", pa.float64()),
+        ("g2p", pa.float64()),
+        ("g2m", pa.float64()),
+        ("g2", pa.float64()),
+    ])
 
-def _get_size(n_sims):
-    return n_sims * len(S2N_CUTS) * (len(ORMASK_CUTS) + len(MFRAC_CUTS))
 
+def _get_schema():
+    # schema = pa.schema([
+    #     ("plus", pa.struct([
+    #         ("g1p", pa.float64()),
+    #         ("g1m", pa.float64()),
+    #         ("g1", pa.float64()),
+    #         ("g2p", pa.float64()),
+    #         ("g2m", pa.float64()),
+    #         ("g2", pa.float64()),
+    #      ])),
+    #     ("minus", pa.struct([
+    #         ("g1p", pa.float64()),
+    #         ("g1m", pa.float64()),
+    #         ("g1", pa.float64()),
+    #         ("g2p", pa.float64()),
+    #         ("g2m", pa.float64()),
+    #         ("g2", pa.float64()),
+    #     ])),
+    #     ("s2n_cut", pa.int32()),
+    #     ("ormask_cut", pa.int32()),
+    #     ("mfrac_cut", pa.int32()),
+    #     ("weight", pa.float64()),
+    # ])
+    schema = pa.schema([
+        ("p.g1p", pa.float64()),
+        ("p.g1m", pa.float64()),
+        ("p.g1", pa.float64()),
+        ("p.g2p", pa.float64()),
+        ("p.g2m", pa.float64()),
+        ("p.g2", pa.float64()),
+        ("m.g1p", pa.float64()),
+        ("m.g1m", pa.float64()),
+        ("m.g1", pa.float64()),
+        ("m.g2p", pa.float64()),
+        ("m.g2m", pa.float64()),
+        ("m.g2", pa.float64()),
+        ("s2n_cut", pa.int32()),
+        ("ormask_cut", pa.int32()),
+        ("mfrac_cut", pa.int32()),
+        ("weight", pa.float64()),
+    ])
 
-def _make_res_arrays(n_sims):
-    dt = _get_dtype()
-    n = _get_size(n_sims)
-    return np.stack([np.zeros(n, dtype=dt), np.zeros(n, dtype=dt)], axis=-1)
+    return schema
 
 
 def generate_arguments(config, galsim_config, seed, n, logger):
@@ -233,8 +280,8 @@ def make_and_measure_pairs(config, galsim_config, seed, index, logger):
 
     # TODO: multithread the p/m pieces in parallel?
     #       e.g., even rank do p, odd rank do m
-    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=None)
-    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=None)
+    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=logger)
+    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=logger)
 
     # TODO Should these be the same rngs?
     mdet_rng_p = np.random.default_rng(seed)
@@ -339,22 +386,22 @@ def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
     )
 
 
-def estimate_biases(meas_p, meas_m, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
+def estimate_biases(data, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
     """
     Estimate both additive and multiplicative biases with noise bias
     cancellation and resampled standard deviations.
     """
-    g1p = np.array(meas_p["g1"])
-    R11p = (np.array(meas_p["g1p"]) - np.array(meas_p["g1m"])) / (2 * calibration_shear)
+    g1p = np.array(data["p.g1"])
+    R11p = (np.array(data["p.g1p"]) - np.array(data["p.g1m"])) / (2 * calibration_shear)
 
-    g1m = np.array(meas_m["g1"])
-    R11m = (np.array(meas_m["g1p"]) - np.array(meas_m["g1m"])) / (2 * calibration_shear)
+    g1m = np.array(data["m.g1"])
+    R11m = (np.array(data["m.g1p"]) - np.array(data["m.g1m"])) / (2 * calibration_shear)
 
-    g2p = np.array(meas_p["g2"])
-    R22p = (np.array(meas_p["g2p"]) - np.array(meas_p["g2m"])) / (2 * calibration_shear)
+    g2p = np.array(data["p.g2"])
+    R22p = (np.array(data["p.g2p"]) - np.array(data["p.g2m"])) / (2 * calibration_shear)
 
-    g2m = np.array(meas_m["g2"])
-    R22m = (np.array(meas_m["g2p"]) - np.array(meas_m["g2m"])) / (2 * calibration_shear)
+    g2m = np.array(data["m.g2"])
+    R22m = (np.array(data["m.g2p"]) - np.array(data["m.g2m"])) / (2 * calibration_shear)
 
     if weights is not None:
         w = np.asarray(weights).astype(np.float64)
@@ -503,10 +550,7 @@ def measure_pairs(config, res_p, res_m):
     if len(res_p) > 0:
         wgt = len(res_p)
 
-        # TODO: stack datap and datam into a single array of depth 2 here?
-        dtype = _get_dtype()
-        datap = []
-        datam = []
+        data = []
         for ormask_cut in ORMASK_CUTS:
             for s2n_cut in S2N_CUTS:
                 pgm = measure_shear_metadetect(
@@ -528,11 +572,8 @@ def measure_pairs(config, res_p, res_m):
                 if pgm is None or mgm is None:
                     continue
 
-                datap.append(
-                    tuple(list(pgm) + [s2n_cut, 0 if ormask_cut else 1, -1, wgt])
-                )
-                datam.append(
-                    tuple(list(mgm) + [s2n_cut, 0 if ormask_cut else 1, -1, wgt])
+                data.append(
+                    tuple(list(pgm) + list(mgm) + [s2n_cut, 0 if ormask_cut else 1, -1, wgt])
                 )
 
         for mfrac_cut in MFRAC_CUTS:
@@ -556,12 +597,10 @@ def measure_pairs(config, res_p, res_m):
                 if pgm is None or mgm is None:
                     continue
 
-                datap.append(tuple(list(pgm) + [s2n_cut, -1, mfrac_cut, wgt]))
-                datam.append(tuple(list(mgm) + [s2n_cut, -1, mfrac_cut, wgt]))
+                data.append(
+                    tuple(list(pgm) + list(mgm) + [s2n_cut, -1, mfrac_cut, wgt])
+                )
 
-    #     return np.stack([np.array(datap, dtype=dtype), np.array(datam, dtype=dtype)], axis=-1)
-    # else:
-    #     return np.stack([None, None], axis=-1)
-        return datap, datam
+        return data
     else:
-        return None, None
+        return None

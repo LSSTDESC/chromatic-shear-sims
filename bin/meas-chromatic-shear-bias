@@ -81,17 +81,7 @@ def main():
     logger.info(f"Measuring: {vars(args)}")
 
     logger.info(f"Reading output files")
-    # pdata = []
-    # mdata = []
-    # pdata = _read_output(args.output, "plus")
-    # mdata = _read_output(args.output, "minus")
-    # # for output in args.output:
-    # #     with fitsio.FITS(output, "r") as fits:
-    # #         pdata.append(fits["plus"].read())
-    # #         mdata.append(fits["minus"].read())
-    root_path = Path(args.output)
-    ds_p = ds.dataset(list(root_path.glob("out_p-*.parquet")))
-    ds_m = ds.dataset(list(root_path.glob("out_m-*.parquet")))
+    dataset = ds.dataset(args.output)
 
     predicate = \
         pc.field("s2n_cut") == args.s2n_cut
@@ -104,9 +94,8 @@ def main():
     else:
         predicate &= (pc.field("mfrac_cut") == -1)
 
-    pdata = ds_p.to_table(filter=predicate).to_pydict()
-    mdata = ds_m.to_table(filter=predicate).to_pydict()
-    n_sims_msk = np.sum(pdata["weight"])
+    data = dataset.to_table(filter=predicate).to_pydict()
+    n_sims_msk = np.sum(data["weight"])
     if n_sims_msk <= 0:
         raise RuntimeError("Cuts did not keep any sims!")
     else:
@@ -117,8 +106,8 @@ def main():
     calibration_shear = ngmix.metacal.DEFAULT_STEP
     cosmic_shear = config["shear"]["g"]
     m_est, m_std, c_est, c_std = run_utils.estimate_biases(
-        pdata, mdata, calibration_shear, cosmic_shear,
-        weights=pdata["weight"],
+        data, calibration_shear, cosmic_shear,
+        weights=data["weight"],
         method=args.method,
         n_resample=args.n_resample,
     )

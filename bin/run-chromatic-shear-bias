@@ -10,7 +10,7 @@ import os
 import shutil
 from pathlib import Path
 
-from mpi4py import MPI
+# from mpi4py import MPI
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -26,9 +26,9 @@ import metadetect
 from chromatic_shear_bias import run_utils
 
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+# comm = MPI.COMM_WORLD
+# rank = comm.Get_rank()
+# size = comm.Get_size()
 
 
 def get_args():
@@ -84,31 +84,35 @@ def main():
     args = get_args()
     logger = get_logger()
 
+    # Setup the seed for each rank
+    seed = args.seed # + rank
+
     # output file path
     root_path = Path(args.output)
     # if root_path.exists() and not root_path.is_dir():
     #     raise RuntimeError(f"{root_path} exists but is not a directory!")
     if not root_path.exists():
         root_path.mkdir(exist_ok=True)
-    path_p = root_path / f"out_p-{rank}.parquet"
-    path_m = root_path / f"out_m-{rank}.parquet"
+    path = root_path / f"{seed}.parquet"
 
     _config = None
     _galsim_config = None
-    if rank == 0:
-        logger.info(f"Running: {vars(args)}")
-        logger.info(f"Running with {size} MPI processes")
+    # if rank == 0:
+    logger.info(f"Running: {vars(args)}")
+    # logger.info(f"Running with {size} MPI processes")
 
-        with open(args.config, "r") as fp:
-            _config = yaml.safe_load(fp.read())
+    with open(args.config, "r") as fp:
+        _config = yaml.safe_load(fp.read())
 
-        galsim_configs = galsim.config.ReadConfig(args.sim)
-        assert len(galsim_configs) == 1, f"Expected 1 GalSim config in {args.sim}; found {len(galsim_configs)}"
-        _galsim_config = galsim_configs[0]
+    galsim_configs = galsim.config.ReadConfig(args.sim)
+    assert len(galsim_configs) == 1, f"Expected 1 GalSim config in {args.sim}; found {len(galsim_configs)}"
+    _galsim_config = galsim_configs[0]
 
     # Broadcast configs from rank 0 process
-    config = comm.bcast(_config, root=0)
-    galsim_config = comm.bcast(_galsim_config, root=0)
+    # config = comm.bcast(_config, root=0)
+    # galsim_config = comm.bcast(_galsim_config, root=0)
+    config = _config
+    galsim_config = _galsim_config
 
     # TODO can this help reduce redundant IO?
     # # Load input objects in advance
@@ -133,36 +137,28 @@ def main():
     # galsim.config.ProcessInput(_galsim_config)  # TODO Is this the best place to call this?
 
     # Initialize the parquet writers for subsequent writes
-    schema = pa.schema(run_utils._get_dtype())
-    pqwriter_p = pq.ParquetWriter(path_p, schema)
-    pqwriter_m = pq.ParquetWriter(path_m, schema)
-
-    # Setup the seed for each rank
-    seed = args.seed + rank
+    schema = run_utils._get_schema()
+    pqwriter = pq.ParquetWriter(path, schema)
 
     for kwargs in run_utils.generate_arguments(
         config, galsim_config, seed, args.n_sims, logger,
     ):
         index = kwargs["index"]
-        meas_p, meas_m = run_utils.make_and_measure_pairs(**kwargs)
+        meas = run_utils.make_and_measure_pairs(**kwargs)
 
-        # TODO add column in dataset for shear; partition along this column?
-        table_p = pa.Table.from_pandas(
-            pd.DataFrame(np.array(meas_p, dtype=run_utils._get_dtype())),
-            schema,
-        )
-        table_m = pa.Table.from_pandas(
-            pd.DataFrame(np.array(meas_m, dtype=run_utils._get_dtype())),
+        table = pa.Table.from_pandas(
+            pd.DataFrame(np.array(meas, dtype=run_utils._get_dtype())),
             schema,
         )
 
-        pqwriter_p.write_table(table_p)
-        pqwriter_m.write_table(table_m)
+        pqwriter.write_table(table)
 
-        # Track progress over all ranks
-        progress = comm.reduce(index)
-        if (rank == 0) and (progress > 0) and (progress % 10 == 0):
-            logger.info(f"Proccessed {progress} paired image simulations")
+        # # Track progress over all ranks
+        # progress = comm.reduce(index)
+        # if (rank == 0) and (progress > 0) and (progress % 10 == 0):
+        #     logger.info(f"Proccessed {progress} paired image simulations")
+        # if (index > 0) and (index % 10 == 0):
+        logger.info(f"Proccessed {index + 1} paired image simulations")
 
         # Periodically measure bias on rank 0
         # if (rank == 0) and (progress is not None) and (progress > 0) and (progress % 100 == 0):
@@ -188,10 +184,9 @@ def main():
 
 
     # Close connection from writers to parquet files
-    pqwriter_p.close()
-    pqwriter_m.close()
+    pqwriter.close()
 
-    logger.info(f"MPI -- Finished rank {rank}")
+    # logger.info(f"MPI -- Finished rank {rank}")
 
 
 if __name__ == "__main__":
