@@ -25,6 +25,16 @@ def parse_predicate(predicate_tree):
             return f(v)
 
 
+def match_expression(names, expressions):
+    """Match names to regular expressions
+    """
+    return [
+        name for name in names
+        for expression in expressions
+        if re.match(expression, name)
+    ]
+
+
 class ArrowDataset(Catalog):
     """GalSim interface for Arrow datasets
     """
@@ -48,6 +58,10 @@ class ArrowDataset(Catalog):
         self.file_type = self.format  # For compatibility with Catalog
 
         if columns == []: columns = None  # Note that this will return _all_ columns in the table
+        elif columns == None:
+            columns = None
+        else:
+            columns = match_expression(self.dataset.schema.names, columns)
         self.columns = columns
         # self.columns = \
         #     ["redshift"] \

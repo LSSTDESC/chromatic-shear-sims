@@ -7,7 +7,8 @@ input:
     -
       dataset: /oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel.parquet
       format: parquet
-      columns: ["sedFilename"]
+      columns:
+        - ^sedFilename$
       predicate:
           and_kleene:
              - greater:
@@ -23,7 +24,10 @@ input:
     -
       dataset: /oak/stanford/orgs/kipac/users/smau/cosmoDC2_v1.1.4_parquet
       format: parquet
-      columns: ["redshift", "mag_true_g_lsst", "mag_true_i_lsst", "mag_true_r_lsst", "mag_true_u_lsst", "mag_true_y_lsst", "mag_true_z_lsst", "sed_1000_246_no_host_extinction", "sed_11467_1710_no_host_extinction", "sed_1246_306_no_host_extinction", "sed_13177_1966_no_host_extinction", "sed_15143_2259_no_host_extinction", "sed_1552_381_no_host_extinction", "sed_17402_2596_no_host_extinction", "sed_1933_474_no_host_extinction", "sed_2407_591_no_host_extinction", "sed_2998_186_no_host_extinction", "sed_3184_197_no_host_extinction", "sed_3381_209_no_host_extinction", "sed_3590_222_no_host_extinction", "sed_3812_236_no_host_extinction", "sed_4048_251_no_host_extinction", "sed_4299_266_no_host_extinction", "sed_4565_283_no_host_extinction", "sed_4848_300_no_host_extinction", "sed_5148_319_no_host_extinction", "sed_5467_339_no_host_extinction", "sed_5806_360_no_host_extinction", "sed_6166_382_no_host_extinction", "sed_6548_406_no_host_extinction", "sed_6954_431_no_host_extinction", "sed_7385_458_no_host_extinction", "sed_7843_486_no_host_extinction", "sed_8329_517_no_host_extinction", "sed_8846_549_no_host_extinction", "sed_9395_583_no_host_extinction", "sed_9978_1489_no_host_extinction"]
+      columns:
+        - ^redshift$
+        - ^mag_true_\w_lsst$
+        - ^sed_\d+_\d+_no_host_extinction$
       predicate:
           and_kleene:
              - greater:
