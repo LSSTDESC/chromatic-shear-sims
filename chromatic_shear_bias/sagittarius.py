@@ -57,11 +57,14 @@ class ArrowDataset(Catalog):
         self.format = format
         self.file_type = self.format  # For compatibility with Catalog
 
+        self._dataset = ds.dataset(self.dataset, format=self.format)
+        self.names = self._dataset.schema.names
+
         if columns == []: columns = None  # Note that this will return _all_ columns in the table
         elif columns == None:
             columns = None
         else:
-            columns = match_expression(self.dataset.schema.names, columns)
+            columns = match_expression(self.names, columns)
         self.columns = columns
         # self.columns = \
         #     ["redshift"] \
@@ -79,16 +82,6 @@ class ArrowDataset(Catalog):
         self.comments = None  # For compatibility with Catalog
         self.hdu = None  # For compatibility with Catalog
 
-        self._init()
-
-
-    def _init(self):
-        """Initialize the parquet dataset and make certain metadata available
-        to GalSim
-        """
-        self._dataset = ds.dataset(self.dataset, format=self.format)
-
-        self.names = self._dataset.schema.names
         self._ncols = len(self.names)
         self._scanner = self._dataset.scanner(
             columns=self.columns,
