@@ -31,6 +31,22 @@ from chromatic_shear_bias import run_utils
 # size = comm.Get_size()
 
 
+def clean_config(config, keep_current=False):
+    """We're just duplicating galsim.config.CleanConfig
+    without discarding _input_objs
+    """
+    if isinstance(config, dict):
+        return {
+            k: clean_config(config[k], keep_current) for k in config
+            if (k[0] != "_" and (keep_current or k != "current"))
+            or k == "_input_objs"
+        }
+    elif isinstance(config, list):
+        return [ clean_config(item, keep_current) for item in config ]
+    else:
+        return config
+
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -111,27 +127,8 @@ def main():
     # Broadcast configs from rank 0 process
     # config = comm.bcast(_config, root=0)
     # galsim_config = comm.bcast(_galsim_config, root=0)
-    config = _config
-    galsim_config = _galsim_config
-
-    # TODO can this help reduce redundant IO?
-    # # Load input objects in advance
-    # all_keys = [str(k) for k in galsim_config['input'].keys() if k in galsim.config.input.valid_input_types]
-    # _input_objs = {}
-    # for key in all_keys:
-    #     fields = galsim_config['input'][key]
-    #     nfields = len(fields) if isinstance(fields, list) else 1
-    #     _input_objs_key = []
-    #     for num in range(nfields):
-    #         _input_obj = galsim.config.input.LoadInputObj(
-    #             galsim_config,
-    #             key,
-    #             num,
-    #         )
-    #         _input_objs_key.append(_input_obj)
-    #     _input_objs[key] = _input_objs_key
-    # # galsim.config.SetInConfig(_galsim_config, "_input_objs", _input_objs)
-
+    config = copy.deepcopy(_config)
+    galsim_config = copy.deepcopy(_galsim_config)
 
     # logger.info(f"Processing inputs in GalSim config")
     # galsim.config.ProcessInput(_galsim_config)  # TODO Is this the best place to call this?
@@ -140,11 +137,17 @@ def main():
     schema = run_utils._get_schema()
     pqwriter = pq.ParquetWriter(path, schema)
 
-    for kwargs in run_utils.generate_arguments(
-        config, galsim_config, seed, args.n_sims, logger,
-    ):
-        index = kwargs["index"]
-        meas = run_utils.make_and_measure_pairs(**kwargs)
+    rng = np.random.default_rng(seed)
+    for index in range(args.n_sims):
+        seed = rng.integers(1, 2**64 // 2)
+        # logger.info(f"Running with seed {seed}")
+        meas = run_utils.make_and_measure_pairs(
+            config,
+            galsim_config,
+            seed,
+            index,
+            logger,
+        )
 
         table = pa.Table.from_pandas(
             pd.DataFrame(np.array(meas, dtype=run_utils._get_dtype())),
@@ -157,8 +160,13 @@ def main():
         # progress = comm.reduce(index)
         # if (rank == 0) and (progress > 0) and (progress % 10 == 0):
         #     logger.info(f"Proccessed {progress} paired image simulations")
-        # if (index > 0) and (index % 10 == 0):
-        logger.info(f"Proccessed {index + 1} paired image simulations")
+        if (index > 0) and (index % 10 == 0):
+            logger.info(f"Proccessed {index + 1} paired image simulations")
+
+        # Clean the config for the next simulation
+        galsim_config = clean_config(galsim_config)
+        # galsim_config = galsim.config.CleanConfig(galsim_config)  # TODO we want to keep _input_objs
+
 
         # Periodically measure bias on rank 0
         # if (rank == 0) and (progress is not None) and (progress > 0) and (progress % 100 == 0):

@@ -264,7 +264,6 @@ def make_pair_config(config, g=0.02):
     galsim.config.SetInConfig(config_p, "stamp.shear.g1", g)
     galsim.config.SetInConfig(config_m, "stamp.shear.g1", -g)
 
-
     # galsim.config.SetInConfig(config_p, "gal.shear.g1", g)
     # galsim.config.SetInConfig(config_m, "gal.shear.g1", -g)
 
@@ -276,12 +275,41 @@ def make_and_measure_pairs(config, galsim_config, seed, index, logger):
     Build measurements of simulations
     """
     cosmic_shear = config["shear"]["g"]
-    galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
+    # galsim_config_p, galsim_config_m = make_pair_config(galsim_config, cosmic_shear)
 
     # TODO: multithread the p/m pieces in parallel?
     #       e.g., even rank do p, odd rank do m
-    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=logger)
-    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=logger)
+    galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", cosmic_shear)
+    mbobs_p = observation_builder(config, galsim_config, seed=seed, logger=logger)
+    galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", -cosmic_shear)
+    mbobs_m = observation_builder(config, galsim_config, seed=seed, logger=logger)
+
+    # FIXME remove this -- just useful for some debugging
+    # import matplotlib.pyplot as plt
+    # for obslist_p, obslist_m in zip(mbobs_p, mbobs_m):
+    #     for obs_p, obs_m in zip(obslist_p, obslist_m):
+    #         fig, axs = plt.subplots(nrows=2, ncols=3)
+
+    #         axs[0, 0].set_ylabel("$+\gamma$")
+    #         axs[0, 0].imshow(obs_p.image, origin="lower")
+    #         axs[0, 0].set_title("Image")
+    #         axs[0, 1].imshow(obs_p.psf.image, origin="lower")
+    #         axs[0, 1].set_title("PSF")
+    #         axs[0, 2].imshow(obs_p.noise, origin="lower")
+    #         axs[0, 2].set_title("Noise Realization")
+
+    #         axs[1, 0].set_ylabel("$-\gamma$")
+    #         axs[1, 0].imshow(obs_m.image, origin="lower")
+    #         axs[1, 0].set_title("Image")
+    #         axs[1, 1].imshow(obs_m.psf.image, origin="lower")
+    #         axs[1, 1].set_title("PSF")
+    #         axs[1, 2].imshow(obs_m.noise, origin="lower")
+    #         axs[1, 2].set_title("Noise Realization")
+
+    #         for ax in axs.ravel():
+    #             ax.set_xticks([])
+    #             ax.set_yticks([])
+    # plt.show()
 
     # TODO Should these be the same rngs?
     mdet_rng_p = np.random.default_rng(seed)

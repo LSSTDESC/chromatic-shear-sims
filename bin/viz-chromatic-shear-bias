@@ -88,17 +88,19 @@ def main():
         #      to pickle. This means that we'll have a difficult time sharing
         #      our Arrow Dataset across configs, processes, etc. -- how can we
         #      effectively handle this?
-        galsim_config_p, galsim_config_m = run_utils.make_pair_config(_galsim_config, cosmic_shear)
 
+        # galsim_config_p, galsim_config_m = run_utils.make_pair_config(_galsim_config, cosmic_shear)
+        galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", cosmic_shear)
         mbobs_p = run_utils.observation_builder(
             config,
-            galsim_config_p,
+            galsim_config,
             seed=args.seed,
             logger=logger,
         )
+        galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", -cosmic_shear)
         mbobs_m = run_utils.observation_builder(
             config,
-            galsim_config_m,
+            galsim_config,
             seed=args.seed,
             logger=logger,
         )
