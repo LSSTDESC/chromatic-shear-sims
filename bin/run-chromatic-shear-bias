@@ -7,21 +7,17 @@ import argparse
 import copy
 import logging
 import os
-import shutil
 from pathlib import Path
 
 # from mpi4py import MPI
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
-import fitsio
 import galsim
 import ngmix
-import metadetect
 
 from chromatic_shear_bias import run_utils
 
@@ -149,11 +145,14 @@ def main():
             logger,
         )
 
-        table = pa.Table.from_pandas(
-            pd.DataFrame(np.array(meas, dtype=run_utils._get_dtype())),
+        # Construct a pyarrow table from a list of dictionaries (i.e., rows)
+        # returned by the measurement routines
+        table = pa.Table.from_pylist(
+            meas,
             schema,
         )
 
+        # Write the table to the dataset
         pqwriter.write_table(table)
 
         # # Track progress over all ranks

@@ -579,6 +579,14 @@ def measure_pairs(config, res_p, res_m):
         wgt = len(res_p)
 
         data = []
+        # data = {
+        #     "plus": [],
+        #     "minus": [],
+        #     "s2n_cut": [],
+        #     "ormask_cut": [],
+        #     "mfrac_cut": [],
+        #     "weight": [],
+        # }
         for ormask_cut in ORMASK_CUTS:
             for s2n_cut in S2N_CUTS:
                 pgm = measure_shear_metadetect(
@@ -600,9 +608,41 @@ def measure_pairs(config, res_p, res_m):
                 if pgm is None or mgm is None:
                     continue
 
-                data.append(
-                    tuple(list(pgm) + list(mgm) + [s2n_cut, 0 if ormask_cut else 1, -1, wgt])
-                )
+                # data.append(
+                #     tuple(list(pgm) + list(mgm) + [s2n_cut, 0 if ormask_cut else 1, -1, wgt])
+                # )
+                # data.append({
+                #     "pgm": list(pgm),
+                #     "mgm": list(mgm),
+                #     "s2n_cut": s2n_cut,
+                #     "ormask_cut": 0 if ormask_cut else 1,
+                #     "mfrac_cut":-1,
+                #     "weight": wgt,
+                # })
+                data.append({
+                    "p.g1p": pgm[0],
+                    "p.g1m": pgm[1],
+                    "p.g1": pgm[2],
+                    "p.g2p": pgm[3],
+                    "p.g2m": pgm[4],
+                    "p.g2": pgm[5],
+                    "m.g1p": mgm[0],
+                    "m.g1m": mgm[1],
+                    "m.g1": mgm[2],
+                    "m.g2p": mgm[3],
+                    "m.g2m": mgm[4],
+                    "m.g2": mgm[5],
+                    "s2n_cut": s2n_cut,
+                    "ormask_cut": 0 if ormask_cut else 1,
+                    "mfrac_cut": -1,
+                    "weight": wgt,
+                })
+                # data["plus"].append(pgm)
+                # data["minus"].append(mgm)
+                # data["s2n_cut"].append(s2n_cut)
+                # data["ormask_cut"].append(0 if ormask_cut else 1)
+                # data["mfrac_cut"].append(1)
+                # data["weight"].append(wgt)
 
         for mfrac_cut in MFRAC_CUTS:
             for s2n_cut in S2N_CUTS:
@@ -625,9 +665,41 @@ def measure_pairs(config, res_p, res_m):
                 if pgm is None or mgm is None:
                     continue
 
-                data.append(
-                    tuple(list(pgm) + list(mgm) + [s2n_cut, -1, mfrac_cut, wgt])
-                )
+                # data.append(
+                #     tuple(list(pgm) + list(mgm) + [s2n_cut, -1, mfrac_cut, wgt])
+                # )
+                # data.append({
+                #     "pgm": list(pgm),
+                #     "mgm": list(mgm),
+                #     "s2n_cut": s2n_cut,
+                #     "ormask_cut": -1,
+                #     "mfrac_cut": mfrac_cut,
+                #     "weight": wgt,
+                # })
+                data.append({
+                    "p.g1p": pgm[0],
+                    "p.g1m": pgm[1],
+                    "p.g1": pgm[2],
+                    "p.g2p": pgm[3],
+                    "p.g2m": pgm[4],
+                    "p.g2": pgm[5],
+                    "m.g1p": mgm[0],
+                    "m.g1m": mgm[1],
+                    "m.g1": mgm[2],
+                    "m.g2p": mgm[3],
+                    "m.g2m": mgm[4],
+                    "m.g2": mgm[5],
+                    "s2n_cut": s2n_cut,
+                    "ormask_cut": -1,
+                    "mfrac_cut": mfrac_cut,
+                    "weight": wgt,
+                })
+                # data["plus"].append(pgm)
+                # data["minus"].append(mgm)
+                # data["s2n_cut"].append(s2n_cut)
+                # data["ormask_cut"].append(-1)
+                # data["mfrac_cut"].append(mfrac_cut)
+                # data["weight"].append(wgt)
 
         return data
     else:
