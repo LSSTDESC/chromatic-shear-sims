@@ -76,7 +76,7 @@ class ArrowDataset(Catalog):
         elif predicate == None:
             predicate = None
         else:
-            predicate = pc.is_valid(parse_predicate(predicate))
+            predicate = parse_predicate(predicate)
         self.predicate = predicate
 
         self.comments = None  # For compatibility with Catalog
