@@ -76,7 +76,7 @@ class ArrowDataset(Catalog):
         elif predicate == None:
             predicate = None
         else:
-            predicate = parse_predicate(predicate)
+            predicate = pc.is_valid(parse_predicate(predicate))
         self.predicate = predicate
 
         self.comments = None  # For compatibility with Catalog
@@ -87,9 +87,10 @@ class ArrowDataset(Catalog):
             columns=self.columns,
             filter=self.predicate,
         )
-        self.nobjects = self._scanner.count_rows()
-        self._used = 0
+        self.nobjects = 0.  # self._scanner.count_rows()
+        self._used = 0.
         self._batches = self._scanner.to_batches()
+        self._batch = None
         self._next_batch()
 
     def _next_batch(self):
