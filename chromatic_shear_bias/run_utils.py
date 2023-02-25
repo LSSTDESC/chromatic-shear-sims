@@ -108,23 +108,39 @@ def generate_arguments(config, galsim_config, seed, n, logger):
         i += 1
 
 
-def draw_psf(config, size, logger=None):
+def draw_psf(config, size, image_num=0, logger=None):
     """
     Draw the PSF by convolving against a chromatic star.
     """
-    psf, _ = galsim.config.BuildGSObject(config, "psf", logger=logger)
-    if "star" in config.keys():
-        star, _ = galsim.config.BuildGSObject(config, "star", logger=logger)
-    else:
-        star = galsim.DeltaFunction()
+    # TODO specify the psf in the config file?
+    psf_config = {}
+    psf_config['psf'] = config["psf"]
+    psf_config['gal'] = copy.deepcopy(config["star"])  # Use the star as a "galaxy"; note that we deepcopy to ensure that we get fresh SEDs in each drawing
+    psf_config['image'] = {
+        'type' : 'Single',
+        'size': size,
+        'pixel_scale' : config["image"]["pixel_scale"],
+        "bandpass": config["image"]["bandpass"],
+        "random_seed": config["image"]["random_seed"],
+    }
+    psf_config["_input_objs"] = config["_input_objs"]
+    # psf_config["gal"]["sed"].pop("current", None) # FIXME?
+    # sed = galsim.config.BuildSED(config["star"], "sed", config)  # FIXME -- look into this, is caching happening? FIXME FIXME FIXME
+    return galsim.config.BuildImage(psf_config, image_num, logger=logger)
 
-    stellar_psf = galsim.Convolve([star, psf])
+    # psf, _ = galsim.config.BuildGSObject(config, "psf", logger=logger)
+    # if "star" in config.keys():
+    #     star, _ = galsim.config.BuildGSObject(config, "star", logger=logger)
+    # else:
+    #     star = galsim.DeltaFunction()
 
-    # this should be set following the building of an image with a bandpass
-    if "bandpass" in config.keys():
-        return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"], bandpass=config["bandpass"])
-    else:
-        return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"])
+    # stellar_psf = galsim.Convolve([star, psf])
+
+    # # this should be set following the building of an image with a bandpass
+    # if "bandpass" in config.keys():
+    #     return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"], bandpass=config["bandpass"])
+    # else:
+    #     return stellar_psf.drawImage(nx=size, ny=size, scale=config["image"]["pixel_scale"])
 
 
 def draw_weight(config, logger=None):
@@ -194,7 +210,7 @@ def observation_builder(config, galsim_config, seed, logger=None):
 
         # draw images used for each ngmix Observation
         psf_size = 53  # TODO: would be good to specify in global config
-        psf = draw_psf(galsim_config, psf_size, logger=logger)
+        psf = draw_psf(galsim_config, psf_size, image_num=_i, logger=logger)
         weight = draw_weight(galsim_config, logger=logger)
         noise = draw_noise(galsim_config, logger=logger)
         bmask = draw_bmask(galsim_config, logger=logger)
@@ -270,7 +286,7 @@ def make_pair_config(config, g=0.02):
     return config_p, config_m
 
 
-def make_and_measure_pairs(config, galsim_config, seed, index, logger):
+def make_and_measure_pairs(config, galsim_config_p, galsim_config_m, seed, index, logger):
     """
     Build measurements of simulations
     """
@@ -279,39 +295,12 @@ def make_and_measure_pairs(config, galsim_config, seed, index, logger):
 
     # TODO: multithread the p/m pieces in parallel?
     #       e.g., even rank do p, odd rank do m
-    galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", cosmic_shear)
-    mbobs_p = observation_builder(config, galsim_config, seed=seed, logger=logger)
-    galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", -cosmic_shear)
-    mbobs_m = observation_builder(config, galsim_config, seed=seed, logger=logger)
+    galsim.config.SetInConfig(galsim_config_p, "stamp.shear.g1", cosmic_shear)
+    mbobs_p = observation_builder(config, galsim_config_p, seed=seed, logger=logger)
+    galsim.config.SetInConfig(galsim_config_m, "stamp.shear.g1", -cosmic_shear)
+    mbobs_m = observation_builder(config, galsim_config_m, seed=seed, logger=logger)
 
-    # FIXME remove this -- just useful for some debugging
-    # import matplotlib.pyplot as plt
-    # for obslist_p, obslist_m in zip(mbobs_p, mbobs_m):
-    #     for obs_p, obs_m in zip(obslist_p, obslist_m):
-    #         fig, axs = plt.subplots(nrows=2, ncols=3)
-
-    #         axs[0, 0].set_ylabel("$+\gamma$")
-    #         axs[0, 0].imshow(obs_p.image, origin="lower")
-    #         axs[0, 0].set_title("Image")
-    #         axs[0, 1].imshow(obs_p.psf.image, origin="lower")
-    #         axs[0, 1].set_title("PSF")
-    #         axs[0, 2].imshow(obs_p.noise, origin="lower")
-    #         axs[0, 2].set_title("Noise Realization")
-
-    #         axs[1, 0].set_ylabel("$-\gamma$")
-    #         axs[1, 0].imshow(obs_m.image, origin="lower")
-    #         axs[1, 0].set_title("Image")
-    #         axs[1, 1].imshow(obs_m.psf.image, origin="lower")
-    #         axs[1, 1].set_title("PSF")
-    #         axs[1, 2].imshow(obs_m.noise, origin="lower")
-    #         axs[1, 2].set_title("Noise Realization")
-
-    #         for ax in axs.ravel():
-    #             ax.set_xticks([])
-    #             ax.set_yticks([])
-    # plt.show()
-
-    # TODO Should these be the same rngs?
+    # TODO Should these be the same rngs? I think so
     mdet_rng_p = np.random.default_rng(seed)
     mdet_rng_m = np.random.default_rng(seed)
 
