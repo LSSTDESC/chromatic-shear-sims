@@ -36,7 +36,7 @@ class cosmoDC2_SED_Builder(SEDBuilder):
         opt = {}
         ignore = ["num"]
 
-        cosmoDC2_dataset = GetInputObj("arrow_dataset", config, base, "ArrowDataset")  # cosmoDC2 is stored as parquet files
+        cosmoDC2_dataset = GetInputObj("arrow_dataset", config, base, "ArrowDataset")
 
         SetDefaultIndex(config, cosmoDC2_dataset.getNObjects())
 
@@ -57,7 +57,7 @@ class cosmoDC2_SED_Builder(SEDBuilder):
 
         logger.info("obj %d: sed %d in current batch of %s", base.get("obj_num", 0), index, cosmoDC2_dataset)
         sed_array = cosmoDC2_dataset.getRow(index)
-        sed_bins = [_q for _q in sed_array.keys() if re.match(r"sed_\d+_\d+_no_host_extinction$", _q)]
+        sed_bins = [_q for _q in sed_array.keys() if re.match(r"sed_\d+_\d+$", _q)]
         redshift = sed_array["redshift"].pop()
 
         # DC2 SEDs are tophats; the file has columns corresponding to the value of the tophat
