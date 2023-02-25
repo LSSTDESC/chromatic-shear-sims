@@ -9,7 +9,6 @@ import logging
 import os
 from pathlib import Path
 
-# from mpi4py import MPI
 import numpy as np
 import pyarrow as pa
 import pyarrow.dataset as ds
@@ -20,11 +19,6 @@ import galsim
 import ngmix
 
 from chromatic_shear_bias import run_utils
-
-
-# comm = MPI.COMM_WORLD
-# rank = comm.Get_rank()
-# size = comm.Get_size()
 
 
 def clean_config(config, keep_current=False):
@@ -71,16 +65,45 @@ def get_args():
         default=1,
         help="Number of sims to run [int]",
     )
+    # parser.add_argument(
+    #     "--galactic_colors",
+    #     type=list,
+    #     required=False,
+    #     default=None,
+    #     help="Galactic colors",
+    # )
+    # parser.add_argument(
+    #     "--stellar_colors",
+    #     type=list,
+    #     required=False,
+    #     default=None,
+    #     help="Galactic colors",
+    # )
     parser.add_argument("--output", type=str, required=True, help="Output directory")
+    parser.add_argument(
+        "--backend",
+        type=str,
+        required=False,
+        choices=["local", "slurm", "mpi"],
+        default="local",
+        help="Computing backend",
+    )
+    parser.add_argument(
+        "--log_level",
+        type=str, required=False,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="WARNING",
+        help="Logging level"
+    )
     return parser.parse_args()
 
 
-def get_logger():
+def get_logger(level):
     """
     Format logger.
     """
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     ch = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
@@ -94,10 +117,36 @@ def main():
     Run the simulation and measurement for metadetect noise bias cancellation.
     """
     args = get_args()
-    logger = get_logger()
+    log_level = getattr(logging, args.log_level)
+    logger = get_logger(log_level)
 
-    # Setup the seed for each rank
-    seed = args.seed # + rank
+    match args.backend:
+        case "local":
+            # Run in serial
+            rank = 0
+            size = 1
+        case "slurm":
+            # Parallelize over job arrays
+            # Allow for serial execution in non-array jobs
+            rank = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
+            size = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
+        case "mpi":
+            # Parallelize over MPI ranks
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            size = comm.Get_size()
+        case _:
+            # Execute any wildcard match in serial
+            # Note: because args.backend defaults to "local" and otherwise
+            # must be one of local | slurm | mpi, this branch should never
+            # execute in practice
+            rank = 0
+            size = 1
+
+    logger.info(f"Running task {rank + 1} / {size} with {args.backend} backend")
+
+    seed = args.seed
 
     # output file path
     root_path = Path(args.output)
@@ -105,95 +154,208 @@ def main():
     #     raise RuntimeError(f"{root_path} exists but is not a directory!")
     if not root_path.exists():
         root_path.mkdir(exist_ok=True)
-    path = root_path / f"{seed}.parquet"
+    # path = root_path / f"{seed}.parquet"
 
     _config = None
     _galsim_config = None
-    # if rank == 0:
     logger.info(f"Running: {vars(args)}")
-    # logger.info(f"Running with {size} MPI processes")
 
     with open(args.config, "r") as fp:
         _config = yaml.safe_load(fp.read())
 
-    galsim_configs = galsim.config.ReadConfig(args.sim)
-    assert len(galsim_configs) == 1, f"Expected 1 GalSim config in {args.sim}; found {len(galsim_configs)}"
-    _galsim_config = galsim_configs[0]
-
-    # Broadcast configs from rank 0 process
-    # config = comm.bcast(_config, root=0)
-    # galsim_config = comm.bcast(_galsim_config, root=0)
     config = copy.deepcopy(_config)
-    galsim_config = copy.deepcopy(_galsim_config)
 
-    # logger.info(f"Processing inputs in GalSim config")
-    # galsim.config.ProcessInput(_galsim_config)  # TODO Is this the best place to call this?
+    # FIXME: copy to new colors dict, else None. subsequent code can check if not None
+    if "colors" in config:
+        # Compute evenly spaced bins provided range (inclusive) and width
+        bands = config["colors"]["bands"]
+        color_range = config["colors"]["range"]
+        color_width = config["colors"]["width"]
+        colors = np.linspace(
+            *color_range,
+            int(np.abs(np.subtract(*color_range)) / color_width) + 1,
+        ).tolist()
+        colors = list(map(lambda x: round(x, 2), colors))
+        color_bins = list(zip(colors[:-1], colors[1:]))
+    else:
+        color_bins = []
 
-    # Initialize the parquet writers for subsequent writes
-    schema = run_utils._get_schema()
-    pqwriter = pq.ParquetWriter(path, schema)
+    galsim_configs = galsim.config.ReadConfig(args.sim)
 
-    rng = np.random.default_rng(seed)
-    for index in range(args.n_sims):
-        seed = rng.integers(1, 2**64 // 2)
-        # logger.info(f"Running with seed {seed}")
-        meas = run_utils.make_and_measure_pairs(
-            config,
-            galsim_config,
-            seed,
-            index,
-            logger,
-        )
+    num_configs = len(galsim_configs)
+    logger.info(f"Found {num_configs} Galsim configs in {args.sim}")
 
-        # Construct a pyarrow table from a list of dictionaries (i.e., rows)
-        # returned by the measurement routines
-        table = pa.Table.from_pylist(
-            meas,
+    # if num_configs < size:
+    #     if rank == 0:
+    #         logger.warning(f"There are more configs ({num_configs}) than ranks ({size}); not all configs will be run")
+    # _galsim_config = galsim_configs[rank % num_configs]  # Distribute configs over ranks
+    for i, _galsim_config in enumerate(galsim_configs):
+        logger.info(f"Running config {i + 1} / {num_configs}")
+
+        # Broadcast configs from rank 0 process
+        # config = comm.bcast(_config, root=0)
+        galsim_config_p = copy.deepcopy(_galsim_config)
+        galsim_config_m = copy.deepcopy(_galsim_config)
+
+        if "colors" in config:
+            # stellar_colors = args.stellar_colors
+            # galactic_colors = args.galactic_colors
+            color_cells = [[b1, b2] for b1 in color_bins for b2 in color_bins]
+            logger.info(f"{len(color_cells)} color cells in {args.config}")
+            if size < len(color_cells):
+                logger.warning(f"Running with fewer jobs than color cells; not all cells will be run!")
+            color_cell = color_cells[rank % len(color_cells)]
+            stellar_colors = color_cell[0]
+            galactic_colors = color_cell[1]
+            # for stellar_colors in color_bins:
+            #     for galactic_colors in color_bins:
+            logger.info(f"Running color cell {rank % len(color_cells)}")
+            logger.info(f"Stellar colors: {color_cell[0]}")
+            logger.info(f"Galactic colors: {color_cell[1]}")
+
+            for galsim_config in [galsim_config_p, galsim_config_m]:
+                galsim.config.SetInConfig(
+                    galsim_config,
+                    "input.arrow_dataset.0.predicate",
+                    {"and_kleene": [
+                        {"greater": [
+                            {"subtract_checked": [
+                                {"field": f"{bands[0]}mag"},
+                                {"field": f"{bands[1]}mag"},
+
+                            ]},
+                            {"scalar": stellar_colors[0]},
+                        ]},
+                        {"less": [
+                            {"subtract_checked": [
+                                {"field": f"{bands[0]}mag"},
+                                {"field": f"{bands[1]}mag"},
+
+                            ]},
+                            {"scalar": stellar_colors[1]},
+                        ]},
+                    ]}
+                )
+                galsim.config.SetInConfig(
+                    galsim_config,
+                    "input.arrow_dataset.1.predicate",
+                    {"and_kleene": [
+                        {"greater": [
+                            {"subtract_checked": [
+                                {"field": f"mag_true_{bands[0]}_lsst"},
+                                {"field": f"mag_true_{bands[1]}_lsst"},
+
+                            ]},
+                            {"scalar": galactic_colors[0]},
+                        ]},
+                        {"less": [
+                            {"subtract_checked": [
+                                {"field": f"mag_true_{bands[0]}_lsst"},
+                                {"field": f"mag_true_{bands[1]}_lsst"},
+
+                            ]},
+                            {"scalar": galactic_colors[1]},
+                        ]},
+                    ]}
+                )
+
+        # logger.info(f"Processing inputs in GalSim config")
+        for galsim_config in [galsim_config_p, galsim_config_m]:
+            galsim.config.ProcessInput(galsim_config)
+
+        # Initialize the parquet writer for subsequent writes
+        schema = run_utils._get_schema()
+
+        # Define relevant paths
+        # path = root_path / f"{rank}.parquet"
+        dataset_path = root_path / "dataset"
+        key_path = root_path / "key"
+
+        # Make paths
+        dataset_path.mkdir(exist_ok=True)
+        key_path.mkdir(exist_ok=True)
+
+        # Write parquet metadata
+        if rank == 0:
+            pq.write_metadata(
+                schema,
+                dataset_path / "_common_metadata",
+            )
+        # metadata_collector = []
+        pqwriter = pq.ParquetWriter(
+            dataset_path / f"{rank}.parquet",
             schema,
-        )
+        )  # FIXME prefer something like ds.write_dataset(...)
 
-        # Write the table to the dataset
-        pqwriter.write_table(table)
+        # Map output files to relevant metadata for bookkeeping
+        if "colors" in config:
+            output_dict = {
+                "seed": int(seed),
+                "config": str(args.config),
+                "sim": str(args.sim),
+                "bands": list(bands),
+                "stellar_colors": list(stellar_colors),
+                "galactic_colors": list(galactic_colors),
+            }
+            with open(key_path / f"{rank}.yaml", "w") as fp:
+                yaml.dump(output_dict, fp)
 
-        # # Track progress over all ranks
-        # progress = comm.reduce(index)
-        # if (rank == 0) and (progress > 0) and (progress % 10 == 0):
-        #     logger.info(f"Proccessed {progress} paired image simulations")
-        if (index > 0) and (index % 10 == 0):
-            logger.info(f"Proccessed {index + 1} paired image simulations")
+        # FIXME use this to write larger row groups below?
+        # chunksize = 2**10  # TODO make this a command line argument
+        # # The number of chunks is the floor quotient of how many chunks can be made
+        # # from the requested number of sims plus one for any remainder
+        # n_chunks = args.n_sims // chunksize + (1 if args.n_sims % chunksize > 0 else 0)
 
-        # Clean the config for the next simulation
-        galsim_config = clean_config(galsim_config)
-        # galsim_config = galsim.config.CleanConfig(galsim_config)  # TODO we want to keep _input_objs
+        for index in range(args.n_sims):
+            rng = np.random.default_rng(seed)
+            seed = rng.integers(1, 2**64 // 2)
+            # logger.info(f"Running with seed {seed}")
+            meas = run_utils.make_and_measure_pairs(
+                config,
+                galsim_config_p,
+                galsim_config_m,
+                seed,
+                index,
+                logger,
+            )
 
+            # Construct a pyarrow table from a list of dictionaries (i.e., rows)
+            # returned by the measurement routines
+            table = pa.Table.from_pylist(
+                meas,
+                schema,
+            )
 
-        # Periodically measure bias on rank 0
-        # if (rank == 0) and (progress is not None) and (progress > 0) and (progress % 100 == 0):
-        #     calibration_shear = ngmix.metacal.DEFAULT_STEP
-        #     with fitsio.FITS(path, "r") as fits:
-        #         pdata = fits["plus"].read()
-        #         mdata = fits["minus"].read()
-        #     pmsk = (pdata["s2n_cut"] == 10)
-        #     pmsk &= (pdata["ormask_cut"] == -1)
-        #     pmsk &= (pdata["mfrac_cut"] == 100)
-        #     n_sims_msk = np.sum(pdata["weight"][pmsk])
-        #     if n_sims_msk <= 0:
-        #         logger.info(f"No sims pass measurement cuts")
-        #     else:
-        #         m_est, m_std, c_est, c_std = estimate_biases(
-        #             pdata[pmsk], mdata[pmsk], calibration_shear, cosmic_shear,
-        #             weights=pdata["weight"][pmsk],
-        #             method="bootstrap",
-        #             n_resample=100,
-        #         )
-        #         logger.info(f"multiplicative bias: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
-        #         logger.info(f"additive bias: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma) [s2n_cut = 10, ormask_cut = -1, mfrac_cut = 100, n_sims = {n_sims_msk}]")
+            # Write the table as a row group to the parquet file
+            pqwriter.write_table(table)  # FIXME this isn't very efficient as we are
+                                         # writing row groups of size 72
+                                         # (idiomatically should be _much_ larger)
+            # ds.write_dataset(
+            #     table,
+            #     dataset_path,
+            #     basename_template=f"{rank}" + "-{i}.parquet",
+            #     format="parquet",
+            #     schema=schema,
+            #     existing_data_behavior="overwrite_or_ignore",
+            # )  # FIXME doesn't quite work
 
+            # Track progress over all ranks
+            if (index > 0) and (index % 10 == 0):
+                logger.info(f"Proccessed {index} paired image simulations")
+                # Write metadata with row group statistics
+                # pq.write_metadata(
+                #     schema,
+                #     dataset_path / "_metadata",
+                #     metadata_collector=metadata_collector,
+                # )
 
-    # Close connection from writers to parquet files
-    pqwriter.close()
+            # Clean the config for the next simulation
+            # without discarding _input_objs
+            for galsim_config in [galsim_config_p, galsim_config_m]:
+                galsim_config = clean_config(galsim_config)
 
-    # logger.info(f"MPI -- Finished rank {rank}")
+        # Close connection from writer to parquet file
+        pqwriter.close()
 
 
 if __name__ == "__main__":
