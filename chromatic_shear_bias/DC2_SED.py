@@ -64,6 +64,8 @@ class DC2_SEDBuilder(SEDBuilder):
         sed_dir = Path(kwargs.get("sed_dir", "."))
 
         file_name = DC2_dataset.get(index, "sedFilename").strip()
+        # sed_array = DC2_dataset.getRow(index)
+        # file_name = sed_array["sedFilename"].pop().strip()
         if not file_name.endswith(".gz"):
             # Some files are missing ".gz" in their suffix; if this is the case,
             # append to the current suffix
