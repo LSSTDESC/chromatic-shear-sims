@@ -87,8 +87,8 @@ class ArrowDataset(Catalog):
             columns=self.columns,
             filter=self.predicate,
         )
-        self.nobjects = 0.  # self._scanner.count_rows()
-        self._used = 0.
+        self.nobjects = 0  # self._scanner.count_rows()
+        self._used = 0
         self._batches = self._scanner.to_batches()
         self._batch = None
         self._next_batch()
@@ -96,11 +96,25 @@ class ArrowDataset(Catalog):
     def _next_batch(self):
         """Iterate until the next batch of non-zero size
         """
-        self._batch = next(self._batches)
-        while len(self._batch) < 1:
+        try:
             self._batch = next(self._batches)
+            # print(f"next batch!")
+        except StopIteration:
+            self._batches = self._scanner.to_batches()
+            self._batch = next(self._batches)
+            print(f"resetting batches for {self}")
+        while len(self._batch) < 1:
+            # print("whoops empty batch!")
+            try:
+                self._batch = next(self._batches)
+                # print("next batch!")
+            except StopIteration:
+                self._batches = self._scanner.to_batches()
+                self._batch = next(self._batches)
+                print(f"resetting batches for {self}")
         self.nobjects = len(self._batch)
         self._used = 0
+        print(f"Drawing batch of size {self.nobjects} from {self}")
 
     # def getRows(self, indices):
     #     return self._scanner.take(indices).to_pandas()
@@ -113,10 +127,13 @@ class ArrowDataset(Catalog):
         """
         # Check if we need to consume the next batch
         # This should run during the first call of getRow
-        if self._used == self.nobjects:
+        if self._used >= self.nobjects:
             self._next_batch()
-        # return self._scanner.take([index]).to_pydict()  # seems slower
-        row = self._batch.take([index]).to_pydict()
+        # return self._scanner.take([index]).to_pydict()
+        # row = self._batch.take([index]).to_pydict()
+        # FIXME verify this -- we take the modulus in case a new batch is
+        #       generated _after_ indices are computed by GalSim
+        row = self._batch.take([index % self.nobjects]).to_pydict()  # FIXME
         self._used += 1
         return row
 
@@ -131,17 +148,19 @@ class ArrowDataset(Catalog):
         if index < 0 or index >= self.nobjects:
             raise GalSimIndexError("Index is invalid for dataset %s"%self.file_name, index)
         # return self._scanner.take([index])[col].to_pylist().pop()
-        return self._batch.take([index])[col].to_pylist().pop()
+        if self._used >= self.nobjects:
+            self._next_batch()
+        val = self._batch.take([index % self.nobjects])[col].to_pylist().pop()  # FIXME
+        self._used += 1
+        return val
 
 
     def __repr__(self):
-        s = "sagittarius.ArrowDataset(dataset=%r, file_type=%r"%(self.file_name, self.file_type)
-        s += ')'
-        return s
+        return f"sagittarius.ArrowDataset(dataset={self.file_name}, file_type={self.file_type})"
 
 
     def __str__(self):
-        return "sagittarius.ArrowDataset(dataset=%r)"%self.file_name
+        return f"sagittarius.ArrowDataset(dataset={self.file_name})"
 
 
 def _GenerateFromArrowDataset(config, base, value_type):
