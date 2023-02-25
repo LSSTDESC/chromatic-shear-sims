@@ -1,5 +1,11 @@
 shear:
+shear:
   g: 0.02
+
+colors:
+  bands: [g, i]
+  range: [0.00, 3.00]
+  width: 0.1
 
 metadetect:
   model: wmom

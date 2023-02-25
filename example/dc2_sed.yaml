@@ -15,31 +15,31 @@ input:
                  - subtract_checked:
                      - field: gmag
                      - field: imag
-                 - scalar: 0.76
+                 - scalar: 0.0
              - less:
                  - subtract_checked:
                      - field: gmag
                      - field: imag
-                 - scalar: 1.49
+                 - scalar: 1.0
     -
       dataset: /oak/stanford/orgs/kipac/users/smau/cosmoDC2_v1.1.4_parquet
       format: parquet
       columns:
         - ^redshift$
         - ^mag_true_\w_lsst$
-        - ^sed_\d+_\d+_no_host_extinction$
+        - ^sed_\d+_\d+$
       predicate:
           and_kleene:
              - greater:
                  - subtract_checked:
                      - field: mag_true_g_lsst
                      - field: mag_true_i_lsst
-                 - scalar: 0.76
+                 - scalar: 0.0
              - less:
                  - subtract_checked:
                      - field: mag_true_g_lsst
                      - field: mag_true_i_lsst
-                 - scalar: 1.49
+                 - scalar: 1.0
 
 eval_variables:
     # It will be convenient to have the single-character filter name to use in Eval items.
@@ -73,6 +73,7 @@ psf:
 
 star:
   type: DeltaFunction
+
   sed:
     type: DC2_SED
     sed_dir: /oak/stanford/orgs/kipac/users/smau/
