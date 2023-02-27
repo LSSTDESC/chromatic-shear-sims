@@ -1,42 +1,116 @@
 #!/usr/bin/env python
 """
-Validate accuracy of parsing cosmodc2 SEDs
+Staging file for generating simulations and running metadetect
 """
 
 import argparse
 import copy
 import logging
-import os
-import shutil
-from tempfile import mkdtemp
 
 import yaml
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 
 import fitsio
 import galsim
+import galsim_extra
 
 from chromatic_shear_bias import run_utils
-from chromatic_shear_bias.dc2_sed_utils import DC2_SEDCatalog
+
+
+gal_dict = """
+modules:
+  - chromatic_shear_bias
+
+input:
+  arrow_dataset:
+      dataset: /oak/stanford/orgs/kipac/users/smau/cosmoDC2_v1.1.4_parquet
+      format: parquet
+      columns:
+        - ^redshift$
+        - ^mag_true_\w_lsst$
+        - ^sed_\d+_\d+$
+      predicate:
+          and_kleene:
+             - greater:
+                 - subtract_checked:
+                     - field: mag_true_g_lsst
+                     - field: mag_true_i_lsst
+                 - scalar: 0.0
+             - less:
+                 - subtract_checked:
+                     - field: mag_true_g_lsst
+                     - field: mag_true_i_lsst
+                 - scalar: 3.0
+sed:
+  type: cosmoDC2_SED
+  index:
+    type: Random
+"""
+
+star_dict = """
+modules:
+  - chromatic_shear_bias
+
+input:
+  arrow_dataset:
+      dataset: /oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel.parquet
+      format: parquet
+      columns:
+        - ^sedFilename$
+      predicate:
+          and_kleene:
+             - greater:
+                 - subtract_checked:
+                     - field: gmag
+                     - field: imag
+                 - scalar: 0.0
+             - less:
+                 - subtract_checked:
+                     - field: gmag
+                     - field: imag
+                 - scalar: 3.0
+sed:
+  type: DC2_SED
+  sed_dir: /oak/stanford/orgs/kipac/users/smau/
+  index:
+    type: Random
+"""
 
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--sed_catalog",
+        "--output",
         type=str,
-        required=True,
-        help="cosmodc2 SED catalog to validate [fits]",
+        required=False,
+        default=None,
+        help="Output file [png, pdf]",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=1,
+        help="RNG seed [int]",
+    )
+    parser.add_argument(
+        "--log_level",
+        type=str, required=False,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="WARNING",
+        help="Logging level"
     )
     return parser.parse_args()
 
 
-def get_logger():
+def get_logger(level):
     """
     Format logger.
     """
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     ch = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
@@ -47,30 +121,132 @@ def get_logger():
 
 def main():
     """
-    Build and validate SEDs from cosmodc2
+    Run the simulation and measurement for metadetect noise bias cancellation.
     """
     args = get_args()
-    logger = get_logger()
-    rng = np.random.default_rng()
+    log_level = getattr(logging, args.log_level)
+    logger = get_logger(log_level)
 
-    logger.info(f"Reading {args.sed_catalog} as a DC2_SEDCatalog")
-    dc2_sed_catalog = DC2_SEDCatalog(args.sed_catalog)
+    color_range = [0, 3]
+    color_width = 0.6
+    colors = np.linspace(
+        *color_range,
+        int(np.abs(np.subtract(*color_range)) / color_width) + 1,
+    ).tolist()
+    colors = list(map(lambda x: round(x, 2), colors))
+    color_bins = list(zip(colors[:-1], colors[1:]))
+
+    cmap = plt.cm.twilight(np.linspace(1/4, 3/4, len(color_bins)))
+
+    _star_config = yaml.safe_load(star_dict)
+    _gal_config = yaml.safe_load(gal_dict)
+    # galsim.config.ProcessInput(star_config)
+    # galsim.config.ProcessInput(gal_config)
 
     bands = ["u", "g", "r", "i", "z", "Y"]
-
     bps = [galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm") for band in bands]
-    bps_zp = [bp.withZeropoint("AB") for bp in bps]
+    xmin = bps[0].blue_limit
+    xmax = bps[-1].red_limit
 
-    # 10 random SEDs
-    _idx = rng.integers(0, dc2_sed_catalog.nobjects, size=10)
-    for _i in _idx:
-        ref_mags = np.asarray(
-            *dc2_sed_catalog.getRow(_i)[[f"mag_{band}_lsst" for band in bands]].tolist()
+
+    fig, axs = plt.subplots(1, 2)
+
+    for i, bp in enumerate(bps):
+        axs[0].fill_between(xs := np.linspace(bp.blue_limit, bp.red_limit), bp(xs), alpha=0.1, fc="k")
+        axs[1].fill_between(xs := np.linspace(bp.blue_limit, bp.red_limit), bp(xs), alpha=0.1, fc="k")
+        axs[0].plot(xs := np.linspace(bp.blue_limit, bp.red_limit), bp(xs), c="k")
+        axs[1].plot(xs := np.linspace(bp.blue_limit, bp.red_limit), bp(xs), c="k")
+        axs[0].text(np.quantile(np.array([xs, bp(xs)]), 0.5, axis=1)[0], 0.01, bands[i])
+        axs[1].text(np.quantile(np.array([xs, bp(xs)]), 0.5, axis=1)[0], 0.01, bands[i])
+    # plt.ylim(0.0, 0.5)
+    # plt.xlabel("wavelength [nm]")
+    # plt.ylabel("throughput")
+
+    for i, color_bin in enumerate(color_bins):
+        star_config = copy.deepcopy(_star_config)
+        gal_config = copy.deepcopy(_gal_config)
+        stellar_colors = color_bin
+        galactic_colors = color_bin
+        galsim.config.SetInConfig(
+            star_config,
+            "input.arrow_dataset.predicate",
+            {"and_kleene": [
+                {"greater": [
+                    {"subtract_checked": [
+                        {"field": f"{bands[0]}mag"},
+                        {"field": f"{bands[1]}mag"},
+
+                    ]},
+                    {"scalar": stellar_colors[0]},
+                ]},
+                {"less": [
+                    {"subtract_checked": [
+                        {"field": f"{bands[0]}mag"},
+                        {"field": f"{bands[1]}mag"},
+
+                    ]},
+                    {"scalar": stellar_colors[1]},
+                ]},
+            ]}
         )
-        sed = dc2_sed_catalog.getSED(_i)
-        mags = np.asarray([sed.calculateMagnitude(bp) for bp in bps_zp])
-        assert np.allclose(ref_mags, mags), f"expected {ref_mags}; got {mags}"
+        galsim.config.SetInConfig(
+            gal_config,
+            "input.arrow_dataset.predicate",
+            {"and_kleene": [
+                {"greater": [
+                    {"subtract_checked": [
+                        {"field": f"mag_true_{bands[0]}_lsst"},
+                        {"field": f"mag_true_{bands[1]}_lsst"},
 
+                    ]},
+                    {"scalar": galactic_colors[0]},
+                ]},
+                {"less": [
+                    {"subtract_checked": [
+                        {"field": f"mag_true_{bands[0]}_lsst"},
+                        {"field": f"mag_true_{bands[1]}_lsst"},
+
+                    ]},
+                    {"scalar": galactic_colors[1]},
+                ]},
+            ]}
+        )
+
+        galsim.config.ProcessInput(star_config)
+        galsim.config.ProcessInput(gal_config)
+
+        for j in range(1):
+            star_sed, _ = galsim.config.BuildSED(star_config, "sed", star_config)
+            gal_sed, _ = galsim.config.BuildSED(gal_config, "sed", gal_config)
+
+            xs = np.linspace(xmin, xmax, 1000)
+            axs[0].plot(xs, star_sed(xs) / np.max(star_sed(xs)) * 0.25, c=cmap[i], alpha=1, label=f"${{{color_bin[0]}}} < g - i < {{{color_bin[1]}}}$")
+            axs[1].plot(xs, gal_sed(xs) / np.max(gal_sed(xs)) * 0.25, c=cmap[i], alpha=1)
+
+            galsim.config.RemoveCurrent(star_config)
+            galsim.config.RemoveCurrent(gal_config)
+
+        del star_config
+        del gal_config
+
+    axs[0].legend(loc="upper left")
+    axs[0].set_xlim(xmin, xmax)
+    axs[0].set_ylim(0, 0.5)
+    axs[0].set_xlabel("wavelength [nm]")
+    # axs[0].set_ylabel("...")
+    axs[0].set_title("Stellar SEDs")
+
+    axs[1].set_xlim(xmin, xmax)
+    axs[1].set_ylim(0, 0.5)
+    axs[1].set_xlabel("wavelength [nm]")
+    # axs[1].set_ylabel("...")
+    axs[1].set_title("Galactic SEDs")
+
+    if args.output is None:
+        plt.show()
+    else:
+        logger.info(f"Writing visualization to disk")
+        plt.savefig(args.output)
 
 if __name__ == "__main__":
     main()
