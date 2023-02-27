@@ -21,22 +21,6 @@ import ngmix
 from chromatic_shear_bias import run_utils
 
 
-def clean_config(config, keep_current=False):
-    """We're just duplicating galsim.config.CleanConfig
-    without discarding _input_objs
-    """
-    if isinstance(config, dict):
-        return {
-            k: clean_config(config[k], keep_current) for k in config
-            if (k[0] != "_" and (keep_current or k != "current"))
-            or k == "_input_objs"
-        }
-    elif isinstance(config, list):
-        return [ clean_config(item, keep_current) for item in config ]
-    else:
-        return config
-
-
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -214,50 +198,54 @@ def main():
             logger.info(f"Galactic colors: {color_cell[1]}")
 
             for galsim_config in [galsim_config_p, galsim_config_m]:
-                galsim.config.SetInConfig(
-                    galsim_config,
-                    "input.arrow_dataset.0.predicate",
-                    {"and_kleene": [
-                        {"greater": [
-                            {"subtract_checked": [
-                                {"field": f"{bands[0]}mag"},
-                                {"field": f"{bands[1]}mag"},
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.0.greater.1.scalar", stellar_colors[0])
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.1.less.1.scalar", stellar_colors[1])
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.0.greater.1.scalar", galactic_colors[0])
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.1.less.1.scalar", galactic_colors[1])
+                # galsim.config.SetInConfig(
+                #     galsim_config,
+                #     "input.arrow_dataset.0.predicate",
+                #     {"and_kleene": [
+                #         {"greater": [
+                #             {"subtract_checked": [
+                #                 {"field": f"{bands[0]}mag"},
+                #                 {"field": f"{bands[1]}mag"},
 
-                            ]},
-                            {"scalar": stellar_colors[0]},
-                        ]},
-                        {"less": [
-                            {"subtract_checked": [
-                                {"field": f"{bands[0]}mag"},
-                                {"field": f"{bands[1]}mag"},
+                #             ]},
+                #             {"scalar": stellar_colors[0]},
+                #         ]},
+                #         {"less": [
+                #             {"subtract_checked": [
+                #                 {"field": f"{bands[0]}mag"},
+                #                 {"field": f"{bands[1]}mag"},
 
-                            ]},
-                            {"scalar": stellar_colors[1]},
-                        ]},
-                    ]}
-                )
-                galsim.config.SetInConfig(
-                    galsim_config,
-                    "input.arrow_dataset.1.predicate",
-                    {"and_kleene": [
-                        {"greater": [
-                            {"subtract_checked": [
-                                {"field": f"mag_true_{bands[0]}_lsst"},
-                                {"field": f"mag_true_{bands[1]}_lsst"},
+                #             ]},
+                #             {"scalar": stellar_colors[1]},
+                #         ]},
+                #     ]}
+                # )
+                # galsim.config.SetInConfig(
+                #     galsim_config,
+                #     "input.arrow_dataset.1.predicate",
+                #     {"and_kleene": [
+                #         {"greater": [
+                #             {"subtract_checked": [
+                #                 {"field": f"mag_true_{bands[0]}_lsst"},
+                #                 {"field": f"mag_true_{bands[1]}_lsst"},
 
-                            ]},
-                            {"scalar": galactic_colors[0]},
-                        ]},
-                        {"less": [
-                            {"subtract_checked": [
-                                {"field": f"mag_true_{bands[0]}_lsst"},
-                                {"field": f"mag_true_{bands[1]}_lsst"},
+                #             ]},
+                #             {"scalar": galactic_colors[0]},
+                #         ]},
+                #         {"less": [
+                #             {"subtract_checked": [
+                #                 {"field": f"mag_true_{bands[0]}_lsst"},
+                #                 {"field": f"mag_true_{bands[1]}_lsst"},
 
-                            ]},
-                            {"scalar": galactic_colors[1]},
-                        ]},
-                    ]}
-                )
+                #             ]},
+                #             {"scalar": galactic_colors[1]},
+                #         ]},
+                #     ]}
+                # )
 
         # logger.info(f"Processing inputs in GalSim config")
         for galsim_config in [galsim_config_p, galsim_config_m]:
@@ -349,10 +337,9 @@ def main():
                 #     metadata_collector=metadata_collector,
                 # )
 
-            # Clean the config for the next simulation
-            # without discarding _input_objs
+            # Ready the config for the next simulation
             for galsim_config in [galsim_config_p, galsim_config_m]:
-                galsim_config = clean_config(galsim_config)
+                galsim.config.RemoveCurrent(galsim_config)
 
         # Close connection from writer to parquet file
         pqwriter.close()
