@@ -44,6 +44,7 @@ class ArrowDataset(Catalog):
 
     def __init__(self, dataset, dir=None, format=None, columns=None, predicate=None):
 
+        print(f"Initializating dataset for {dataset}")
         # First build full file_name
         self.dataset = dataset.strip()
         self.file_name = self.dataset  # For compatibility with Catalog
