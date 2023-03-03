@@ -123,7 +123,9 @@ def draw_psf(config, size, image_num=0, logger=None):
         "bandpass": config["image"]["bandpass"],
         "random_seed": config["image"]["random_seed"],
     }
-    psf_config["_input_objs"] = config["_input_objs"]
+    if "_input_objs" in config:
+        psf_config["_input_objs"] = config["_input_objs"]
+    # psf_config["_input_objs"] = config.pop("_input_objs", None)
     # psf_config["gal"]["sed"].pop("current", None) # FIXME?
     # sed = galsim.config.BuildSED(config["star"], "sed", config)  # FIXME -- look into this, is caching happening? FIXME FIXME FIXME
     return galsim.config.BuildImage(psf_config, image_num, logger=logger)
