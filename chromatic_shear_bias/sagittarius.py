@@ -13,16 +13,19 @@ from galsim.config.input import RegisterInputType, RegisterValueType, InputLoade
 from galsim.config.value import SetDefaultIndex, GetAllParams, _GetBoolValue
 
 
-def parse_predicate(predicate_tree):
+def parse_predicate(predicate):
     """Parse a predicate tree intro a pyarrow compute expression
     """
     # Parse through the tree
-    for k, v in predicate_tree.items():
-        f = getattr(pc, k)
-        if type(v) is list:
-            return f(*[parse_predicate(_v) for _v in v])
-        else:
-            return f(v)
+    if type(predicate) is dict:
+        for k, v in predicate.items():
+            f = getattr(pc, k)
+            if type(v) is list:
+                return f(*[parse_predicate(_v) for _v in v])
+            else:
+                return f(v)
+    else:
+        return predicate
 
 
 def match_expression(names, expressions):
@@ -67,10 +70,6 @@ class ArrowDataset(Catalog):
         else:
             columns = match_expression(self.names, columns)
         self.columns = columns
-        # self.columns = \
-        #     ["redshift"] \
-        #     + [_q for _q in self._dataset.schema.names if re.match(r"mag_true_\w_lsst$", _q)] \
-        #     + [_q for _q in self._dataset.schema.names if re.match(r"sed_\d+_\d+_no_host_extinction$", _q)]
 
         if predicate == {}:
             predicate = None  # Note that this will return _all_ rows in the table
