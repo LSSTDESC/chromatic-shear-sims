@@ -114,6 +114,10 @@ def main():
             # Allow for serial execution in non-array jobs
             rank = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
             size = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
+            # array_task_id = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
+            # array_task_count = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
+            # procid = int(os.getenv("SLURM_PROCID", 0))
+            # ntasks = int(os.getenv("SLURM_NTASKS", 1))
         case "mpi":
             # Parallelize over MPI ranks
             from mpi4py import MPI
@@ -154,12 +158,21 @@ def main():
         # Compute evenly spaced bins provided range (inclusive) and width
         bands = config["colors"]["bands"]
         color_range = config["colors"]["range"]
-        color_width = config["colors"]["width"]
-        colors = np.linspace(
-            *color_range,
-            int(np.abs(np.subtract(*color_range)) / color_width) + 1,
-        ).tolist()
-        colors = list(map(lambda x: round(x, 2), colors))
+        if "width" in config["colors"]:
+            color_width = config["colors"]["width"]
+            colors = np.linspace(
+                *color_range,
+                int(np.abs(np.subtract(*color_range)) / color_width) + 1,
+            ).tolist()
+        elif "nbins" in config["colors"]:
+            nbins = config["colors"]["nbins"]
+            colors = np.linspace(
+                *color_range,
+                nbins + 1,
+            ).tolist()
+        else:
+            raise ValueError(f"config.colors must have width or nbins specified")
+        # colors = list(map(lambda x: round(x, 2), colors))
         color_bins = list(zip(colors[:-1], colors[1:]))
     else:
         color_bins = []
@@ -198,8 +211,9 @@ def main():
             logger.info(f"Galactic colors: {color_cell[1]}")
 
             for galsim_config in [galsim_config_p, galsim_config_m]:
-                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.0.greater.1.scalar", stellar_colors[0])
-                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.1.less.1.scalar", stellar_colors[1])
+                # FIXME is there a way to generically do this...?
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.0.and_kleene.0.greater.1.scalar", stellar_colors[0])
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.0.and_kleene.1.less.1.scalar", stellar_colors[1])
                 galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.0.greater.1.scalar", galactic_colors[0])
                 galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.1.less.1.scalar", galactic_colors[1])
                 # galsim.config.SetInConfig(
