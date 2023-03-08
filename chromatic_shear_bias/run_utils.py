@@ -120,9 +120,10 @@ def draw_psf(config, size, image_num=0, logger=None):
         'type' : 'Single',
         'size': size,
         'pixel_scale' : config["image"]["pixel_scale"],
-        "bandpass": config["image"]["bandpass"],
         "random_seed": config["image"]["random_seed"],
     }
+    if "bandpass" in config["image"]:
+        psf_config["image"]["bandpass"] = config["image"]["bandpass"]
     if "_input_objs" in config:
         psf_config["_input_objs"] = config["_input_objs"]
     # psf_config["_input_objs"] = config.pop("_input_objs", None)
