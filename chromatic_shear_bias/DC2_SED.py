@@ -85,6 +85,7 @@ class DC2_SEDBuilder(SEDBuilder):
         sed_file = sed_path.as_posix()
         logger.info("Using SED file: %s",sed_file)
         sed = read_sed_file(sed_file, wave_type, flux_type)
+        sed = sed.withFluxDensity(1, wavelength=600)
 
         logger.debug("obj %d: sed = %s", base.get("obj_num", 0), sed)
 
