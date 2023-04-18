@@ -1,3 +1,5 @@
+astropy
+dust_extinction
 fitsio
 galsim
 galsim_extra

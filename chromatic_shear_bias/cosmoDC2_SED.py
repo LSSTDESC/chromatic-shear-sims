@@ -58,7 +58,7 @@ class cosmoDC2_SED_Builder(SEDBuilder):
         logger.info("obj %d: sed %d in current batch of %s", base.get("obj_num", 0), index, cosmoDC2_dataset)
         sed_array = cosmoDC2_dataset.getRow(index)
         sed_bins = [_q for _q in sed_array.keys() if re.match(r"sed_\d+_\d+$", _q)]
-        redshift = sed_array["redshift"].pop()
+        redshift = sed_array.get("redshift", [0])[0]
 
         # DC2 SEDs are tophats; the file has columns corresponding to the value of the tophat
         # for bins in wavelength. We want to parse the bin edges from the column names and
@@ -98,7 +98,7 @@ class cosmoDC2_SED_Builder(SEDBuilder):
         bands = ["u", "g", "r", "i", "z", "y"]
         bps = [Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm") for band in bands]
         bps_zp = [bp.withZeropoint("AB") for bp in bps]
-        sed = sed.withMagnitude(sed_array["mag_true_r_lsst"].pop(), bps_zp[2])  # use the provided magnitudes to set overall normalization
+        sed = sed.withMagnitude(sed_array["mag_true_r_lsst"][0], bps_zp[2])  # use the provided magnitudes to set overall normalization
 
         return sed, safe
 
