@@ -13,6 +13,9 @@ from galsim.config.input import RegisterInputType, RegisterValueType, InputLoade
 from galsim.config.value import SetDefaultIndex, GetAllParams, _GetBoolValue
 
 
+# FIXME: add a "dropout" to do rng < 0.x sampling
+
+
 def parse_predicate(predicate):
     """Parse a predicate tree intro a pyarrow compute expression
     """

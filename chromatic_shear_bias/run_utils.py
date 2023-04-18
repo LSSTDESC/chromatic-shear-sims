@@ -90,6 +90,67 @@ def _get_schema():
     return schema
 
 
+def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None, border=0):
+    """
+    Build a lattice from primitive translation vectors.
+    Method adapted from https://stackoverflow.com/a/6145068 and
+    https://github.com/alexkaz2/hexalattice/blob/master/hexalattice/hexalattice.py
+    """
+    # ensure that the lattice vectors are normalized
+    v1 /= np.sqrt(v1.dot(v1))
+    v2 /= np.sqrt(v2.dot(v2))
+
+    # first, create a square lattice that covers the full image
+    # scale: arcsec / pixel
+    # sep: arcsec
+    xs = np.arange(-full_xsize // 2, full_xsize // 2 + 1) * sep / scale
+    ys = np.arange(-full_ysize // 2, full_ysize // 2 + 1) * sep / scale
+    x_square, y_square = np.meshgrid(xs, ys)
+
+    # apply the lattice vectors to the lattice
+    x_lattice = v1[0] * x_square + v2[0] * y_square
+    y_lattice = v1[1] * x_square + v2[1] * y_square
+
+    # construct the rotation matrix and rotate the lattice points
+    rotation = np.asarray(
+        [
+            [np.cos(np.radians(rot)), -np.sin(np.radians(rot))],
+            [np.sin(np.radians(rot)), np.cos(np.radians(rot))],
+        ]
+    )
+    xy_lattice_rot = np.stack(
+        [x_lattice.reshape(-1), y_lattice.reshape(-1)],
+        axis=-1,
+    ) @ rotation.T
+    x_lattice_rot, y_lattice_rot = np.split(xy_lattice_rot, 2, axis=1)
+
+    # remove points outside of the full image
+    bounds_x = (-(full_xsize - 1) // 2, (full_xsize - 1) // 2)
+    bounds_y = (-(full_ysize - 1) // 2, (full_ysize - 1) // 2)
+
+    # remove points according to the border
+    mask = (
+        (x_lattice_rot > bounds_x[0] + border)
+        & (x_lattice_rot < bounds_x[1] - border)
+        & (y_lattice_rot > bounds_y[0] + border)
+        & (y_lattice_rot < bounds_y[1] - border)
+    )
+
+    return x_lattice_rot[mask], y_lattice_rot[mask]
+
+
+def sample_gal(galsim_config, key, rng, x, y, scale, logger):
+    gal = galsim.config.BuildGSObject(galsim_config, key, galsim_config, logger=logger)[0] \
+    .rotate(rng.uniform(0, 360) * galsim.degrees) \
+    .shift(x * scale, y * scale) \
+    .shift(rng.uniform(-0.5, 0.5) * scale, rng.uniform(-0.5, 0.5) * scale)
+
+    galsim.config.RemoveCurrent(galsim_config)
+
+    return gal
+
+
+
 def generate_arguments(config, galsim_config, seed, n, logger):
     """
     Generate arguments for the measurement builder.
@@ -199,6 +260,12 @@ def observation_builder(config, galsim_config, seed, logger=None):
             {'type': 'Sequence', 'first': seed, 'index_key': 'obj_num_in_file'},
         ]
     )
+    # SetupRNG something
+    galsim.config.SetInConfig(galsim_config, "index_key", "file_num")
+    galsim.config.SetupConfigRNG(galsim_config)
+
+    grng = galsim.BaseDeviate(seed)
+    rng = np.random.default_rng(seed)
 
     # TODO: I don't prefer this method of searching for multiband info
     # support single-band or multi-band observations of a scene
@@ -209,11 +276,93 @@ def observation_builder(config, galsim_config, seed, logger=None):
 
     mbobs = ngmix.MultiBandObsList()
     for _i in range(nimages):
+        # ### FIXME
+        # v1 = np.asarray([1, 0], dtype=float)
+        # v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
+        # x_lattice, y_lattice = build_lattice(
+        #     galsim_config["image"]["xsize"],
+        #     galsim_config["image"]["ysize"],
+        #     galsim_config["image"]["sep"],
+        #     galsim_config["image"]["pixel_scale"],
+        #     v1,
+        #     v2,
+        #     rng.uniform(0, 360),  # FIXME
+        #     galsim_config["image"]["border"],
+        # )  # pixels
+        # scale = galsim_config["image"]["pixel_scale"]
+        # # objects = [
+        # #     galsim.config.BuildGSObject(galsim_config, "gal", galsim_config, logger=logger)[0] \
+        # #     .rotate(rng.uniform(0, 360) * galsim.degrees) \
+        # #     .shift(x * scale, y * scale) \
+        # #     .shift(rng.uniform(-0.5, 0.5) * scale, rng.uniform(-0.5, 0.5) * scale)
+        # #     for (x, y) in zip(x_lattice, y_lattice)
+        # # ]
+        # objects = [
+        #     sample_gal(galsim_config, "gal", rng, x, y, scale, logger=logger)
+        #     for (x, y) in zip(x_lattice, y_lattice)
+        # ]
+        # sheared_objects = [
+        #     obj \
+        #     .shear(g1=galsim_config["stamp"]["shear"]["g1"], g2=galsim_config["stamp"]["shear"]["g2"])
+        #     for obj in objects
+        # ]
+        # psf = galsim.config.BuildGSObject(galsim_config, "psf", galsim_config)[0]
+        # star = galsim.config.BuildGSObject(galsim_config, "star", galsim_config)[0]
+        # # observed = galsim.Convolve([scene, psf])
+        # # observed = [ galsim.Convolve([sheared_obj, psf]) for sheared_obj in sheared_objects ]
+        # observed = [ galsim.Convolve([sheared_obj, psf]) for sheared_obj in sheared_objects ]
+        # observed_psf = galsim.Convolve([star, psf])
+        # image = galsim.Image(
+        #     320,
+        #     320,
+        #     scale=scale,
+        # )
+        # bandpass = galsim.config.BuildBandpass(galsim_config["image"], "bandpass", galsim_config)[0]
+        # # observed.drawImage(image=image, bandpass=bandpass)
+        # [ obs.drawImage(image=image, bandpass=bandpass, add_to_image=True) for obs in observed ]
+        # # for pos, obs in zip(zip(x_lattice, y_lattice), observed):
+        # #     x, y = pos
+        # #     stamp = obs.drawImage(
+        # #         bandpass=bandpass,
+        # #         center=(
+        # #             image.center + galsim.PositionD(x, y) + galsim.PositionD(rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5))
+        # #         ).shear(
+        # #             galsim.Shear(
+        # #                 g1=galsim_config["stamp"]["shear"]["g1"],
+        # #                 g2=galsim_config["stamp"]["shear"]["g2"],
+        # #             )
+        # #         ),
+        # #     )
+        # noise = galsim.GaussianNoise(grng, sigma=galsim_config["image"]["noise"]["sigma"])
+        # # image.addNoise(noise)
+        # snr = galsim.config.ParseValue(galsim_config["gal"], "signal_to_noise", galsim_config, float)[0]
+        # image.addNoiseSNR(noise, snr)
+
+        # # Just for the weights and stuff... can do this better if we want
+        # galsim.config.SetInConfig(galsim_config, "image_xsize", 320)
+        # galsim.config.SetInConfig(galsim_config, "image_ysize", 320)
+        # galsim.config.SetInConfig(galsim_config, "pixel_scale", scale)
+
+        # psf_image = galsim.Image(
+        #     53,
+        #     53,
+        #     scale=scale,
+        # )
+        # observed_psf.drawImage(image=psf_image, bandpass=bandpass)
+        # psf = psf_image
+
+        # # import matplotlib.pyplot as plt
+        # # fig, axs = plt.subplots(1, 2)
+        # # axs[0].imshow(image.array, origin="lower")
+        # # axs[1].imshow(psf.array, origin="lower")
+        # # plt.show()
+        # # exit()
+        # ### FIXME
         image = galsim.config.BuildImage(galsim_config, _i, logger=logger)
 
         # draw images used for each ngmix Observation
         psf_size = 53  # TODO: would be good to specify in global config
-        psf = draw_psf(galsim_config, psf_size, image_num=_i, logger=logger)
+        psf = draw_psf(galsim_config, psf_size, image_num=_i, logger=logger) # FIXME
         weight = draw_weight(galsim_config, logger=logger)
         noise = draw_noise(galsim_config, logger=logger)
         bmask = draw_bmask(galsim_config, logger=logger)
@@ -335,7 +484,7 @@ def _bootstrap(x1, y1, x2, y2, w, n_resample=1000):
 
     for _i in range(n_resample):
         # perform bootstrap resampling
-        _r = rng.choice(n_sample, size=n_resample, replace=True)  # resample indices
+        _r = rng.choice(n_sample, size=n_sample, replace=True)  # resample indices
         _w = w[_r].copy()  # resample weights
         _w /= np.sum(_w)  # normalize resampled weights
         m_bootstrap[_i] = np.mean(y1[_r] * _w) / np.mean(x1[_r] * _w) - 1.  # compute the multiplicative bias of the resample
@@ -359,7 +508,15 @@ def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
     """
     n = len(x1)  # sample size
     m = n // n_resample  # resample size
-    _n = m * n_resample
+    _n = m * n_resample  # number of resamples
+    # Number of samples in each resampling
+    # n // n_resample + (1 if n % n_resample else 0)
+    m = np.empty(n_resample)
+    m[:] = n // n_resample
+    if n % n_resample:
+        # if this pseudoboolean is true, then n_resample does not evenly divide
+        # n, and our last resample will be of different size
+        m[-1] = n - n // n_resample * n_resample
 
     # estimators given all samples
     m_hat_n = np.mean(y1[:_n] * w[:_n]) / np.mean(x1[:_n] * w[:_n]) - 1
@@ -404,6 +561,7 @@ def _jackknife(x1, y1, x2, y2, w, n_resample=1000):
         m_hat_J, np.sqrt(m_var_J),
         c_hat_J, np.sqrt(c_var_J),
     )
+
 
 
 def estimate_biases(data, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
