@@ -42,6 +42,13 @@ def get_args():
         default=1,
         help="RNG seed [int]",
     )
+    # parser.add_argument(
+    #     "--task",
+    #     type=int,
+    #     required=False,
+    #     default=0,
+    #     help="Grid task to run",
+    # )
     parser.add_argument(
         "--n_sims",
         type=int,
@@ -49,6 +56,11 @@ def get_args():
         default=1,
         help="Number of sims to run [int]",
     )
+    # parser.add_argument(
+    #     '--galsim', type=str, nargs='*',
+    #     help="GalSim config overrides",
+    #     default=None
+    # )
     # parser.add_argument(
     #     "--galactic_colors",
     #     type=list,
@@ -189,6 +201,12 @@ def main():
     for i, _galsim_config in enumerate(galsim_configs):
         logger.info(f"Running config {i + 1} / {num_configs}")
 
+
+        # if args.galsim is not None:
+        #     for param in args.galsim:
+        #         k, v = param.split("=")
+        #         galsim.config.SetInConfig(_galsim_config, k, v, logger=logger)
+
         # Broadcast configs from rank 0 process
         # config = comm.bcast(_config, root=0)
         galsim_config_p = copy.deepcopy(_galsim_config)
@@ -214,8 +232,8 @@ def main():
                 # FIXME is there a way to generically do this...?
                 galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.0.and_kleene.0.greater.1.scalar", stellar_colors[0])
                 galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.0.predicate.and_kleene.0.and_kleene.1.less.1.scalar", stellar_colors[1])
-                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.0.greater.1.scalar", galactic_colors[0])
-                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.1.less.1.scalar", galactic_colors[1])
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.0.and_kleene.0.greater.1.scalar", galactic_colors[0])
+                galsim.config.SetInConfig(galsim_config, "input.arrow_dataset.1.predicate.and_kleene.0.and_kleene.1.less.1.scalar", galactic_colors[1])
                 # galsim.config.SetInConfig(
                 #     galsim_config,
                 #     "input.arrow_dataset.0.predicate",
@@ -271,21 +289,31 @@ def main():
         # Define relevant paths
         # path = root_path / f"{rank}.parquet"
         dataset_path = root_path / "dataset"
+        data_path = root_path / "dataset" / f"{rank}"
         key_path = root_path / "key"
 
         # Make paths
         dataset_path.mkdir(exist_ok=True)
+        data_path.mkdir(exist_ok=True)
         key_path.mkdir(exist_ok=True)
+
+        # # Make a table of the full size of results to write. We will store
+        # # results in this array and periodically write to disk
+        # # FIXME implement this completely...
+        # table = pa.Table.from_arrays(
+        #     [pa.array((0 for _ in range(100)), type=_type) for _type in schema.types],
+        #     schema=schema,
+        # )
 
         # Write parquet metadata
         if rank == 0:
             pq.write_metadata(
                 schema,
-                dataset_path / "_common_metadata",
+                data_path / "_common_metadata",
             )
         # metadata_collector = []
         pqwriter = pq.ParquetWriter(
-            dataset_path / f"{rank}.parquet",
+            dataset_path / f"{rank}" / f"{seed}.parquet",
             schema,
         )  # FIXME prefer something like ds.write_dataset(...)
 

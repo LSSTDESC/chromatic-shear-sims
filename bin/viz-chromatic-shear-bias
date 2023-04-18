@@ -34,6 +34,13 @@ def get_args():
         help="GalSim configuration file [yaml]",
     )
     parser.add_argument(
+        "--shear",
+        type=float,
+        required=False,
+        default=0.02,
+        help="Cosmic shear to apply [float]",
+    )
+    parser.add_argument(
         "--save",
         type=str,
         required=False,
@@ -47,15 +54,40 @@ def get_args():
         default=1,
         help="RNG seed [int]",
     )
+    parser.add_argument(
+        "--detect",
+        type=bool,
+        required=False,
+        default=False,
+        help="Whether to make detections [bool]",
+    )
+    parser.add_argument(
+        "--s2n-cut", type=int, default=10,
+    )
+    parser.add_argument(
+        "--ormask-cut", type=int, default=None,
+        help="Cut to make on ormask. 0 indicates make a cut, 1 indicates no cut.",
+    )
+    parser.add_argument(
+        "--mfrac-cut", type=int, default=None,
+        help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
+    )
+    parser.add_argument(
+        "--log_level",
+        type=str, required=False,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="WARNING",
+        help="Logging level"
+    )
     return parser.parse_args()
 
 
-def get_logger():
+def get_logger(level):
     """
     Format logger.
     """
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     ch = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
@@ -69,7 +101,8 @@ def main():
     Run the simulation and measurement for metadetect noise bias cancellation.
     """
     args = get_args()
-    logger = get_logger()
+    log_level = getattr(logging, args.log_level)
+    logger = get_logger(log_level)
 
     with open(args.config, "r") as fp:
         config = yaml.safe_load(fp.read())
@@ -83,11 +116,9 @@ def main():
         # copy the config for safekeeping
         _galsim_config = copy.deepcopy(galsim_config)
 
-        cosmic_shear = 5 * _config["shear"]["g"]  # we exaggerate the shear for the visualization script
-        # TODO Can't make copies after processing inputs due to not being able
-        #      to pickle. This means that we'll have a difficult time sharing
-        #      our Arrow Dataset across configs, processes, etc. -- how can we
-        #      effectively handle this?
+        galsim.config.ProcessInput(galsim_config)
+
+        cosmic_shear = args.shear
 
         # galsim_config_p, galsim_config_m = run_utils.make_pair_config(_galsim_config, cosmic_shear)
         galsim.config.SetInConfig(galsim_config, "stamp.shear.g1", cosmic_shear)
@@ -105,6 +136,58 @@ def main():
             logger=logger,
         )
 
+        if args.detect:
+            import metadetect
+            mdet_rng_p = np.random.default_rng(args.seed)
+            mdet_rng_m = np.random.default_rng(args.seed)
+
+            res_p = metadetect.do_metadetect(
+                config["metadetect"],
+                mbobs_p,
+                mdet_rng_p,
+            )
+
+            res_m = metadetect.do_metadetect(
+                config["metadetect"],
+                mbobs_m,
+                mdet_rng_m,
+            )
+
+            model = config["metadetect"]["model"]
+            if model == "wmom":
+                tcut = 1.2
+            else:
+                tcut = 0.5
+
+            s2n_cut = args.s2n_cut
+            t_ratio_cut = tcut
+            mfrac_cut = args.mfrac_cut
+            ormask_cut = args.ormask_cut
+
+            def _mask(data):
+                if "flags" in data.dtype.names:
+                    flag_col = "flags"
+                else:
+                    flag_col = model + "_flags"
+
+                _cut_msk = (
+                    (data[flag_col] == 0)
+                    & (data[model + "_s2n"] > s2n_cut)
+                    & (data[model + "_T_ratio"] > t_ratio_cut)
+                )
+                if ormask_cut:
+                    _cut_msk = _cut_msk & (data["ormask"] == 0)
+                if mfrac_cut is not None:
+                    _cut_msk = _cut_msk & (data["mfrac"] <= mfrac_cut)
+                return _cut_msk
+
+            o_p = res_p["noshear"]
+            q_p = _mask(o_p)
+            o_m = res_m["noshear"]
+            q_m = _mask(o_m)
+            p_ns = o_p[q_p]
+            m_ns = o_m[q_m]
+
         for obslist_p, obslist_m in zip(mbobs_p, mbobs_m):
             for obs_p, obs_m in zip(obslist_p, obslist_m):
 
@@ -112,6 +195,9 @@ def main():
 
                 axs[0, 0].set_ylabel("$+\gamma$")
                 axs[0, 0].imshow(obs_p.image, origin="lower")
+                # axs[0, 0].imshow(np.log(obs_p.image), origin="lower")
+                if args.detect:
+                    axs[0, 0].scatter(p_ns["sx_col"], p_ns["sx_row"], c="r", marker="x")
                 axs[0, 0].set_title("Image")
                 axs[0, 1].imshow(obs_p.psf.image, origin="lower")
                 axs[0, 1].set_title("Stellar PSF")
@@ -120,6 +206,9 @@ def main():
 
                 axs[1, 0].set_ylabel("$-\gamma$")
                 axs[1, 0].imshow(obs_m.image, origin="lower")
+                # axs[1, 0].imshow(np.log(obs_m.image), origin="lower")
+                if args.detect:
+                    axs[1, 0].scatter(m_ns["sx_col"], m_ns["sx_row"], c="r", marker="x")
                 axs[1, 0].set_title("Image")
                 axs[1, 1].imshow(obs_m.psf.image, origin="lower")
                 axs[1, 1].set_title("Stellar PSF")
