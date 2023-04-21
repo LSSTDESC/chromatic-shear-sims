@@ -246,6 +246,84 @@ def draw_ormask(config, logger=None):
     return np.full(image_shape, int(0))
 
 
+def get_color_key_func(color_range, ncolors, flux_zeropoints):
+    """Copy functionality from
+    https://github.com/beckermr/pizza-cutter-sims/blob/main/pizza_cutter_sims/mdet.py
+    """
+    # TODO: what to use for zeropoints?
+    if isinstance(ncolors, list):
+        colors = np.array(ncolors)
+
+        def _color_key_func(fluxes):
+            if np.any(~np.isfinite(fluxes)):
+                return None
+
+            if fluxes[0] < 0 or fluxes[1] < 0:
+                if fluxes[0] < fluxes[1]:
+                    return len(ncolors) - 1
+                else:
+                    return 0
+            else:
+                mag0 = flux_zeropoints[0] - np.log10(fluxes[0])/0.4
+                mag1 = flux_zeropoints[1] - np.log10(fluxes[1])/0.4
+                color = mag0 - mag1
+
+                return int(np.argmin(np.abs(color - colors)))
+
+    else:
+        dcolors = (color_range[1] - color_range[0])/ncolors
+        colors = np.arange(ncolors) * dcolors + dcolors/2 + color_range[0]
+
+        def _color_key_func(fluxes):
+            if np.any(~np.isfinite(fluxes)):
+                return None
+
+            if fluxes[0] < 0 or fluxes[1] < 0:
+                if fluxes[0] < fluxes[1]:
+                    return ncolors - 1
+                else:
+                    return 0
+            else:
+                mag0 = flux_zeropoints[0] - np.log10(fluxes[0])/0.4
+                mag1 = flux_zeropoints[1] - np.log10(fluxes[1])/0.4
+                color = mag0 - mag1
+
+                if color <= color_range[0]:
+                    return 0
+                elif color >= color_range[1]:
+                    return ncolors - 1
+                elif color_range[0] == color_range[1]:
+                    return 0
+                else:
+                    return int((color - color_range[0])/dcolors)
+
+    return colors, _color_key_func
+
+
+def get_color_dep_mbobs(colors, mbobs, galsim_config):
+    color_dep_mbobs = {}
+    for cind, color in enumerate(colors):
+        _mbobs = mbobs.copy()
+        if ("eval_variables" in galsim_config.keys()) and ("sfilter" in galsim_config["eval_variables"].keys()):
+            nimages = len(galsim.config.GetFromConfig(galsim_config, "eval_variables.sfilter.items"))
+        else:
+            nimages = 1
+        for _i in range(nimages):
+            # TODO psf_size from psf
+            new_psf = draw_psf(galsim_config, 53, image_num=_i, logger=None) # FIXME check everything...
+            # TODO get wcs from mbobs?
+            psf_jac = mbobs[_i][0].psf.jacobian
+            psf_obs = ngmix.Observation(
+                psf.array.copy(),
+                jacobian=psf_jac,
+            )
+            _mbobs[_i][0].psf = psf_obs
+
+        color_dep_mbobs[cind] = _mbobs
+
+    return color_dep_mbobs
+
+
 def observation_builder(config, galsim_config, seed, logger=None):
     """
     Build an ngmix MultiBandObsList from a GalSim config dictionary.
@@ -456,16 +534,50 @@ def make_and_measure_pairs(config, galsim_config_p, galsim_config_m, seed, index
     mdet_rng_p = np.random.default_rng(seed)
     mdet_rng_m = np.random.default_rng(seed)
 
+    # If only I had a monad...
+    import pdb;pdb.set_trace()
+    try:
+        if not config["metadetect"]["color_dep_psf"]["skip"]:
+            colors_p, color_key_func_p = get_color_key_func(
+                config["metadetect"]["color_dep_psf"]["color_range"],
+                config["metadetect"]["color_dep_psf"]["ncolors"],
+                config["metadetect"]["color_dep_psf"]["flux_zeropoints"],
+            )
+            colors_m, color_key_func_m = get_color_key_func(
+                config["metadetect"]["color_dep_psf"]["color_range"],
+                config["metadetect"]["color_dep_psf"]["ncolors"],
+                config["metadetect"]["color_dep_psf"]["flux_zeropoints"],
+            )
+            color_dep_mbobs_p = get_color_dep_mbobs(colors_p, mbobs_p, galsim_config_p)
+            color_dep_mbobs_m = get_color_dep_mbobs(colors_m, mbobs_m, galsim_config_m)
+            # in detail: take the func, evaluate new colors
+            # then, take the mbobs, and make deepcopies where we draw _new_
+            # PSFs from our source distribution, at roughly the appropriate colors
+        else:
+            color_key_func_p = None
+            color_key_func_m = None
+            color_dep_mbobs_p = None
+            color_dep_mbobs_m = None
+    except Exception:
+        color_key_func_p = None
+        color_key_func_m = None
+        color_dep_mbobs_p = None
+        color_dep_mbobs_m = None
+
     res_p = metadetect.do_metadetect(
         config["metadetect"],
         mbobs_p,
         mdet_rng_p,
+        color_key_func=color_key_func_p,
+        color_dep_mbobs=color_dep_mbobs_p,
     )
 
     res_m = metadetect.do_metadetect(
         config["metadetect"],
         mbobs_m,
         mdet_rng_m,
+        color_key_func=color_key_func_m,
+        color_dep_mbobs=color_dep_mbobs_m,
     )
 
     return measure_pairs(config, res_p, res_m)
