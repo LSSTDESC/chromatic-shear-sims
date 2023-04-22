@@ -5,6 +5,7 @@ scripts = [
     "bin/grid",
     "bin/meas-chromatic-shear-bias",
     "bin/run-chromatic-shear-bias",
+    "bin/run-generators",
     "bin/validate-seds",
     "bin/viz-chromatic-shear-bias",
 ]
