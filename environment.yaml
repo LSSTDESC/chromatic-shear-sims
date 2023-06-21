@@ -1,0 +1,18 @@
+name: chromatic-shear-bias
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - astropy
+  - dust_extinction
+  - fitsio
+  - galsim
+  - galsim_extra
+  - joblib
+  - matplotlib
+  - metadetect
+  - ngmix
+  - numpy
+  - psutil
+  - pyarrow
+  - yaml
