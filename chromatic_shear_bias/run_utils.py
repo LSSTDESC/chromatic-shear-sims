@@ -20,6 +20,14 @@ S2N_CUTS = [7, 8, 9, 10, 15, 20]
 MFRAC_CUTS = [0, 1, 2, 5, 8, 10, 20, 50, 80, 100]
 
 
+def get_sky_rms(exposure_time, zeropoint, sky_brightness, pixel_scale):
+    # convert sky brightness in mag/arcsec^2 to flux
+    # then add in pixel-scale
+    sky_level = exposure_time * 10 ** (-0.4 * (sky_brightness - zeropoint))
+    sky_level_pixel = sky_level * pixel_scale**2
+    return sky_level_pixel**(1/2)
+
+
 def _get_dtype():
     fkeys = ["g1p", "g1m", "g1", "g2p", "g2m", "g2"]
     ikeys = ["s2n_cut", "ormask_cut", "mfrac_cut"]

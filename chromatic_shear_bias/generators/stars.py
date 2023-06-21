@@ -22,6 +22,7 @@ import pyarrow.parquet as pq
 import yaml
 
 from chromatic_shear_bias import sed_tools, run_utils
+from chromatic_shear_bias.generators import generators
 
 
 @functools.cache
@@ -62,18 +63,18 @@ def build_star(star_params, sed_dir):
 
     # print(f"\tBuilding star took {end - start} s")
 
-    return sed
+    return galsim.DeltaFunction() * sed
 
 
-def DC2_generator(predicate=None):
+def DC2_generator(predicate=None, seed=None):
     dataset = "/oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel.parquet"
     columns = [
         "^sedFilename$",
     ]
     sed_dir = "/oak/stanford/orgs/kipac/users/smau/"
-    batch_generator = generate_batches(dataset, columns=columns, predicate=predicate)
+    batch_generator = generators.generate_batches(dataset, columns=columns, predicate=predicate)
     for batch in batch_generator:
-        row_generator = generate_rows(batch, n_sample=batch.num_rows)
+        row_generator = generators.generate_rows(batch, n_sample=batch.num_rows, seed=seed)
         for row in row_generator:
             built = build_star(row, sed_dir)
             yield built

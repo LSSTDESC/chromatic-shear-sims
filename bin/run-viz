@@ -1,0 +1,190 @@
+#!/usr/bin/env python
+"""
+"""
+
+import argparse
+import functools
+import itertools
+# import operator
+import os
+from pathlib import Path
+import re
+
+import galsim
+import joblib
+import metadetect
+import ngmix
+import numpy as np
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
+import yaml
+
+from chromatic_shear_bias import sed_tools, run_utils, lsst
+
+from chromatic_shear_bias.generators import generators, gals, stars
+
+
+QUANTILES = [0.2306804656982422, 0.9543704986572266, 1.5550565719604492]
+TOL = 0.02
+
+
+def main():
+    args = get_args()
+
+    with open(args.config, "r") as fp:
+        config = yaml.safe_load(fp.read())
+
+    DC2_predicate_fiducial = (
+        (pc.field("imag") > pc.scalar(19))
+        & (pc.field("imag") < pc.scalar(21))
+        & pc.match_substring_regex(pc.field("sedFilename"), "^k[mp]*")
+        & (pc.abs_checked(pc.field("gmag") - pc.field("imag") - QUANTILES[1]) < TOL)
+    )
+    DC2_stars_fiducial = stars.DC2_generator(predicate=DC2_predicate_fiducial, seed=args.seed)
+
+    # DC2_predicate_blue = (
+    #     (pc.field("imag") > pc.scalar(19))
+    #     & (pc.field("imag") < pc.scalar(21))
+    #     & pc.match_substring_regex(pc.field("sedFilename"), "^k[mp]*")
+    #     & (pc.abs_checked(pc.field("gmag") - pc.field("imag") - QUANTILES[0]) < TOL)
+    # )
+    # DC2_stars_blue = stars.DC2_generator(predicate=DC2_predicate_blue, seed=args.seed)
+
+    # DC2_predicate_red = (
+    #     (pc.field("imag") > pc.scalar(19))
+    #     & (pc.field("imag") < pc.scalar(21))
+    #     & pc.match_substring_regex(pc.field("sedFilename"), "^k[mp]*")
+    #     & (pc.abs_checked(pc.field("gmag") - pc.field("imag") - QUANTILES[2]) < TOL)
+    # )
+    # DC2_stars_red = stars.DC2_generator(predicate=DC2_predicate_red, seed=args.seed)
+
+    simple_gals = gals.simple_gal_generator()
+    cosmoDC2_predicate = (
+        (pc.field("mag_true_r_lsst") < pc.scalar(26))
+        & (pc.field("mag_true_i_lsst") < pc.scalar(26))
+        & (pc.field("mag_true_z_lsst") < pc.scalar(26))
+    )
+    # elliptical_cosmoDC2_gals = gals.elliptical_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
+    simple_cosmoDC2_gals = gals.simple_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
+    # cosmoDC2_gals = gals.cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
+
+    base_psf = galsim.Gaussian(fwhm=0.9)
+    psf = galsim.ChromaticAtmosphere(
+        base_psf,
+        500,
+        zenith_angle=0 * galsim.degrees,
+        parallactic_angle=0 * galsim.degrees,
+    )
+
+    rng = np.random.default_rng(args.seed)
+
+    scene_seed = rng.integers(1, 2**64 // 2 - 1)
+    scene_rng = np.random.default_rng(scene_seed)
+
+    pair_seed = rng.integers(1, 2**64 // 2 - 1)
+    pair_rng = np.random.default_rng(pair_seed)
+
+    meas_seed = rng.integers(1, 2**64 // 2 - 1)
+    meas_rng = np.random.default_rng(meas_seed)
+
+    xsize = 320
+    ysize = 320
+    psf_size = 53
+    pixel_scale = 0.2
+
+    bands = ["g", "r", "i"]
+    # noises = [
+    #     run_utils.get_sky_rms(
+    #         lsst.exposure_time,
+    #         lsst.zeropoint[band],
+    #         lsst.sky_brightness[band],
+    #         pixel_scale,
+    #     )
+    #     for band in bands
+    # ]
+    noises = [
+        run_utils.get_sky_rms(
+            lsst.exposure_time,
+            lsst.zeropoint[band],
+            lsst.sky_brightness[band],
+            pixel_scale,
+        ) / 1e9
+        for band in bands
+    ]
+    print(f"noises: {noises}")
+    shear_bands = [[1]]
+    det_bands = [[0, 1, 2]]
+
+    # Plotting pipeline
+    parallel = joblib.Parallel(n_jobs=1, verbose=100)
+    results = parallel(
+        joblib.delayed(generators.compose(
+            functools.partial(generators.build_pair, star=next(DC2_stars_fiducial), shear=args.shear, xsize=xsize, ysize=ysize, psf_size=psf_size, pixel_scale=pixel_scale, bands=bands, noises=noises, psf=psf, rng=pair_rng, n_coadd=args.n_coadd),
+            functools.partial(generators.build_plot, bands=bands, detect=True, config=config)
+        ))(scene) for scene in generators.generate_scenes(args.n_sims, simple_gals, xsize, ysize, pixel_scale, rng=scene_rng, mag=args.mag)
+    )
+
+    for fig in results:
+        import matplotlib.pyplot as plt
+        plt.show()
+        plt.close()
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Metadetection configuration file [yaml]",
+    )
+    parser.add_argument(
+        "--mag",
+        type=float,
+        required=False,
+        default=None,
+        help="r-band magnitude at which to draw galaxies",
+    )
+    parser.add_argument(
+        "--shear",
+        type=float,
+        required=False,
+        default=0.02,
+        help="Cosmic shear to apply [float]",
+    )
+    parser.add_argument(
+        "--n_coadd",
+        type=int,
+        required=False,
+        default=100,
+        help="Number of exposures in coadd [int]",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=1,
+        help="RNG seed [int]",
+    )
+    parser.add_argument(
+        "--n_sims",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of sims to run [int]",
+    )
+    # parser.add_argument(
+    #     "--n_jobs",
+    #     type=int,
+    #     required=False,
+    #     default=1,
+    #     # default=max(1, joblib.cpu_count() // 2),
+    #     help="Number of jobs to run [int]",
+    # )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    main()
