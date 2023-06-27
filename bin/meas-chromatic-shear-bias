@@ -95,12 +95,13 @@ def main():
         predicate &= (pc.field("mfrac_cut") == -1)
 
     # data = dataset.to_table(filter=predicate).to_pydict()
-    data = dataset.to_table(filter=predicate)
-    n_sims_msk = np.sum(data["weight"])
-    if n_sims_msk <= 0:
-        raise RuntimeError("Cuts did not keep any sims!")
-    else:
-        logger.info(f"{n_sims_msk} sims pass cuts")
+    # data = dataset.to_table(filter=predicate)
+    data = dataset.filter(predicate)
+    # n_sims_msk = np.sum(data["weight"])
+    # if n_sims_msk <= 0:
+    #     raise RuntimeError("Cuts did not keep any sims!")
+    # else:
+    #     logger.info(f"{n_sims_msk} sims pass cuts")
 
     logger.info(f"Measuring multiplicative and additive biases")
     m_req = 0.002
@@ -113,62 +114,70 @@ def main():
     #     n_resample=args.n_resample,
     # )
 
-    def compute_shear_pair(data, ind=None):
+    def compute_shear_pair(batch):
+        # g1p = np.array(data["p.g1"])
+        # R11p = (np.array(data["p.g1p"]) - np.array(data["p.g1m"])) / (2 * calibration_shear)
+        g1p = batch["p.g1"]
+        R11p = pc.divide(pc.subtract(batch["p.g1p"], batch["p.g1m"]), 2 * calibration_shear)
+
+        # g1m = np.array(data["m.g1"])
+        # R11m = (np.array(data["m.g1p"]) - np.array(data["m.g1m"])) / (2 * calibration_shear)
+        g1m = batch["m.g1"]
+        R11m = pc.divide(pc.subtract(batch["m.g1p"], batch["m.g1m"]), 2 * calibration_shear)
+
+        # g2p = np.array(data["p.g2"])
+        # R22p = (np.array(data["p.g2p"]) - np.array(data["p.g2m"])) / (2 * calibration_shear)
+        g2p = batch["p.g2"]
+        R22p = pc.divide(pc.subtract(batch["p.g2p"], batch["p.g2m"]), 2 * calibration_shear)
+
+        # g2m = np.array(data["m.g2"])
+        # R22m = (np.array(data["m.g2p"]) - np.array(data["m.g2m"])) / (2 * calibration_shear)
+        g2m = batch["m.g2"]
+        R22m = pc.divide(pc.subtract(batch["m.g2p"], batch["m.g2m"]), 2 * calibration_shear)
+
+        # weights = data["weight"]
+        # if weights is not None:
+        #     w = np.asarray(weights).astype(np.float64)
+        # else:
+        #     w = np.ones(len(g1p)).astype(np.float64)
+        # w /= np.sum(w)
+
         # if ind is not None:
-        #     data = data.take(ind)
-        data = data.to_pydict()
+        #     g1p = g1p[ind]
+        #     R11p = R11p[ind]
+        #     g1m = g1m[ind]
+        #     R11m = R11m[ind]
+        #     g2p = g2p[ind]
+        #     R22p = R22p[ind]
+        #     g2m = g2m[ind]
+        #     R22m = R22m[ind]
+        #     w = w[ind]
 
-        g1p = np.array(data["p.g1"])
-        R11p = (np.array(data["p.g1p"]) - np.array(data["p.g1m"])) / (2 * calibration_shear)
+        # msk = (
+        #     np.isfinite(g1p) &
+        #     np.isfinite(R11p) &
+        #     np.isfinite(g1m) &
+        #     np.isfinite(R11m) &
+        #     np.isfinite(g2p) &
+        #     np.isfinite(R22p) &
+        #     np.isfinite(g2m) &
+        #     np.isfinite(R22m)
+        # )
+        # g1p = g1p[msk]
+        # R11p = R11p[msk]
+        # g1m = g1m[msk]
+        # R11m = R11m[msk]
+        # g2p = g2p[msk]
+        # R22p = R22p[msk]
+        # g2m = g2m[msk]
+        # R22m = R22m[msk]
+        # w = w[msk]
 
-        g1m = np.array(data["m.g1"])
-        R11m = (np.array(data["m.g1p"]) - np.array(data["m.g1m"])) / (2 * calibration_shear)
-
-        g2p = np.array(data["p.g2"])
-        R22p = (np.array(data["p.g2p"]) - np.array(data["p.g2m"])) / (2 * calibration_shear)
-
-        g2m = np.array(data["m.g2"])
-        R22m = (np.array(data["m.g2p"]) - np.array(data["m.g2m"])) / (2 * calibration_shear)
-
-        weights = data["weight"]
-        if weights is not None:
-            w = np.asarray(weights).astype(np.float64)
-        else:
-            w = np.ones(len(g1p)).astype(np.float64)
-        w /= np.sum(w)
-
-        if ind is not None:
-            g1p = g1p[ind]
-            R11p = R11p[ind]
-            g1m = g1m[ind]
-            R11m = R11m[ind]
-            g2p = g2p[ind]
-            R22p = R22p[ind]
-            g2m = g2m[ind]
-            R22m = R22m[ind]
-            w = w[ind]
-
-        msk = (
-            np.isfinite(g1p) &
-            np.isfinite(R11p) &
-            np.isfinite(g1m) &
-            np.isfinite(R11m) &
-            np.isfinite(g2p) &
-            np.isfinite(R22p) &
-            np.isfinite(g2m) &
-            np.isfinite(R22m)
-        )
-        g1p = g1p[msk]
-        R11p = R11p[msk]
-        g1m = g1m[msk]
-        R11m = R11m[msk]
-        g2p = g2p[msk]
-        R22p = R22p[msk]
-        g2m = g2m[msk]
-        R22m = R22m[msk]
-        w = w[msk]
-
-        return (np.nansum(g1p) - np.nansum(g1m)) / (np.nansum(R11p) + np.nansum(R11m))
+        # return (np.nansum(g1p) - np.nansum(g1m)) / (np.nansum(R11p) + np.nansum(R11m))
+        # return (
+        #     pc.divide(pc.subtract(pc.sum(g1p), pc.sum(g1m)), pc.add(pc.sum(R11p), pc.sum(R11m)))
+        # ).as_py() / 0.02 - 1.
+        return g1p, g1m, R11p, R11m
 
     import tqdm
     import joblib
@@ -176,26 +185,29 @@ def main():
     seed = 10
     rng = np.random.RandomState(seed=seed)
 
-    mn = compute_shear_pair(data)/0.02-1
-
-    # vals = []
-    # for i in tqdm.trange(ns, ncols=80):
-    #     rind = rng.choice(len(data), size=len(data), replace=True)
-    #     vals.append(compute_shear_pair(data.take(rind))/0.02-1)
-    # print("m = %0.3e +/- %0.3e [3-sigma]" % (mn, np.std(vals) * 3))
-
-    jobs = []
     vals = []
-    for i in tqdm.trange(args.n_resample, ncols=80):
-        rind = rng.choice(len(data), size=len(data), replace=True)
+    jobs = []
+    for batch in data.to_batches():
         jobs.append(
-             joblib.delayed(compute_shear_pair)(data, ind=rind)
-         )
+            joblib.delayed(compute_shear_pair)(batch)
+        )
 
     with joblib.Parallel(n_jobs=4, backend="loky", verbose=1) as par:
         vals = par(jobs)
 
-    print("m = %0.3e +/- %0.3e [3-sigma]" % (mn, np.std(vals) * 3))
+    # val = compute_shear_pair(batch).as_py() / 0.02 - 1
+    # vals.append(val)
+
+    vals = np.array(vals)
+
+    def compute_m(arr):
+        return (np.mean(arr[:, 0]) - np.mean(arr[:, 1])) / (np.mean(arr[:, 2]) + np.mean(arr[:, 3])) / 0.02 - 1.
+
+    resamples = []
+    for i in tqdm.trange(args.n_resample, ncols=80):
+        rind = rng.choice(len(vals), size=len(vals), replace=True)
+        resamples.append(vals[rind])
+    print("m = %0.3e +/- %0.3e [3-sigma]" % (compute_m(vals), np.std(list(map(compute_m, resamples))) * 3))
     exit()
 
     # logger.info(f"Applying cuts")
@@ -226,18 +238,18 @@ def main():
     #     n_resample=args.n_resample,
     # )
 
-    print(f"m: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma)")
-    print(f"c: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma)")
+    # print(f"m: {m_est:.3e} +/- {m_std*3:.3e} (3 sigma)")
+    # print(f"c: {c_est:.3e} +/- {c_std*3:.3e} (3 sigma)")
 
-    if np.abs(m_est) < np.abs(m_std * 3):
-        logger.info(f"unreliable measurement (3-sigma uncertainty > mean measurement)")
-    else:
-        logger.info(f"reliable measurement (3-sigma uncertainty < mean measurement)")
+    # if np.abs(m_est) < np.abs(m_std * 3):
+    #     logger.info(f"unreliable measurement (3-sigma uncertainty > mean measurement)")
+    # else:
+    #     logger.info(f"reliable measurement (3-sigma uncertainty < mean measurement)")
 
-    if np.abs(m_est) < 0.002:
-        logger.info(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3e} < {m_req:.3e})")
-    else:
-        logger.info(f"mean multiplicative bias exceeds nominal requirement! ({np.abs(m_est):.3e} > {m_req:.3e})")
+    # if np.abs(m_est) < 0.002:
+    #     logger.info(f"mean multiplicative bias within nominal requirement. ({np.abs(m_est):.3e} < {m_req:.3e})")
+    # else:
+    #     logger.info(f"mean multiplicative bias exceeds nominal requirement! ({np.abs(m_est):.3e} > {m_req:.3e})")
 
 
 if __name__ == "__main__":
