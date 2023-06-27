@@ -4,7 +4,6 @@ from setuptools import setup, find_packages
 scripts = [
     "bin/grid",
     "bin/meas-chromatic-shear-bias",
-    # "bin/meas-generators",
     "bin/run-chromatic-shear-bias",
     "bin/run-chromatic",
     "bin/run-monochromatic",
