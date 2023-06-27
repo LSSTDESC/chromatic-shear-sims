@@ -15,4 +15,5 @@ dependencies:
   - numpy
   - psutil
   - pyarrow
+  - tqdm
   - yaml
