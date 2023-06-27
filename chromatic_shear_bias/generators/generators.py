@@ -167,7 +167,8 @@ def build_scene(seed, gals, xsize, ysize, pixel_scale):
     return objects
 
 
-def generate_scenes(n_sims, gals, xsize, ysize, pixel_scale, rng, mag=None):
+def generate_scenes(n_sims, gals, xsize, ysize, pixel_scale, seed, mag=None):
+    rng = np.random.default_rng(seed)
     for i in range(n_sims):
         v1 = np.asarray([1, 0], dtype=float)
         v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
@@ -350,8 +351,9 @@ def generate_pairs(scenes, star, shear, psf, bands, xsize, ysize, psf_size, pixe
         yield pair
 
 
-def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, rng, n_coadd=1):
+def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, seed, n_coadd=1):
 
+    rng = np.random.default_rng(seed)
     _scene_seed = rng.integers(1, 2**64 // 2 - 1)
     _image_seed = rng.integers(1, 2**64 // 2 - 1)
 
@@ -376,6 +378,7 @@ def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, p
         for band, noise_sigma in zip(bands, noises):
             scene_seed = scene_rng.integers(1, 2**64 // 2 - 1)
             image_seed = image_rng.integers(1, 2**64 // 2 - 1)
+            print(f"(image_seed, scene_seed) : ({image_seed}, {scene_seed})")
             image, psf_image, noise_image, ormask, bmask, weight = build_image(
                 band,
                 observed,
@@ -489,7 +492,8 @@ def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, p
 # return chromatic_pairs
 
 
-def measure_pair(pair, shear_bands, det_bands, config, rng):
+def measure_pair(pair, shear_bands, det_bands, config, seed):
+    rng = np.random.default_rng(seed)
     mdet_seed = rng.integers(1, 2**64 // 2 - 1)
     mdet_rng_p = np.random.default_rng(mdet_seed)
     mdet_rng_m = np.random.default_rng(mdet_seed)
@@ -720,7 +724,6 @@ def build_plot(pair, bands, detect, config):
         p_ns = o_p[q_p]
         m_ns = o_m[q_m]
 
-    import pdb;pdb.set_trace()
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(len(bands), 5)
     if len(bands) > 1:
