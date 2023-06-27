@@ -378,7 +378,6 @@ def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, p
         for band, noise_sigma in zip(bands, noises):
             scene_seed = scene_rng.integers(1, 2**64 // 2 - 1)
             image_seed = image_rng.integers(1, 2**64 // 2 - 1)
-            print(f"(image_seed, scene_seed) : ({image_seed}, {scene_seed})")
             image, psf_image, noise_image, ormask, bmask, weight = build_image(
                 band,
                 observed,
