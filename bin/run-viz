@@ -81,20 +81,21 @@ def main():
     rng = np.random.default_rng(args.seed)
 
     scene_seed = rng.integers(1, 2**64 // 2 - 1)
-    scene_rng = np.random.default_rng(scene_seed)
+    # scene_rng = np.random.default_rng(scene_seed)
 
-    pair_seed = rng.integers(1, 2**64 // 2 - 1)
-    pair_rng = np.random.default_rng(pair_seed)
+    # pair_seed = rng.integers(1, 2**64 // 2 - 1)
+    # pair_rng = np.random.default_rng(pair_seed)
 
-    meas_seed = rng.integers(1, 2**64 // 2 - 1)
-    meas_rng = np.random.default_rng(meas_seed)
+    # meas_seed = rng.integers(1, 2**64 // 2 - 1)
+    # meas_rng = np.random.default_rng(meas_seed)
 
-    xsize = 320
-    ysize = 320
+    xsize = 640
+    ysize = 640
     psf_size = 53
     pixel_scale = 0.2
 
-    bands = ["g", "r", "i"]
+    # bands = ["g", "r", "i"]
+    bands = ["r"]
     # noises = [
     #     run_utils.get_sky_rms(
     #         lsst.exposure_time,
@@ -113,18 +114,25 @@ def main():
         ) / 1e9
         for band in bands
     ]
-    print(f"noises: {noises}")
-    shear_bands = [[1]]
-    det_bands = [[0, 1, 2]]
 
-    # Plotting pipeline
-    parallel = joblib.Parallel(n_jobs=1, verbose=100)
-    results = parallel(
-        joblib.delayed(generators.compose(
-            functools.partial(generators.build_pair, star=next(DC2_stars_fiducial), shear=args.shear, xsize=xsize, ysize=ysize, psf_size=psf_size, pixel_scale=pixel_scale, bands=bands, noises=noises, psf=psf, rng=pair_rng, n_coadd=args.n_coadd),
-            functools.partial(generators.build_plot, bands=bands, detect=True, config=config)
-        ))(scene) for scene in generators.generate_scenes(args.n_sims, simple_gals, xsize, ysize, pixel_scale, rng=scene_rng, mag=args.mag)
-    )
+    shear_bands = None
+    det_bands = None
+
+    def build_and_plot_pair(scene, star, shear, xsize, ysize, psf_size, pixel_scale, bands, noises, psf, n_coadd, config, pair_seed, detect):
+        pair = generators.build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, pair_seed, n_coadd)
+        plot = generators.build_plot(pair, bands, detect, config)
+        return plot
+
+    jobs = []
+    for scene in generators.generate_scenes(args.n_sims, simple_gals, xsize, ysize, pixel_scale, seed=scene_seed, mag=args.mag):
+        pair_seed = rng.integers(1, 2**64 // 2 - 1)
+        meas_seed = rng.integers(1, 2**64 // 2 - 1)
+        jobs.append(
+            joblib.delayed(build_and_plot_pair)(scene, galsim.DeltaFunction(), 0.02, xsize, ysize, psf_size, pixel_scale, bands, noises, base_psf, args.n_coadd, config, pair_seed, True)
+        )
+
+    parallel = joblib.Parallel(n_jobs=1, verbose=10)
+    results = parallel(jobs)
 
     for fig in results:
         import matplotlib.pyplot as plt
