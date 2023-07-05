@@ -25,7 +25,7 @@ import yaml
 
 from chromatic_shear_bias import sed_tools, run_utils, lsst
 
-from chromatic_shear_bias.generators import generators, gals, stars
+from chromatic_shear_bias.generators import gals, stars
 
 
 def main():
@@ -81,7 +81,7 @@ def main():
             scene_seed = rng.integers(1, 2**64 // 2 - 1)
             pair_seed = rng.integers(1, 2**64 // 2 - 1)
             meas_seed = rng.integers(1, 2**64 // 2 - 1)
-            scene = generators.build_scene(
+            scene = run_utils.build_scene(
                 simple_gals,
                 xsize,
                 ysize,
@@ -91,7 +91,7 @@ def main():
             )
             _star = galsim.DeltaFunction()
             jobs.append(
-                joblib.delayed(generators.build_and_measure_pair)(
+                joblib.delayed(run_utils.build_and_measure_pair)(
                     scene,
                     _star,
                     shear,

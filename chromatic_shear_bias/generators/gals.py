@@ -20,7 +20,7 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
-from chromatic_shear_bias import sed_tools, run_utils
+from chromatic_shear_bias import sed_tools
 from chromatic_shear_bias.generators import generators
 
 
