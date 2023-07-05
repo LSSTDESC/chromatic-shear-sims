@@ -4,6 +4,7 @@ Some functions from https://github.com/beckermr/pizza-cutter-sims
 """
 
 import copy
+import re
 
 import numpy as np
 import pyarrow as pa

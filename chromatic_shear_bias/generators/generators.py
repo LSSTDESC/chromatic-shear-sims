@@ -20,12 +20,14 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
+from chromatic_shear_bias import run_utils
+
 
 def generate_batches(dataset_files, dir=None, format=None, columns=None, predicate=None):
     dataset = ds.dataset(dataset_files)
     names = dataset.schema.names
 
-    columns = match_expression(names, columns)
+    columns = run_utils.match_expression(names, columns)
 
     scanner = dataset.scanner(
         columns=columns,
