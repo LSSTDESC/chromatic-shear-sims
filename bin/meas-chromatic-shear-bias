@@ -208,7 +208,6 @@ def main():
         rind = rng.choice(len(vals), size=len(vals), replace=True)
         resamples.append(vals[rind])
     print("m = %0.3e +/- %0.3e [3-sigma]" % (compute_m(vals), np.std(list(map(compute_m, resamples))) * 3))
-    exit()
 
     # logger.info(f"Applying cuts")
     # pmsk = (pdata["s2n_cut"] == args.s2n_cut)
