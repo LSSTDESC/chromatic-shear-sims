@@ -157,8 +157,8 @@ def build_cosmoDC2_gal(gal_params):
 
         gal_components.append(gal * sed)
 
-    gal = galsim.Add(gal_components).withFluxDensity(1e9, 500)
-    # gal = galsim.Add(gal_components)
+    # gal = galsim.Add(gal_components).withFluxDensity(1e9, 500)  # TODO
+    gal = galsim.Add(gal_components)
 
     return gal
 
