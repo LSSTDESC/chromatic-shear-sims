@@ -3,12 +3,13 @@
 """
 
 import argparse
+from datetime import datetime as dt
 import functools
 import itertools
-# import operator
 import os
 from pathlib import Path
 import re
+import time
 
 import galsim
 import joblib
@@ -19,6 +20,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
+from tqdm import tqdm, trange
 import yaml
 
 from chromatic_shear_bias import sed_tools, run_utils, lsst
@@ -65,14 +67,14 @@ def main():
         star_generator = stars.DC2_generator(predicate=predicate, seed=args.seed)
         stellar_generators.append(star_generator)
 
-    # simple_gals = gals.simple_gal_generator()
     cosmoDC2_predicate = (
         (pc.field("mag_true_r_lsst") < pc.scalar(26))
         & (pc.field("mag_true_i_lsst") < pc.scalar(26))
         & (pc.field("mag_true_z_lsst") < pc.scalar(26))
     )
-    # elliptical_cosmoDC2_gals = gals.elliptical_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
+    # simple_gals = gals.simple_gal_generator()
     simple_cosmoDC2_gals = gals.simple_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
+    # elliptical_cosmoDC2_gals = gals.elliptical_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
     # cosmoDC2_gals = gals.cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
 
     base_psf = galsim.Gaussian(fwhm=0.9)
@@ -85,19 +87,11 @@ def main():
 
     rng = np.random.default_rng(args.seed)
 
-    scene_seed = rng.integers(1, 2**64 // 2 - 1)
-    scene_rng = np.random.default_rng(scene_seed)
-
-    pair_seed = rng.integers(1, 2**64 // 2 - 1)
-    pair_rng = np.random.default_rng(pair_seed)
-
-    meas_seed = rng.integers(1, 2**64 // 2 - 1)
-    meas_rng = np.random.default_rng(meas_seed)
-
-    xsize = 320
-    ysize = 320
+    xsize = 640
+    ysize = 640
     psf_size = 53
     pixel_scale = 0.2
+    shear = 0.02
 
     bands = ["g", "r", "i"]
     noises = [
@@ -109,22 +103,74 @@ def main():
         )
         for band in bands
     ]
-    print(f"noises: {noises}")
     shear_bands = [[1]]
     det_bands = [[0, 1, 2]]
 
-    # Chromatic measurement pipeline
-    parallel = joblib.Parallel(n_jobs=args.n_jobs, verbose=10)
-    # Generating scenes is IO bound (many calls to the cosmoDC2 catalog) while
-    # the image/obs/measurement pipeline is CPU bound; therefore, we generate
-    # the scenes as arguments passed to the pipeline, which joblib parallelizes
-    results = parallel(
-        joblib.delayed(generators.compose(
-            functools.partial(generators.build_pair, star=next(DC2_stars_fiducial), shear=0.02, xsize=xsize, ysize=ysize, psf_size=psf_size, pixel_scale=pixel_scale, bands=bands, noises=noises, psf=psf, rng=pair_rng, n_coadd=args.n_coadd),
-            functools.partial(generators.measure_pair_color, psf=psf, colors=QUANTILES, stars=[next(stellar_generator) for stellar_generator in stellar_generators], psf_size=psf_size, pixel_scale=pixel_scale, bands=bands, shear_bands=shear_bands, det_bands=det_bands, config=config, rng=meas_rng),
-        ))(scene) for scene in generators.generate_scenes(args.n_sims, simple_cosmoDC2_gals, xsize, ysize, pixel_scale, rng=scene_rng, mag=args.mag)
-    )
+    # We break down all of the jobs into chunks proportional to the number of
+    # jobs. This balances between configuring each scene in serial and
+    # simulating and measuring each scene in parallel.
 
+    chunk_factor = 4
+    job_chunks = [chunk_factor * args.n_jobs for i in range(args.n_sims // (chunk_factor * args.n_jobs))]
+    if args.n_sims % (chunk_factor * args.n_jobs) > 0:
+        job_chunks.append(args.n_sims % (chunk_factor * args.n_jobs))
+    # job_chunks = [args.n_sims]
+    print(f"Running {args.n_sims} jobs in {len(job_chunks)} chunks")
+
+    start_time = time.time()
+    n_finished = 0
+    results = []
+    parallel = joblib.Parallel(n_jobs=args.n_jobs, verbose=10)
+    for chunk_index, chunk in enumerate(job_chunks):
+        print(f"Making {chunk} jobs for chunk {chunk_index + 1} / {len(job_chunks)}")
+        jobs = []
+        for i in trange(chunk, ncols=80):
+            scene_seed = rng.integers(1, 2**64 // 2 - 1)
+            pair_seed = rng.integers(1, 2**64 // 2 - 1)
+            meas_seed = rng.integers(1, 2**64 // 2 - 1)
+            scene = generators.build_scene(
+                simple_cosmoDC2_gals,
+                xsize,
+                ysize,
+                pixel_scale,
+                scene_seed,
+                mag=args.mag
+            )
+            _star = next(DC2_stars_fiducial)
+            _stars = [next(stellar_generator) for stellar_generator in stellar_generators]
+            jobs.append(
+                joblib.delayed(generators.build_and_measure_pair_color)(
+                    scene,
+                    _star,
+                    shear,
+                    xsize,
+                    ysize,
+                    psf_size,
+                    pixel_scale,
+                    bands,
+                    noises,
+                    psf,
+                    QUANTILES,
+                    _stars,
+                    args.n_coadd,
+                    shear_bands,
+                    det_bands,
+                    config,
+                    pair_seed,
+                    meas_seed
+                )
+            )
+
+        res = parallel(jobs)
+        results.extend(res)
+
+        n_finished += chunk
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        elapsed_time_formatted = dt.strftime(dt.utcfromtimestamp(elapsed_time), '%H:%M:%S')
+        print(f"Completed {n_finished} jobs; elapsed time: {elapsed_time_formatted}")
+
+    print(f"Writing output")
     # output file path
     root_path = Path(args.output)
     # if root_path.exists() and not root_path.is_dir():
@@ -162,6 +208,8 @@ def main():
     #     num_rows = 0
 
     pqwriter.close()
+
+    print(f"Finished")
 
 
 def get_args():

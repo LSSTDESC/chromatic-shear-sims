@@ -3,12 +3,13 @@
 """
 
 import argparse
+from datetime import datetime as dt
 import functools
 import itertools
-# import operator
 import os
 from pathlib import Path
 import re
+import time
 
 import galsim
 import joblib
@@ -19,6 +20,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
+from tqdm import tqdm, trange
 import yaml
 
 from chromatic_shear_bias import sed_tools, run_utils, lsst
@@ -80,38 +82,21 @@ def main():
 
     rng = np.random.default_rng(args.seed)
 
-    scene_seed = rng.integers(1, 2**64 // 2 - 1)
-    # scene_rng = np.random.default_rng(scene_seed)
-
-    # pair_seed = rng.integers(1, 2**64 // 2 - 1)
-    # pair_rng = np.random.default_rng(pair_seed)
-
-    # meas_seed = rng.integers(1, 2**64 // 2 - 1)
-    # meas_rng = np.random.default_rng(meas_seed)
-
     xsize = 640
     ysize = 640
     psf_size = 53
     pixel_scale = 0.2
+    shear = 0.02
 
-    # bands = ["g", "r", "i"]
-    bands = ["r"]
-    # noises = [
-    #     run_utils.get_sky_rms(
-    #         lsst.exposure_time,
-    #         lsst.zeropoint[band],
-    #         lsst.sky_brightness[band],
-    #         pixel_scale,
-    #     )
-    #     for band in bands
-    # ]
+    # bands = ["r"]
+    bands = ["g", "r", "i"]
     noises = [
         run_utils.get_sky_rms(
             lsst.exposure_time,
             lsst.zeropoint[band],
             lsst.sky_brightness[band],
             pixel_scale,
-        ) / 1e9
+        )
         for band in bands
     ]
 
@@ -124,11 +109,35 @@ def main():
         return plot
 
     jobs = []
-    for scene in generators.generate_scenes(args.n_sims, simple_gals, xsize, ysize, pixel_scale, seed=scene_seed, mag=args.mag):
+    for i in trange(args.n_sims, ncols=80):
+        scene_seed = rng.integers(1, 2**64 // 2 - 1)
         pair_seed = rng.integers(1, 2**64 // 2 - 1)
         meas_seed = rng.integers(1, 2**64 // 2 - 1)
+        scene = generators.build_scene(simple_cosmoDC2_gals,
+            xsize,
+            ysize,
+            pixel_scale,
+            scene_seed,
+            mag=args.mag
+        )
+        _star = next(DC2_stars_fiducial)
         jobs.append(
-            joblib.delayed(build_and_plot_pair)(scene, galsim.DeltaFunction(), 0.02, xsize, ysize, psf_size, pixel_scale, bands, noises, base_psf, args.n_coadd, config, pair_seed, True)
+            joblib.delayed(build_and_plot_pair)(
+                scene,
+                _star,
+                shear,
+                xsize,
+                ysize,
+                psf_size,
+                pixel_scale,
+                bands,
+                noises,
+                psf,
+                args.n_coadd,
+                config,
+                pair_seed,
+                True
+            )
         )
 
     parallel = joblib.Parallel(n_jobs=1, verbose=10)

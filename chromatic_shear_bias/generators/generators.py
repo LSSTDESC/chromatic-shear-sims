@@ -24,13 +24,13 @@ import yaml
 from chromatic_shear_bias import sed_tools, run_utils
 
 
-def compose(*fs):
-    """Functional composition of generator functions
-    Adapted from https://stackoverflow.com/a/38755760
-    """
-    # Note that the structure of reduce requires that fs be a list of
-    # _curried_ functions
-    return lambda x: functools.reduce(lambda f, g: g(f), fs, x)
+# def compose(*fs):
+#     """Functional composition of generator functions
+#     Adapted from https://stackoverflow.com/a/38755760
+#     """
+#     # Note that the structure of reduce requires that fs be a list of
+#     # _curried_ functions
+#     return lambda x: functools.reduce(lambda f, g: g(f), fs, x)
 
 
 def match_expression(names, expressions):
@@ -53,12 +53,6 @@ def generate_batches(dataset_files, dir=None, format=None, columns=None, predica
         columns=columns,
         filter=predicate,
     )
-
-    # for batch in scanner.to_batches():
-    #     if len(batch) > 0:
-    #         yield batch
-    #     else:
-    #         continue
 
     num_rows = scanner.count_rows()
     if num_rows < 1:
@@ -136,7 +130,7 @@ def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None, border=0
     return x_lattice_rot[mask], y_lattice_rot[mask]
 
 
-def build_scene(seed, gals, xsize, ysize, pixel_scale):
+def build_scene(gals, xsize, ysize, pixel_scale, seed, mag=None):
     rng = np.random.default_rng(seed)
 
     v1 = np.asarray([1, 0], dtype=float)
@@ -151,60 +145,69 @@ def build_scene(seed, gals, xsize, ysize, pixel_scale):
         rng.uniform(0, 360),
         100,
     )  # pixels
+    if len(x_lattice) < 1:
+        raise ValueError(f"Scene containts no objects!")
 
     # persist objects as a list for reiteration
     objects = [
         next(gals)
         .rotate(rng.uniform(0, 360) * galsim.degrees)
+        .shift(x * pixel_scale, y * pixel_scale)
         .shift(
             rng.uniform(-0.5, 0.5) * pixel_scale,
             rng.uniform(-0.5, 0.5) * pixel_scale,
         )
-        .shift(x * pixel_scale, y * pixel_scale)
         for (x, y) in zip(x_lattice, y_lattice)
     ]
+
+    if mag is not None:
+        bp_r = galsim.Bandpass(f"LSST_r.dat", wave_type="nm").withZeropoint("AB")
+        objects = [
+            obj.withMagnitude(mag, bp_r)
+            for obj in objects
+        ]
 
     return objects
 
 
-def generate_scenes(n_sims, gals, xsize, ysize, pixel_scale, seed, mag=None):
-    rng = np.random.default_rng(seed)
-    for i in range(n_sims):
-        v1 = np.asarray([1, 0], dtype=float)
-        v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
-        x_lattice, y_lattice = build_lattice(
-            xsize,
-            ysize,
-            10,
-            pixel_scale,
-            v1,
-            v2,
-            rng.uniform(0, 360),
-            100,
-        )  # pixels
-        if len(x_lattice) < 1:
-            raise ValueError(f"Scene containts no objects!")
-
-        # persist objects as a list for reiteration
-        objects = [
-            next(gals)
-            .rotate(rng.uniform(0, 360) * galsim.degrees)
-            .shift(x * pixel_scale, y * pixel_scale)
-            .shift(
-                rng.uniform(-0.5, 0.5) * pixel_scale,
-                rng.uniform(-0.5, 0.5) * pixel_scale,
-            )
-            for (x, y) in zip(x_lattice, y_lattice)
-        ]
-
-        if mag is not None:
-            bp_r = galsim.Bandpass(f"LSST_r.dat", wave_type="nm").withZeropoint("AB")
-            objects = [
-                obj.withMagnitude(mag, bp_r)
-                for obj in objects
-            ]
-
-        yield objects
+# def generate_scenes(n_sims, gals, xsize, ysize, pixel_scale, seed, mag=None):
+#     rng = np.random.default_rng(seed)
+#     for i in range(n_sims):
+#         v1 = np.asarray([1, 0], dtype=float)
+#         v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
+#         x_lattice, y_lattice = build_lattice(
+#             xsize,
+#             ysize,
+#             10,
+#             pixel_scale,
+#             v1,
+#             v2,
+#             rng.uniform(0, 360),
+#             100,
+#         )  # pixels
+#         if len(x_lattice) < 1:
+#             raise ValueError(f"Scene containts no objects!")
+# 
+#         # persist objects as a list for reiteration
+#         objects = [
+#             next(gals)
+#             .rotate(rng.uniform(0, 360) * galsim.degrees)
+#             .shift(x * pixel_scale, y * pixel_scale)
+#             .shift(
+#                 rng.uniform(-0.5, 0.5) * pixel_scale,
+#                 rng.uniform(-0.5, 0.5) * pixel_scale,
+#             )
+#             for (x, y) in zip(x_lattice, y_lattice)
+#         ]
+# 
+#         if mag is not None:
+#             bp_r = galsim.Bandpass(f"LSST_r.dat", wave_type="nm").withZeropoint("AB")
+#             objects = [
+#                 obj.withMagnitude(mag, bp_r)
+#                 for obj in objects
+#             ]
+# 
+#         yield objects
 
 
 def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_size, pixel_scale, scene_seed, image_seed, n_coadd=1):
@@ -220,18 +223,18 @@ def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_siz
     )
     bandpass = galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB") if band else None
     for obs in observed:
-        obs.drawImage(
-            image=image,
-            add_to_image=True,
-            bandpass=bandpass,
-        )
         # obs.drawImage(
         #     image=image,
-        #     exptime=30 * n_coadd,
-        #     area=319 / 9.6 * 1e4,
         #     add_to_image=True,
         #     bandpass=bandpass,
         # )
+        obs.drawImage(
+            image=image,
+            exptime=30 * n_coadd,
+            area=319 / 9.6 * 1e4,
+            add_to_image=True,
+            bandpass=bandpass,
+        )
         # stamp = obs.drawImage(
         #     exptime=30 * n_coadd,
         #     area=319 / 9.6 * 1e4,
@@ -267,88 +270,88 @@ def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_siz
     return image, psf_image, noise_image, ormask, bmask, weight
 
 
-def generate_pairs(scenes, star, shear, psf, bands, xsize, ysize, psf_size, pixel_scale, rng):
-
-    for scene in scenes:
-        _shear_seed = rng.integers(1, 2**64 // 2 - 1)
-
-        observed_psf = galsim.Convolve([star, psf])
-
-        # TODO split across plus/minus version here?
-        pair = {}
-        for shear_type in ["plus", "minus"]:
-            shear_rng = np.random.default_rng(_shear_seed)
-            if shear_type == "plus":
-                g = shear
-            elif shear_type == "minus":
-                g = -shear
-            sheared_objects = [obj.shear(g1=g, g2=0.00) for obj in scene]
-
-            observed = [
-                galsim.Convolve([sheared_obj, psf]) for sheared_obj in sheared_objects
-            ]
-
-            _image_seed = rng.integers(1, 2**64 // 2 - 1)
-            image_rng = np.random.default_rng(_image_seed)
-
-            mbobs = ngmix.MultiBandObsList()
-            for band in bands:
-                shear_seed = shear_rng.integers(1, 2**64 // 2 - 1)
-                image_seed = image_rng.integers(1, 2**64 // 2 - 1)
-                image, psf_image, noise_image, ormask, bmask, weight = build_image(
-                    band,
-                    observed,
-                    observed_psf,
-                    xsize,
-                    ysize,
-                    psf_size,
-                    pixel_scale,
-                    shear_seed,
-                    image_seed
-                )
-                wcs = galsim.AffineTransform(
-                    pixel_scale,
-                    0.0,
-                    0.0,
-                    pixel_scale,
-                    origin=image.center,
-                )
-                im_jac = ngmix.jacobian.Jacobian(
-                    x=(image.array.shape[1] - 1) / 2,
-                    y=(image.array.shape[0] - 1) / 2,
-                    dudx=wcs.dudx,
-                    dudy=wcs.dudy,
-                    dvdx=wcs.dvdx,
-                    dvdy=wcs.dvdy,
-                )
-                psf_jac = ngmix.jacobian.Jacobian(
-                    x=(psf_image.array.shape[1] - 1) / 2,
-                    y=(psf_image.array.shape[0] - 1) / 2,
-                    dudx=wcs.dudx,
-                    dudy=wcs.dudy,
-                    dvdx=wcs.dvdx,
-                    dvdy=wcs.dvdy,
-                )
-                psf_obs = ngmix.Observation(
-                    psf_image.array,
-                    jacobian=psf_jac
-                )
-                obs = ngmix.Observation(
-                    image.array,
-                    psf=psf_obs,
-                    noise=noise_image.array,
-                    weight=weight,
-                    ormask=ormask,
-                    bmask=bmask,
-                    jacobian=im_jac,
-                )
-                obslist = ngmix.ObsList()
-                obslist.append(obs)
-                mbobs.append(obslist)
-
-            pair[shear_type] = mbobs
-
-        yield pair
+# def generate_pairs(scenes, star, shear, psf, bands, xsize, ysize, psf_size, pixel_scale, rng):
+# 
+#     for scene in scenes:
+#         _shear_seed = rng.integers(1, 2**64 // 2 - 1)
+# 
+#         observed_psf = galsim.Convolve([star, psf])
+# 
+#         # TODO split across plus/minus version here?
+#         pair = {}
+#         for shear_type in ["plus", "minus"]:
+#             shear_rng = np.random.default_rng(_shear_seed)
+#             if shear_type == "plus":
+#                 g = shear
+#             elif shear_type == "minus":
+#                 g = -shear
+#             sheared_objects = [obj.shear(g1=g, g2=0.00) for obj in scene]
+# 
+#             observed = [
+#                 galsim.Convolve([sheared_obj, psf]) for sheared_obj in sheared_objects
+#             ]
+# 
+#             _image_seed = rng.integers(1, 2**64 // 2 - 1)
+#             image_rng = np.random.default_rng(_image_seed)
+# 
+#             mbobs = ngmix.MultiBandObsList()
+#             for band in bands:
+#                 shear_seed = shear_rng.integers(1, 2**64 // 2 - 1)
+#                 image_seed = image_rng.integers(1, 2**64 // 2 - 1)
+#                 image, psf_image, noise_image, ormask, bmask, weight = build_image(
+#                     band,
+#                     observed,
+#                     observed_psf,
+#                     xsize,
+#                     ysize,
+#                     psf_size,
+#                     pixel_scale,
+#                     shear_seed,
+#                     image_seed
+#                 )
+#                 wcs = galsim.AffineTransform(
+#                     pixel_scale,
+#                     0.0,
+#                     0.0,
+#                     pixel_scale,
+#                     origin=image.center,
+#                 )
+#                 im_jac = ngmix.jacobian.Jacobian(
+#                     x=(image.array.shape[1] - 1) / 2,
+#                     y=(image.array.shape[0] - 1) / 2,
+#                     dudx=wcs.dudx,
+#                     dudy=wcs.dudy,
+#                     dvdx=wcs.dvdx,
+#                     dvdy=wcs.dvdy,
+#                 )
+#                 psf_jac = ngmix.jacobian.Jacobian(
+#                     x=(psf_image.array.shape[1] - 1) / 2,
+#                     y=(psf_image.array.shape[0] - 1) / 2,
+#                     dudx=wcs.dudx,
+#                     dudy=wcs.dudy,
+#                     dvdx=wcs.dvdx,
+#                     dvdy=wcs.dvdy,
+#                 )
+#                 psf_obs = ngmix.Observation(
+#                     psf_image.array,
+#                     jacobian=psf_jac
+#                 )
+#                 obs = ngmix.Observation(
+#                     image.array,
+#                     psf=psf_obs,
+#                     noise=noise_image.array,
+#                     weight=weight,
+#                     ormask=ormask,
+#                     bmask=bmask,
+#                     jacobian=im_jac,
+#                 )
+#                 obslist = ngmix.ObsList()
+#                 obslist.append(obs)
+#                 mbobs.append(obslist)
+# 
+#             pair[shear_type] = mbobs
+# 
+#         yield pair
 
 
 def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, seed, n_coadd=1):
@@ -524,7 +527,8 @@ def measure_pair(pair, shear_bands, det_bands, config, seed):
     return measurement
 
 
-def measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, shear_bands, det_bands, config, rng):
+def measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, shear_bands, det_bands, config, seed):
+    rng = np.random.default_rng(seed)
     # given a pair of mbobs with a psf drawn at the median g-i color,
     # create color_dep_mbobs at each of the provided stars
     # and run color_dep metadetect
@@ -620,55 +624,68 @@ def measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, s
     return measurement
 
 
-def generate_measurements(pairs, config, rng):
-    mdet_seed = rng.integers(1, 2**64 // 2 - 1)
-    mdet_rng_p = np.random.default_rng(mdet_seed)
-    mdet_rng_m = np.random.default_rng(mdet_seed)
-
-    for pair in pairs:
-        mbobs_p = pair["plus"]
-        mbobs_m = pair["minus"]
-
-        res_p = metadetect.do_metadetect(
-            config["metadetect"],
-            mbobs_p,
-            mdet_rng_p,
-            color_key_func=None,
-            color_dep_mbobs=None,
-        )
-
-        res_m = metadetect.do_metadetect(
-            config["metadetect"],
-            mbobs_m,
-            mdet_rng_m,
-            color_key_func=None,
-            color_dep_mbobs=None,
-        )
-
-        measurement = run_utils.measure_pairs(config, res_p, res_m)
-
-        yield measurement
+def build_and_measure_pair(scene, star, shear, xsize, ysize, psf_size, pixel_scale, bands, noises, psf, n_coadd, shear_bands, det_bands, config, pair_seed, meas_seed):
+    pair = build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, pair_seed, n_coadd)
+    meas = measure_pair(pair, shear_bands, det_bands, config, meas_seed)
+    return meas
 
 
-def generate_plots(pairs, bands):
-    for pair in pairs:
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(len(bands), 4)
-        axs[0, 0].set_title("image +")
-        axs[0, 1].set_title("image -")
-        axs[0, 2].set_title("psf")
-        axs[0, 3].set_title("noise")
-        for i, band in enumerate(bands):
-            axs[i, 0].set_ylabel(f"{band}")
-            axs[i, 0].imshow(pair["plus"][i][0].image, origin="lower")
-            axs[i, 1].imshow(pair["minus"][i][0].image, origin="lower")
-            axs[i, 2].imshow(pair["plus"][i][0].psf.image, origin="lower")
-            axs[i, 3].imshow(pair["plus"][i][0].noise, origin="lower")
-        for ax in axs.ravel():
-            ax.set_xticks([])
-            ax.set_yticks([])
+def build_and_measure_pair_color(scene, star, shear, xsize, ysize, psf_size, pixel_scale, bands, noises, psf, colors, stars, n_coadd, shear_bands, det_bands, config, pair_seed, meas_seed):
+    pair = build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, pair_seed, n_coadd)
+    meas = measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, shear_bands, det_bands, config, meas_seed)
+    return meas
 
-        yield fig
+
+
+# def generate_measurements(pairs, config, rng):
+#     mdet_seed = rng.integers(1, 2**64 // 2 - 1)
+#     mdet_rng_p = np.random.default_rng(mdet_seed)
+#     mdet_rng_m = np.random.default_rng(mdet_seed)
+# 
+#     for pair in pairs:
+#         mbobs_p = pair["plus"]
+#         mbobs_m = pair["minus"]
+# 
+#         res_p = metadetect.do_metadetect(
+#             config["metadetect"],
+#             mbobs_p,
+#             mdet_rng_p,
+#             color_key_func=None,
+#             color_dep_mbobs=None,
+#         )
+# 
+#         res_m = metadetect.do_metadetect(
+#             config["metadetect"],
+#             mbobs_m,
+#             mdet_rng_m,
+#             color_key_func=None,
+#             color_dep_mbobs=None,
+#         )
+# 
+#         measurement = run_utils.measure_pairs(config, res_p, res_m)
+# 
+#         yield measurement
+# 
+# 
+# def generate_plots(pairs, bands):
+#     for pair in pairs:
+#         import matplotlib.pyplot as plt
+#         fig, axs = plt.subplots(len(bands), 4)
+#         axs[0, 0].set_title("image +")
+#         axs[0, 1].set_title("image -")
+#         axs[0, 2].set_title("psf")
+#         axs[0, 3].set_title("noise")
+#         for i, band in enumerate(bands):
+#             axs[i, 0].set_ylabel(f"{band}")
+#             axs[i, 0].imshow(pair["plus"][i][0].image, origin="lower")
+#             axs[i, 1].imshow(pair["minus"][i][0].image, origin="lower")
+#             axs[i, 2].imshow(pair["plus"][i][0].psf.image, origin="lower")
+#             axs[i, 3].imshow(pair["plus"][i][0].noise, origin="lower")
+#         for ax in axs.ravel():
+#             ax.set_xticks([])
+#             ax.set_yticks([])
+# 
+#         yield fig
 
 def build_plot(pair, bands, detect, config):
     if detect:
