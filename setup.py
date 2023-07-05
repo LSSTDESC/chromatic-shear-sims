@@ -16,7 +16,7 @@ scripts = [
 
 setup(
     name="chromatic-shear-bias",
-    version=0.1,
+    version=0.2,
     description="Studies of the contribution to shear calibration bias from chromatic effects ",
     author="smau",
     packages=find_packages(),
