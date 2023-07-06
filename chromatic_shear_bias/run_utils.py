@@ -15,6 +15,8 @@ import galsim_extra
 import ngmix
 import metadetect
 
+from chromatic_shear_bias import sed_tools
+
 
 ORMASK_CUTS = [True, False]
 S2N_CUTS = [7, 8, 9, 10, 15, 20]
