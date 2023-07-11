@@ -52,8 +52,8 @@ def build_cosmoDC2_ellipse(gal_params):
 
 def build_simple_cosmoDC2_gal(gal_params):
     cosmology = COSMOLOGY
-    redshift_hubble = gal_params.get("redshift_true", [0])[0]
-    redshift = gal_params.get("redshift", [0])[0]
+    redshift_hubble = gal_params.get("redshift_true", 0)
+    redshift = gal_params.get("redshift", 0)
 
     gal = galsim.Sersic(
         n=1,
