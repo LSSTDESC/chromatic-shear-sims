@@ -14,6 +14,8 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
+import tqdm
+import joblib
 
 import galsim
 import ngmix
@@ -48,6 +50,14 @@ def get_args():
     parser.add_argument("--output", type=str, required=True, help="Output directory")
     parser.add_argument("--method", type=str, required=False, default="bootstrap", help="Method for calculating variance [bootstrap, jackknife]")
     parser.add_argument("--n_resample", type=int, required=False, default=1000, help="Number of resample iterations")
+    parser.add_argument(
+        "--n_jobs",
+        type=int,
+        required=False,
+        default=joblib.cpu_count(),
+        # default=max(1, joblib.cpu_count() // 2),
+        help="Number of jobs to run [int]",
+    )
     return parser.parse_args()
 
 
@@ -81,7 +91,7 @@ def main():
     logger.info(f"Measuring: {vars(args)}")
 
     logger.info(f"Reading output files")
-    dataset = ds.dataset(args.output)
+    dataset = ds.dataset(args.output, format="arrow")
 
     predicate = \
         pc.field("s2n_cut") == args.s2n_cut
@@ -177,10 +187,8 @@ def main():
         # return (
         #     pc.divide(pc.subtract(pc.sum(g1p), pc.sum(g1m)), pc.add(pc.sum(R11p), pc.sum(R11m)))
         # ).as_py() / 0.02 - 1.
-        return g1p, g1m, R11p, R11m
+        return g1p, g1m, R11p, R11m, g2p, g2m, R22p, R22m
 
-    import tqdm
-    import joblib
 
     seed = 10
     rng = np.random.RandomState(seed=seed)
@@ -192,7 +200,7 @@ def main():
             joblib.delayed(compute_shear_pair)(batch)
         )
 
-    with joblib.Parallel(n_jobs=4, backend="loky", verbose=1) as par:
+    with joblib.Parallel(n_jobs=args.n_jobs, backend="loky", verbose=1) as par:
         vals = par(jobs)
 
     # val = compute_shear_pair(batch).as_py() / 0.02 - 1
@@ -203,11 +211,16 @@ def main():
     def compute_m(arr):
         return (np.mean(arr[:, 0]) - np.mean(arr[:, 1])) / (np.mean(arr[:, 2]) + np.mean(arr[:, 3])) / 0.02 - 1.
 
+    def compute_c(arr):
+        return (np.mean(arr[:, 4]) + np.mean(arr[:, 5])) / (np.mean(arr[:, 6]) + np.mean(arr[:, 7]))
+
     resamples = []
     for i in tqdm.trange(args.n_resample, ncols=80):
         rind = rng.choice(len(vals), size=len(vals), replace=True)
         resamples.append(vals[rind])
+
     print("m = %0.3e +/- %0.3e [3-sigma]" % (compute_m(vals), np.std(list(map(compute_m, resamples))) * 3))
+    print("c = %0.3e +/- %0.3e [3-sigma]" % (compute_c(vals), np.std(list(map(compute_c, resamples))) * 3))
 
     # logger.info(f"Applying cuts")
     # pmsk = (pdata["s2n_cut"] == args.s2n_cut)
