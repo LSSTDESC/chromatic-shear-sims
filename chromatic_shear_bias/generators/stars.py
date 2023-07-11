@@ -37,7 +37,7 @@ def build_star(star_params, sed_dir):
     }
     wave_type = "Nm"
     flux_type = "flambda"
-    sed_filename = star_params.get("sedFilename")[0].strip()
+    sed_filename = star_params.get("sedFilename").strip()
     if not sed_filename.endswith(".gz"):
         # Some files are missing ".gz" in their suffix; if this is the case,
         # append to the current suffix
@@ -66,7 +66,7 @@ def build_star(star_params, sed_dir):
 
 
 def DC2_generator(predicate=None, seed=None):
-    dataset = "/oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel.parquet"
+    dataset = "/oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel_parquet"
     columns = [
         "^sedFilename$",
     ]
