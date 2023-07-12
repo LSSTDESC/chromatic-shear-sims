@@ -29,17 +29,132 @@ from chromatic_shear_bias.generators import gals, stars
 
 
 MEDIAN = 0.9543704986572266
-# QUANTILES = [0.2306804656982422, 0.9543704986572266, 1.5550565719604492]
-QUANTILES =  [0.10701332092285165, 0.6657802581787111, 1.1894760131835938, 1.700216293334961]
+# QUANTILES = [0.2306804656982422, 0.9543704986572266, 1.5550565719604492]  # quartiles
+QUANTILES =  [0.10701332092285165, 0.6657802581787111, 1.1894760131835938, 1.700216293334961]  # quntiles
+# QUANTILES = [-0.09223861694335933, 0.10701332092285165, 0.36029319763183576, 0.6657802581787111, 0.9543704986572266, 1.1894760131835938, 1.4225730895996094, 1.700216293334961, 2.0470420837402346]  # deciles
 TOL = 0.01
 
+
+SED_DIR = "/oak/stanford/orgs/kipac/users/smau/"
+
+
+def end2end(seed, gal_dict, star_dict, star_dicts, shear, xsize, ysize, psf_size, pixel_scale, bands, noises, mag, psf, n_coadd, shear_bands, det_bands, config):
+    print(f"Making image simulations for scene with seed {seed}")
+
+    rng = np.random.default_rng(seed)
+
+    scene_seed = rng.integers(1, 2**64 // 2 - 1)
+    pair_seed = rng.integers(1, 2**64 // 2 - 1)
+    meas_seed = rng.integers(1, 2**64 // 2 - 1)
+
+    scene_rng = np.random.default_rng(scene_seed)
+
+    _start_time = time.time()
+    fiducial_star_indices = scene_rng.choice(star_dict.get("num_rows"), 1)
+    fiducial_star_params = star_dict.get("dataset").take(fiducial_star_indices, columns=star_dict.get("columns"), filter=star_dict.get("predicate")).to_pylist()
+
+    quantile_stars_params = []
+    for _star_dict in star_dicts:
+        star_indices = scene_rng.choice(_star_dict.get("num_rows"), 1)
+        star_params = _star_dict.get("dataset").take(star_indices, columns=_star_dict.get("columns"), filter=_star_dict.get("predicate")).to_pylist()
+        quantile_stars_params.append(star_params)
+    _current_time = time.time()
+    _elapsed_time = _current_time - _start_time
+    _elapsed_time_formatted = dt.strftime(dt.utcfromtimestamp(_elapsed_time), '%H:%M:%S')
+    print(f"loaded stars in {_elapsed_time}")
+
+    _start_time = time.time()
+    fiducial_star = stars.build_star(fiducial_star_params[0], SED_DIR)
+    q_stars = [stars.build_star(p[0], SED_DIR) for p in quantile_stars_params]
+    _current_time = time.time()
+    _elapsed_time = _current_time - _start_time
+    _elapsed_time_formatted = dt.strftime(dt.utcfromtimestamp(_elapsed_time), '%H:%M:%S')
+    print(f"built stars in {_elapsed_time}")
+
+    v1 = np.asarray([1, 0], dtype=float)
+    v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
+    x_lattice, y_lattice = run_utils.build_lattice(
+        xsize,
+        ysize,
+        10,
+        pixel_scale,
+        v1,
+        v2,
+        scene_rng.uniform(0, 360),
+        100,
+    )  # pixels
+    if len(x_lattice) < 1:
+        raise ValueError(f"Scene containts no objects!")
+
+    _start_time = time.time()
+    gal_indices = scene_rng.choice(gal_dict.get("num_rows"), len(x_lattice))
+    gal_params = gal_dict.get("dataset").take(gal_indices, columns=gal_dict.get("columns"), filter=gal_dict.get("predicate")).to_pylist()
+    _current_time = time.time()
+    _elapsed_time = _current_time - _start_time
+    _elapsed_time_formatted = dt.strftime(dt.utcfromtimestamp(_elapsed_time), '%H:%M:%S')
+    print(f"loaded galaxies in {_elapsed_time}")
+
+    _start_time = time.time()
+    scene_gals = map(gals.build_simple_cosmoDC2_gal, gal_params)
+
+    # persist objects as a list for reiteration
+    _scene = [
+        gal
+        .rotate(scene_rng.uniform(0, 360) * galsim.degrees)
+        .shift(x * pixel_scale, y * pixel_scale)
+        .shift(
+            scene_rng.uniform(-0.5, 0.5) * pixel_scale,
+            scene_rng.uniform(-0.5, 0.5) * pixel_scale,
+        )
+        for (x, y, gal) in zip(x_lattice, y_lattice, scene_gals)
+    ]
+    _current_time = time.time()
+    _elapsed_time = _current_time - _start_time
+    _elapsed_time_formatted = dt.strftime(dt.utcfromtimestamp(_elapsed_time), '%H:%M:%S')
+    print(f"built galaxies in {_elapsed_time}")
+
+    if mag is not None:
+        print(f"Drawing galaxies with r = {mag} mag")
+        bp_r = galsim.Bandpass(f"LSST_r.dat", wave_type="nm").withZeropoint("AB")
+        scene = [
+            obj.withMagnitude(mag, bp_r)
+            for obj in _scene
+        ]
+    else:
+        scene = _scene
+
+    res = run_utils.build_and_measure_pair_color(
+        scene,
+        fiducial_star,
+        shear,
+        xsize,
+        ysize,
+        psf_size,
+        pixel_scale,
+        bands,
+        noises,
+        psf,
+        QUANTILES,
+        q_stars,
+        n_coadd,
+        shear_bands,
+        det_bands,
+        config,
+        pair_seed,
+        meas_seed
+    )
+
+    return res
 
 def main():
     args = get_args()
 
+    print(f"Using seed {args.seed}")
+
     with open(args.config, "r") as fp:
         config = yaml.safe_load(fp.read())
 
+    # can we make structs for each of these...?
     DC2_predicate_fiducial = (
         (pc.field("imag") > pc.scalar(19))
         & (pc.field("imag") < pc.scalar(21))
@@ -50,9 +165,31 @@ def main():
     #     pc.match_substring_regex(pc.field("sedFilename"), "^k[mp]*")
     #     & (pc.abs_checked(pc.field("gmag") - pc.field("imag") - MEDIAN) < TOL)
     # )
-    DC2_stars_fiducial = stars.DC2_generator(predicate=DC2_predicate_fiducial, seed=args.seed)
 
-    stellar_generators = []
+    # DC2_directory = "/oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel_parquet"
+    DC2_directory = "/oak/stanford/orgs/kipac/users/smau/dc2_stellar_healpixel.arrow"
+    DC2_re_columns = [
+        "^sedFilename$",
+    ]
+    # star_dict = {
+    #     "directory": DC2_directory,
+    #     "column_expressions": DC2_re_columns,
+    #     "predicate": DC2_predicate_fiducial,
+    #     "format": "arrow"
+    # }
+
+    DC2_dataset = ds.dataset(DC2_directory, format="arrow")
+    DC2_columns = run_utils.match_expression(DC2_dataset.schema.names, DC2_re_columns)
+    DC2_num_rows = DC2_dataset.count_rows(filter=DC2_predicate_fiducial)
+
+    star_dict = {
+        "dataset": DC2_dataset,
+        "columns": DC2_columns,
+        "predicate": DC2_predicate_fiducial,
+        "num_rows": DC2_num_rows,
+    }
+
+    star_dicts = []
     for quantile in QUANTILES:
         predicate = (
             (pc.field("imag") > pc.scalar(19))
@@ -64,18 +201,40 @@ def main():
         #     pc.match_substring_regex(pc.field("sedFilename"), "^k[mp]*")
         #     & (pc.abs_checked(pc.field("gmag") - pc.field("imag") - quantile) < TOL)
         # )
-        star_generator = stars.DC2_generator(predicate=predicate, seed=args.seed)
-        stellar_generators.append(star_generator)
+        num_rows = DC2_dataset.count_rows(filter=predicate)
+        _star_dict = {
+            "dataset": DC2_dataset,
+            "columns": DC2_columns,
+            "predicate": predicate,
+            "num_rows": num_rows,
+        }
+        star_dicts.append(_star_dict)
 
     cosmoDC2_predicate = (
         (pc.field("mag_true_r_lsst") < pc.scalar(26))
         & (pc.field("mag_true_i_lsst") < pc.scalar(26))
         & (pc.field("mag_true_z_lsst") < pc.scalar(26))
     )
-    # simple_gals = gals.simple_gal_generator()
-    simple_cosmoDC2_gals = gals.simple_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
-    # elliptical_cosmoDC2_gals = gals.elliptical_cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
-    # cosmoDC2_gals = gals.cosmoDC2_generator(predicate=cosmoDC2_predicate, seed=args.seed)
+    cosmoDC2_directory = "/oak/stanford/orgs/kipac/users/smau/cosmoDC2_v1.1.4_parquet"
+    cosmoDC2_re_columns = [
+        "^galaxy_id$",
+        "^redshift_true$",
+        "^redshift$",
+        "^mag_true_\w_lsst$",
+        "^mag_\w_lsst$",
+        "^sed_\d+_\d+$",
+    ]
+
+    cosmoDC2_dataset = ds.dataset(cosmoDC2_directory, format="parquet")
+    cosmoDC2_columns = run_utils.match_expression(cosmoDC2_dataset.schema.names, cosmoDC2_re_columns)
+    cosmoDC2_num_rows = cosmoDC2_dataset.count_rows(filter=cosmoDC2_predicate)
+
+    gal_dict = {
+        "dataset": cosmoDC2_dataset,
+        "columns": cosmoDC2_columns,
+        "predicate": cosmoDC2_predicate,
+        "num_rows": cosmoDC2_num_rows
+    }
 
     base_psf = galsim.Gaussian(fwhm=0.9)
     psf = galsim.ChromaticAtmosphere(
@@ -106,108 +265,56 @@ def main():
     shear_bands = [[1]]
     det_bands = [[0, 1, 2]]
 
-    # We break down all of the jobs into chunks proportional to the number of
-    # jobs. This balances between configuring each scene in serial and
-    # simulating and measuring each scene in parallel.
-
-    chunk_factor = 4
-    job_chunks = [chunk_factor * args.n_jobs for i in range(args.n_sims // (chunk_factor * args.n_jobs))]
-    if args.n_sims % (chunk_factor * args.n_jobs) > 0:
-        job_chunks.append(args.n_sims % (chunk_factor * args.n_jobs))
-    # job_chunks = [args.n_sims]
-    print(f"Running {args.n_sims} jobs in {len(job_chunks)} chunks")
-
-    start_time = time.time()
-    n_finished = 0
-    results = []
-    parallel = joblib.Parallel(n_jobs=args.n_jobs, verbose=10)
-    for chunk_index, chunk in enumerate(job_chunks):
-        print(f"Making {chunk} jobs for chunk {chunk_index + 1} / {len(job_chunks)}")
-        jobs = []
-        for i in trange(chunk, ncols=80):
-            scene_seed = rng.integers(1, 2**64 // 2 - 1)
-            pair_seed = rng.integers(1, 2**64 // 2 - 1)
-            meas_seed = rng.integers(1, 2**64 // 2 - 1)
-            scene = run_utils.build_scene(
-                simple_cosmoDC2_gals,
+    print(f"Configuring jobs")
+    jobs = []
+    for i in trange(args.n_sims, ncols=80):
+        seed = rng.integers(1, 2**64 // 2 - 1)
+        jobs.append(
+            joblib.delayed(end2end)(
+                seed,
+                gal_dict,
+                star_dict,
+                star_dicts,
+                shear,
                 xsize,
                 ysize,
+                psf_size,
                 pixel_scale,
-                scene_seed,
-                mag=args.mag
+                bands,
+                noises,
+                args.mag,
+                psf,
+                args.n_coadd,
+                shear_bands,
+                det_bands,
+                config
             )
-            _star = next(DC2_stars_fiducial)
-            _stars = [next(stellar_generator) for stellar_generator in stellar_generators]
-            jobs.append(
-                joblib.delayed(run_utils.build_and_measure_pair_color)(
-                    scene,
-                    _star,
-                    shear,
-                    xsize,
-                    ysize,
-                    psf_size,
-                    pixel_scale,
-                    bands,
-                    noises,
-                    psf,
-                    QUANTILES,
-                    _stars,
-                    args.n_coadd,
-                    shear_bands,
-                    det_bands,
-                    config,
-                    pair_seed,
-                    meas_seed
-                )
-            )
+        )
 
-        res = parallel(jobs)
-        results.extend(res)
+    # with joblib.parallel_config(backend="loky", inner_max_num_threads=2):
+    #     parallel = joblib.Parallel(n_jobs=args.n_jobs, return_as="generator", verbose=10)
+    #     results_generator = parallel(jobs)
+    parallel = joblib.Parallel(n_jobs=args.n_jobs, return_as="generator", verbose=10)
+    results_generator = parallel(jobs)
 
-        n_finished += chunk
-        current_time = time.time()
-        elapsed_time = current_time - start_time
-        elapsed_time_formatted = dt.strftime(dt.utcfromtimestamp(elapsed_time), '%H:%M:%S')
-        print(f"Completed {n_finished} jobs; elapsed time: {elapsed_time_formatted}")
-
-    print(f"Writing output")
     # output file path
     root_path = Path(args.output)
     # if root_path.exists() and not root_path.is_dir():
     #     raise RuntimeError(f"{root_path} exists but is not a directory!")
     if not root_path.exists():
         root_path.mkdir(exist_ok=True)
-    # path = root_path / f"{seed}.parquet"
 
+    print(f"Generating results")
     schema = run_utils._get_schema()
-    batches = (pa.RecordBatch.from_pylist(res, schema) for res in results if res)
-    # table = pa.Table.from_batches(batches, schema)
-    pqwriter = pq.ParquetWriter(
-        root_path / f"{args.seed}.parquet",
-        schema,
-    )
-    # pqwriter.write_table(table)
-    for batch in batches:
-        pqwriter.write_batch(batch)
-
-    # records = []
-    # num_rows = 0
-    # for res in results:
-    #     if res:
-    #         records.append(res)
-    #         num_rows += len(res)
-    #     if num_rows > 1_000_000:
-    #         batch = pa.RecordBatch.from_pylist(records, schema)
-    #         pqwriter.write_batch(batch)
-    #         records = []
-    #         num_rows = 0
-    # if num_rows > 0:
-    #     batch = pa.RecordBatch.from_pylist(records, schema)
-    #     pqwriter.write_batch(batch)
-    #     records = []
-    #     num_rows = 0
-
-    pqwriter.close()
+    with pa.OSFile(str(root_path / f"{args.seed}.arrow"), "wb") as sink:
+        with pa.ipc.new_file(sink, schema) as writer:
+            for results in results_generator:
+                if results:
+                    print(f"Writing batch")
+                    batch = pa.RecordBatch.from_pylist(results, schema)
+                    writer.write_batch(batch)
+                else:
+                    print(f"Skipping empty batch")
 
     print(f"Finished")
 
@@ -238,7 +345,7 @@ def get_args():
         "--seed",
         type=int,
         required=False,
-        default=1,
+        default=None,
         help="RNG seed [int]",
     )
     parser.add_argument(
