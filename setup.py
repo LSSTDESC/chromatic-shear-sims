@@ -9,6 +9,7 @@ scripts = [
     "bin/run-chromatic",
     "bin/run-monochromatic",
     "bin/run-achromatic",
+    "bin/run-grid",
     "bin/run-viz",
     "bin/validate-seds",
     "bin/viz-chromatic-shear-bias",
