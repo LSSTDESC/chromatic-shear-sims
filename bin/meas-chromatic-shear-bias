@@ -24,6 +24,72 @@ import metadetect
 from chromatic_shear_bias import run_utils
 
 
+def compute_shear_pair(batch, shear=0.02):
+    # g1p = np.array(data["p.g1"])
+    # R11p = (np.array(data["p.g1p"]) - np.array(data["p.g1m"])) / (2 * shear)
+    g1p = batch["p.g1"]
+    R11p = pc.divide(pc.subtract(batch["p.g1p"], batch["p.g1m"]), 2 * shear)
+
+    # g1m = np.array(data["m.g1"])
+    # R11m = (np.array(data["m.g1p"]) - np.array(data["m.g1m"])) / (2 * shear)
+    g1m = batch["m.g1"]
+    R11m = pc.divide(pc.subtract(batch["m.g1p"], batch["m.g1m"]), 2 * shear)
+
+    # g2p = np.array(data["p.g2"])
+    # R22p = (np.array(data["p.g2p"]) - np.array(data["p.g2m"])) / (2 * shear)
+    g2p = batch["p.g2"]
+    R22p = pc.divide(pc.subtract(batch["p.g2p"], batch["p.g2m"]), 2 * shear)
+
+    # g2m = np.array(data["m.g2"])
+    # R22m = (np.array(data["m.g2p"]) - np.array(data["m.g2m"])) / (2 * shear)
+    g2m = batch["m.g2"]
+    R22m = pc.divide(pc.subtract(batch["m.g2p"], batch["m.g2m"]), 2 * shear)
+
+    # weights = data["weight"]
+    # if weights is not None:
+    #     w = np.asarray(weights).astype(np.float64)
+    # else:
+    #     w = np.ones(len(g1p)).astype(np.float64)
+    # w /= np.sum(w)
+
+    # if ind is not None:
+    #     g1p = g1p[ind]
+    #     R11p = R11p[ind]
+    #     g1m = g1m[ind]
+    #     R11m = R11m[ind]
+    #     g2p = g2p[ind]
+    #     R22p = R22p[ind]
+    #     g2m = g2m[ind]
+    #     R22m = R22m[ind]
+    #     w = w[ind]
+
+    # msk = (
+    #     np.isfinite(g1p) &
+    #     np.isfinite(R11p) &
+    #     np.isfinite(g1m) &
+    #     np.isfinite(R11m) &
+    #     np.isfinite(g2p) &
+    #     np.isfinite(R22p) &
+    #     np.isfinite(g2m) &
+    #     np.isfinite(R22m)
+    # )
+    # g1p = g1p[msk]
+    # R11p = R11p[msk]
+    # g1m = g1m[msk]
+    # R11m = R11m[msk]
+    # g2p = g2p[msk]
+    # R22p = R22p[msk]
+    # g2m = g2m[msk]
+    # R22m = R22m[msk]
+    # w = w[msk]
+
+    # return (np.nansum(g1p) - np.nansum(g1m)) / (np.nansum(R11p) + np.nansum(R11m))
+    # return (
+    #     pc.divide(pc.subtract(pc.sum(g1p), pc.sum(g1m)), pc.add(pc.sum(R11p), pc.sum(R11m)))
+    # ).as_py() / 0.02 - 1.
+    return g1p, g1m, R11p, R11m, g2p, g2m, R22p, R22m
+
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -104,14 +170,14 @@ def main():
     else:
         predicate &= (pc.field("mfrac_cut") == -1)
 
-    # data = dataset.to_table(filter=predicate).to_pydict()
-    # data = dataset.to_table(filter=predicate)
-    data = dataset.filter(predicate)
-    # n_sims_msk = np.sum(data["weight"])
-    # if n_sims_msk <= 0:
-    #     raise RuntimeError("Cuts did not keep any sims!")
-    # else:
-    #     logger.info(f"{n_sims_msk} sims pass cuts")
+    # # data = dataset.to_table(filter=predicate).to_pydict()
+    # # data = dataset.to_table(filter=predicate)
+    # data = dataset.filter(predicate)
+    # # n_sims_msk = np.sum(data["weight"])
+    # # if n_sims_msk <= 0:
+    # #     raise RuntimeError("Cuts did not keep any sims!")
+    # # else:
+    # #     logger.info(f"{n_sims_msk} sims pass cuts")
 
     logger.info(f"Measuring multiplicative and additive biases")
     m_req = 0.002
@@ -124,80 +190,13 @@ def main():
     #     n_resample=args.n_resample,
     # )
 
-    def compute_shear_pair(batch):
-        # g1p = np.array(data["p.g1"])
-        # R11p = (np.array(data["p.g1p"]) - np.array(data["p.g1m"])) / (2 * calibration_shear)
-        g1p = batch["p.g1"]
-        R11p = pc.divide(pc.subtract(batch["p.g1p"], batch["p.g1m"]), 2 * calibration_shear)
-
-        # g1m = np.array(data["m.g1"])
-        # R11m = (np.array(data["m.g1p"]) - np.array(data["m.g1m"])) / (2 * calibration_shear)
-        g1m = batch["m.g1"]
-        R11m = pc.divide(pc.subtract(batch["m.g1p"], batch["m.g1m"]), 2 * calibration_shear)
-
-        # g2p = np.array(data["p.g2"])
-        # R22p = (np.array(data["p.g2p"]) - np.array(data["p.g2m"])) / (2 * calibration_shear)
-        g2p = batch["p.g2"]
-        R22p = pc.divide(pc.subtract(batch["p.g2p"], batch["p.g2m"]), 2 * calibration_shear)
-
-        # g2m = np.array(data["m.g2"])
-        # R22m = (np.array(data["m.g2p"]) - np.array(data["m.g2m"])) / (2 * calibration_shear)
-        g2m = batch["m.g2"]
-        R22m = pc.divide(pc.subtract(batch["m.g2p"], batch["m.g2m"]), 2 * calibration_shear)
-
-        # weights = data["weight"]
-        # if weights is not None:
-        #     w = np.asarray(weights).astype(np.float64)
-        # else:
-        #     w = np.ones(len(g1p)).astype(np.float64)
-        # w /= np.sum(w)
-
-        # if ind is not None:
-        #     g1p = g1p[ind]
-        #     R11p = R11p[ind]
-        #     g1m = g1m[ind]
-        #     R11m = R11m[ind]
-        #     g2p = g2p[ind]
-        #     R22p = R22p[ind]
-        #     g2m = g2m[ind]
-        #     R22m = R22m[ind]
-        #     w = w[ind]
-
-        # msk = (
-        #     np.isfinite(g1p) &
-        #     np.isfinite(R11p) &
-        #     np.isfinite(g1m) &
-        #     np.isfinite(R11m) &
-        #     np.isfinite(g2p) &
-        #     np.isfinite(R22p) &
-        #     np.isfinite(g2m) &
-        #     np.isfinite(R22m)
-        # )
-        # g1p = g1p[msk]
-        # R11p = R11p[msk]
-        # g1m = g1m[msk]
-        # R11m = R11m[msk]
-        # g2p = g2p[msk]
-        # R22p = R22p[msk]
-        # g2m = g2m[msk]
-        # R22m = R22m[msk]
-        # w = w[msk]
-
-        # return (np.nansum(g1p) - np.nansum(g1m)) / (np.nansum(R11p) + np.nansum(R11m))
-        # return (
-        #     pc.divide(pc.subtract(pc.sum(g1p), pc.sum(g1m)), pc.add(pc.sum(R11p), pc.sum(R11m)))
-        # ).as_py() / 0.02 - 1.
-        return g1p, g1m, R11p, R11m, g2p, g2m, R22p, R22m
-
-
     seed = 10
     rng = np.random.RandomState(seed=seed)
 
-    vals = []
     jobs = []
-    for batch in data.to_batches():
+    for batch in dataset.to_batches(filter=predicate):
         jobs.append(
-            joblib.delayed(compute_shear_pair)(batch)
+            joblib.delayed(compute_shear_pair)(batch, calibration_shear)
         )
 
     with joblib.Parallel(n_jobs=args.n_jobs, backend="loky", verbose=1) as par:
