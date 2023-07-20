@@ -88,6 +88,24 @@ def compute_shear_pair(batch, shear=0.02):
     #     pc.divide(pc.subtract(pc.sum(g1p), pc.sum(g1m)), pc.add(pc.sum(R11p), pc.sum(R11m)))
     # ).as_py() / 0.02 - 1.
     return g1p, g1m, R11p, R11m, g2p, g2m, R22p, R22m
+    # return (
+    #     pc.mean(g1p),
+    #     pc.mean(g1m),
+    #     pc.mean(R11p),
+    #     pc.mean(R11m),
+    #     pc.mean(g2p),
+    #     pc.mean(g2m),
+    #     pc.mean(R22p),
+    #     pc.mean(R22m)
+    # )
+
+
+def compute_m(arr):
+    return (np.mean(arr[:, 0]) - np.mean(arr[:, 1])) / (np.mean(arr[:, 2]) + np.mean(arr[:, 3])) / 0.02 - 1.
+
+
+def compute_c(arr):
+    return (np.mean(arr[:, 4]) + np.mean(arr[:, 5])) / (np.mean(arr[:, 6]) + np.mean(arr[:, 7]))
 
 
 def get_args():
@@ -194,24 +212,33 @@ def main():
     rng = np.random.RandomState(seed=seed)
 
     jobs = []
-    for batch in dataset.to_batches(filter=predicate):
+    def compute_batch(f, predicate, shear):
+        with pa.memory_map(f, 'r') as source:
+            loaded_arrays = pa.ipc.open_file(source).read_all()
+        filtered_arrays = loaded_arrays.filter(predicate)
+        vals = compute_shear_pair(filtered_arrays, shear)
+        # return vals
+        # vals = np.array(vals)
+        return np.mean(vals, axis=-1)
+
+    # jobs = []
+    # for batch in dataset.to_batches(filter=predicate):
+    #     jobs.append(
+    #         joblib.delayed(compute_shear_pair)(batch, calibration_shear)
+    #     )
+    files = dataset.files
+    for f in files:
         jobs.append(
-            joblib.delayed(compute_shear_pair)(batch, calibration_shear)
+            joblib.delayed(compute_batch)(f, predicate, calibration_shear)
         )
 
-    with joblib.Parallel(n_jobs=args.n_jobs, backend="loky", verbose=1) as par:
+    with joblib.Parallel(n_jobs=args.n_jobs, verbose=10) as par:
         vals = par(jobs)
 
     # val = compute_shear_pair(batch).as_py() / 0.02 - 1
     # vals.append(val)
 
     vals = np.array(vals)
-
-    def compute_m(arr):
-        return (np.mean(arr[:, 0]) - np.mean(arr[:, 1])) / (np.mean(arr[:, 2]) + np.mean(arr[:, 3])) / 0.02 - 1.
-
-    def compute_c(arr):
-        return (np.mean(arr[:, 4]) + np.mean(arr[:, 5])) / (np.mean(arr[:, 6]) + np.mean(arr[:, 7]))
 
     resamples = []
     for i in tqdm.trange(args.n_resample, ncols=80):
