@@ -233,6 +233,7 @@ def main():
     shear = 0.02
 
     bands = ["g", "r", "i"]
+    # bands = ["r"]
     noises = [
         run_utils.get_sky_rms(
             lsst.exposure_time,
@@ -244,6 +245,8 @@ def main():
     ]
     shear_bands = [[1]]
     det_bands = [[0, 1, 2]]
+    # shear_bands = None
+    # det_bands = None
 
     print(f"Configuring jobs")
     jobs = []
