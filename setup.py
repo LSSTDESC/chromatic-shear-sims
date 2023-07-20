@@ -2,8 +2,8 @@ import os
 from setuptools import setup, find_packages
 
 scripts = [
-    "bin/grid",
     "bin/meas-chromatic-shear-bias",
+    "bin/plot-grid",
     "bin/run-chromatic-shear-bias",
     "bin/run-baseline",
     "bin/run-chromatic",
