@@ -814,7 +814,8 @@ def measure_pairs(config, res_p, res_m):
         tcut = 0.5
 
     if len(res_p) > 0:
-        wgt = len(res_p)
+        # wgt = len(res_p)
+        wgt = sum(len(v) for v in res_p.values()) + sum(len(v) for v in res_m.values())
 
         data = []
         # data = {
