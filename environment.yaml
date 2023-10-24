@@ -4,11 +4,13 @@ channels:
   - defaults
 dependencies:
   - astropy
+  - dsps
   - dust_extinction
   - fitsio
   - galsim
   - galsim_extra
   - joblib
+  - lsstdesc-diffsky
   - matplotlib
   - metadetect
   - ngmix
