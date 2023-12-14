@@ -14,8 +14,6 @@ import galsim
 import ngmix
 import metadetect
 
-from chromatic_shear_bias import lsst
-
 
 ORMASK_CUTS = [True, False]
 S2N_CUTS = [7, 8, 9, 10, 15, 20]
@@ -125,10 +123,10 @@ def match_expression(names, expressions):
 
 
 def build_lattice(
+    survey,
     full_xsize,
     full_ysize,
     sep,
-    scale,
     v1,
     v2,
     rot=None,
@@ -146,8 +144,8 @@ def build_lattice(
     # first, create a square lattice that covers the full image
     # scale: arcsec / pixel
     # sep: arcsec
-    xs = np.arange(-full_xsize // 2, full_xsize // 2 + 1) * sep / scale
-    ys = np.arange(-full_ysize // 2, full_ysize // 2 + 1) * sep / scale
+    xs = np.arange(-full_xsize // 2, full_xsize // 2 + 1) * sep / survey.scale
+    ys = np.arange(-full_ysize // 2, full_ysize // 2 + 1) * sep / survey.scale
     x_square, y_square = np.meshgrid(xs, ys)
 
     # apply the lattice vectors to the lattice
@@ -186,10 +184,10 @@ def build_lattice(
 
 
 def build_scene(
+    survey,
     gals,
     xsize,
     ysize,
-    pixel_scale,
     seed,
     mag=None,
 ):
@@ -198,10 +196,10 @@ def build_scene(
     v1 = np.asarray([1, 0], dtype=float)
     v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
     x_lattice, y_lattice = build_lattice(
+        survey,
         xsize,
         ysize,
         10,
-        pixel_scale,
         v1,
         v2,
         rng.uniform(0, 360),
@@ -214,10 +212,10 @@ def build_scene(
     objects = [
         next(gals)
         .rotate(rng.uniform(0, 360) * galsim.degrees)
-        .shift(x * pixel_scale, y * pixel_scale)
+        .shift(x * survey.scale, y * survey.scale)
         .shift(
-            rng.uniform(-0.5, 0.5) * pixel_scale,
-            rng.uniform(-0.5, 0.5) * pixel_scale,
+            rng.uniform(-0.5, 0.5) * survey.scale,
+            rng.uniform(-0.5, 0.5) * survey.scale,
         )
         for (x, y) in zip(x_lattice, y_lattice)
     ]
@@ -233,6 +231,7 @@ def build_scene(
 
 
 def build_image(
+    survey,
     band,
     observed,
     observed_psf,
@@ -250,7 +249,7 @@ def build_image(
     image = galsim.Image(
         xsize,
         ysize,
-        scale=lsst.SCALE,
+        scale=survey.scale,
     )
     for obs in observed:
         # obs.drawImage(
@@ -260,11 +259,11 @@ def build_image(
         # )
         obs.drawImage(
             image=image,
-            exptime=lsst.EXPTIME * lsst.NCOADD[band],
-            area=lsst.AREA,
-            gain=lsst.GAIN,
+            exptime=survey.exptime * survey.ncoadd[band],
+            area=survey.area,
+            gain=survey.gain,
             add_to_image=True,
-            bandpass=lsst.BANDPASSES[band],
+            bandpass=survey.bandpasses[band],
         )
         # stamp = obs.drawImage(
         #     exptime=30 * n_coadd,
@@ -276,25 +275,25 @@ def build_image(
         #     image[b] += stamp[b]
 
     # TODO: what is the correct expression here?
-    noise_sigma = np.sqrt(lsst.SKY_RMS[band] * lsst.NCOADD[band]) / 10
+    noise_sigma = np.sqrt(survey.sky_rms[band] * survey.ncoadd[band]) / 10
     noise = galsim.GaussianNoise(scene_grng, sigma=noise_sigma)
     image.addNoise(noise)
 
     psf_image = galsim.Image(
         psf_size,
         psf_size,
-        scale=lsst.SCALE,
+        scale=survey.scale,
     )
     observed_psf.drawImage(
         image=psf_image,
-        bandpass=lsst.BANDPASSES[band],
+        bandpass=survey.bandpasses[band],
         add_to_image=True,
     )
 
     noise_image = galsim.Image(
         xsize,
         ysize,
-        scale=lsst.SCALE,
+        scale=survey.scale,
     )
     # counterfactual_noise = galsim.GaussianNoise(image_grng, sigma=noise_sigma)
     # noise_image.addNoise(counterfactual_noise)
@@ -308,6 +307,7 @@ def build_image(
 
 
 def build_pair(
+    survey,
     scene,
     star,
     shear,
@@ -345,6 +345,7 @@ def build_pair(
             scene_seed = scene_rng.integers(1, 2**64 // 2 - 1)
             image_seed = image_rng.integers(1, 2**64 // 2 - 1)
             image, psf_image, noise_image, ormask, bmask, weight = build_image(
+                survey,
                 band,
                 observed,
                 observed_psf,
@@ -355,10 +356,10 @@ def build_pair(
                 image_seed,
             )
             wcs = galsim.AffineTransform(
-                lsst.SCALE,
+                survey.scale,
                 0.0,
                 0.0,
-                lsst.SCALE,
+                survey.scale,
                 origin=image.center,
             )
             im_jac = ngmix.jacobian.Jacobian(
@@ -603,6 +604,7 @@ def measure_pair_color(
 
 
 def build_and_measure_pair(
+    survey,
     scene,
     star,
     shear,
@@ -621,6 +623,7 @@ def build_and_measure_pair(
     meas_seed,
 ):
     pair = build_pair(
+        survey,
         scene,
         star,
         shear,
@@ -643,7 +646,7 @@ def build_and_measure_pair(
     return meas
 
 
-def build_and_measure_pair_color(,
+def build_and_measure_pair_color(
     scene,
     star,
     shear,
@@ -664,6 +667,7 @@ def build_and_measure_pair_color(,
     meas_seed,
 ):
     pair = build_pair(
+        survey,
         scene,
         star,
         shear,
