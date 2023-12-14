@@ -5,14 +5,8 @@ import pyarrow.dataset as ds
 import galsim
 
 import dsps
-from dsps.data_loaders import load_ssp_templates
-from lsstdesc_diffsky import read_diffskypop_params
 from lsstdesc_diffsky.defaults import OUTER_RIM_COSMO_PARAMS
-from lsstdesc_diffsky.io_utils import load_healpixel
-from lsstdesc_diffsky.io_utils import load_diffsky_params
 from lsstdesc_diffsky.io_utils.load_diffsky_healpixel import ALL_DIFFSKY_PNAMES
-from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
-from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_singlegal
 
 
 def get_scanner(directory, predicate=None):
@@ -223,6 +217,12 @@ def sample_gal(
 
 
 if __name__ == "__main__":
+    from dsps.data_loaders import load_ssp_templates
+    from lsstdesc_diffsky.io_utils import load_diffsky_params
+    from lsstdesc_diffsky import read_diffskypop_params
+    from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
+
+
     seed = 42
     rng = np.random.default_rng(seed)
 

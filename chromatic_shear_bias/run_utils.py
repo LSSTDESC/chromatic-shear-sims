@@ -11,16 +11,29 @@ import pyarrow as pa
 import yaml
 
 import galsim
-import galsim_extra
 import ngmix
 import metadetect
 
-from chromatic_shear_bias import sed_tools
+from chromatic_shear_bias import lsst
 
 
 ORMASK_CUTS = [True, False]
 S2N_CUTS = [7, 8, 9, 10, 15, 20]
 MFRAC_CUTS = [0, 1, 2, 5, 8, 10, 20, 50, 80, 100]
+
+
+class AB_mag:
+    """
+    Convert flux to AB magnitude for a set of bandpasses.
+    From skycatalogs sed_tools
+    """
+    def __init__(self, bps):
+        ab_sed = galsim.SED(lambda nu : 10**(8.90/2.5 - 23), wave_type='nm',
+                            flux_type='fnu')
+        self.ab_fluxes = {band: ab_sed.calculateFlux(bp) for
+                          band, bp in bps.items()}
+    def __call__(self, flux, band):
+        return -2.5*np.log10(flux/self.ab_fluxes[band])
 
 
 def get_sky_rms(exposure_time, zeropoint, sky_brightness, pixel_scale):
@@ -111,7 +124,16 @@ def match_expression(names, expressions):
     ]
 
 
-def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None, border=0):
+def build_lattice(
+    full_xsize,
+    full_ysize,
+    sep,
+    scale,
+    v1,
+    v2,
+    rot=None,
+    border=0,
+):
     """
     Build a lattice from primitive translation vectors.
     Method adapted from https://stackoverflow.com/a/6145068 and
@@ -163,7 +185,14 @@ def build_lattice(full_xsize, full_ysize, sep, scale, v1, v2, rot=None, border=0
     return x_lattice_rot[mask], y_lattice_rot[mask]
 
 
-def build_scene(gals, xsize, ysize, pixel_scale, seed, mag=None):
+def build_scene(
+    gals,
+    xsize,
+    ysize,
+    pixel_scale,
+    seed,
+    mag=None,
+):
     rng = np.random.default_rng(seed)
 
     v1 = np.asarray([1, 0], dtype=float)
@@ -203,7 +232,16 @@ def build_scene(gals, xsize, ysize, pixel_scale, seed, mag=None):
     return objects
 
 
-def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_size, pixel_scale, scene_seed, image_seed, n_coadd=1):
+def build_image(
+    band,
+    observed,
+    observed_psf,
+    xsize,
+    ysize,
+    psf_size,
+    scene_seed,
+    image_seed,
+):
     scene_rng = np.random.default_rng(scene_seed)
     scene_grng = galsim.BaseDeviate(scene_seed)
     image_rng = np.random.default_rng(image_seed)
@@ -212,9 +250,8 @@ def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_siz
     image = galsim.Image(
         xsize,
         ysize,
-        scale=pixel_scale,
+        scale=lsst.SCALE,
     )
-    bandpass = galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB") if band else None
     for obs in observed:
         # obs.drawImage(
         #     image=image,
@@ -223,10 +260,11 @@ def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_siz
         # )
         obs.drawImage(
             image=image,
-            exptime=30 * n_coadd,
-            area=319 / 9.6 * 1e4,
+            exptime=lsst.EXPTIME * lsst.NCOADD[band],
+            area=lsst.AREA,
+            gain=lsst.GAIN,
             add_to_image=True,
-            bandpass=bandpass,
+            bandpass=lsst.BANDPASSES[band],
         )
         # stamp = obs.drawImage(
         #     exptime=30 * n_coadd,
@@ -237,20 +275,26 @@ def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_siz
         # if b.isDefined():
         #     image[b] += stamp[b]
 
+    # TODO: what is the correct expression here?
+    noise_sigma = np.sqrt(lsst.SKY_RMS[band] * lsst.NCOADD[band]) / 10
     noise = galsim.GaussianNoise(scene_grng, sigma=noise_sigma)
     image.addNoise(noise)
 
     psf_image = galsim.Image(
         psf_size,
         psf_size,
-        scale=pixel_scale,
+        scale=lsst.SCALE,
     )
-    observed_psf.drawImage(image=psf_image, bandpass=bandpass, add_to_image=True)
+    observed_psf.drawImage(
+        image=psf_image,
+        bandpass=lsst.BANDPASSES[band],
+        add_to_image=True,
+    )
 
     noise_image = galsim.Image(
         xsize,
         ysize,
-        scale=pixel_scale,
+        scale=lsst.SCALE,
     )
     # counterfactual_noise = galsim.GaussianNoise(image_grng, sigma=noise_sigma)
     # noise_image.addNoise(counterfactual_noise)
@@ -263,7 +307,17 @@ def build_image(band, observed, observed_psf, noise_sigma, xsize, ysize, psf_siz
     return image, psf_image, noise_image, ormask, bmask, weight
 
 
-def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, seed, n_coadd=1):
+def build_pair(
+    scene,
+    star,
+    shear,
+    psf,
+    bands,
+    xsize,
+    ysize,
+    psf_size,
+    seed,
+):
 
     rng = np.random.default_rng(seed)
     _scene_seed = rng.integers(1, 2**64 // 2 - 1)
@@ -287,27 +341,24 @@ def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, p
         image_rng = np.random.default_rng(_image_seed)
 
         mbobs = ngmix.MultiBandObsList()
-        for band, noise_sigma in zip(bands, noises):
+        for band in bands:
             scene_seed = scene_rng.integers(1, 2**64 // 2 - 1)
             image_seed = image_rng.integers(1, 2**64 // 2 - 1)
             image, psf_image, noise_image, ormask, bmask, weight = build_image(
                 band,
                 observed,
                 observed_psf,
-                noise_sigma,
                 xsize,
                 ysize,
                 psf_size,
-                pixel_scale,
                 scene_seed,
                 image_seed,
-                n_coadd=n_coadd,
             )
             wcs = galsim.AffineTransform(
-                pixel_scale,
+                lsst.SCALE,
                 0.0,
                 0.0,
-                pixel_scale,
+                lsst.SCALE,
                 origin=image.center,
             )
             im_jac = ngmix.jacobian.Jacobian(
@@ -403,7 +454,13 @@ def build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, p
 # return chromatic_pairs
 
 
-def measure_pair(pair, shear_bands, det_bands, config, seed):
+def measure_pair(
+    pair,
+    shear_bands,
+    det_bands,
+    config,
+    seed,
+):
     rng = np.random.default_rng(seed)
     mdet_seed = rng.integers(1, 2**64 // 2 - 1)
     mdet_rng_p = np.random.default_rng(mdet_seed)
@@ -436,7 +493,19 @@ def measure_pair(pair, shear_bands, det_bands, config, seed):
     return measurement
 
 
-def measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, shear_bands, det_bands, config, seed):
+def measure_pair_color(
+    pair,
+    psf,
+    colors,
+    stars,
+    psf_size,
+    pixel_scale,
+    bands,
+    shear_bands,
+    det_bands,
+    config,
+    seed,
+):
     rng = np.random.default_rng(seed)
     # given a pair of mbobs with a psf drawn at the median g-i color,
     # create color_dep_mbobs at each of the provided stars
@@ -468,7 +537,7 @@ def measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, s
             # mag0 = 28.38 - np.log10(fluxes[0])/0.4
             # mag1 = 27.85 - np.log10(fluxes[1])/0.4
             # color = mag0 - mag1
-            AB_mags = sed_tools.AB_mag(bps)
+            AB_mags = AB_mag(bps)
             mag0 = AB_mags(fluxes[0], bands[0])
             mag1 = AB_mags(fluxes[2], bands[2])
             color = mag0 - mag1
@@ -533,19 +602,102 @@ def measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, s
     return measurement
 
 
-def build_and_measure_pair(scene, star, shear, xsize, ysize, psf_size, pixel_scale, bands, noises, psf, n_coadd, shear_bands, det_bands, config, pair_seed, meas_seed):
-    pair = build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, pair_seed, n_coadd)
-    meas = measure_pair(pair, shear_bands, det_bands, config, meas_seed)
+def build_and_measure_pair(
+    scene,
+    star,
+    shear,
+    xsize,
+    ysize,
+    psf_size,
+    pixel_scale,
+    bands,
+    noises,
+    psf,
+    n_coadd,
+    shear_bands,
+    det_bands,
+    config,
+    pair_seed,
+    meas_seed,
+):
+    pair = build_pair(
+        scene,
+        star,
+        shear,
+        psf,
+        bands,
+        xsize,
+        ysize,
+        psf_size,
+        pair_seed,
+    )
+
+    meas = measure_pair(
+        pair,
+        shear_bands,
+        det_bands,
+        config,
+        meas_seed,
+    )
+
     return meas
 
 
-def build_and_measure_pair_color(scene, star, shear, xsize, ysize, psf_size, pixel_scale, bands, noises, psf, colors, stars, n_coadd, shear_bands, det_bands, config, pair_seed, meas_seed):
-    pair = build_pair(scene, star, shear, psf, bands, noises, xsize, ysize, psf_size, pixel_scale, pair_seed, n_coadd)
-    meas = measure_pair_color(pair, psf, colors, stars, psf_size, pixel_scale, bands, shear_bands, det_bands, config, meas_seed)
+def build_and_measure_pair_color(,
+    scene,
+    star,
+    shear,
+    xsize,
+    ysize,
+    psf_size,
+    pixel_scale,
+    bands,
+    noises,
+    psf,
+    colors,
+    stars,
+    n_coadd,
+    shear_bands,
+    det_bands,
+    config,
+    pair_seed,
+    meas_seed,
+):
+    pair = build_pair(
+        scene,
+        star,
+        shear,
+        psf,
+        bands,
+        xsize,
+        ysize,
+        psf_size,
+        pair_seed,
+    )
+
+    meas = measure_pair_color(
+        pair,
+        psf,
+        colors,
+        stars,
+        psf_size,
+        pixel_scale,
+        bands,
+        shear_bands,
+        det_bands,
+        config,
+        meas_seed,
+    )
+
     return meas
 
 
-def build_plot(pair, bands, detect, config):
+def build_plot(
+    pair,
+    bands,
+    detect,
+    config,
+):
     if detect:
         import metadetect
         mdet_rng_p = np.random.default_rng(42)
@@ -652,7 +804,14 @@ def build_plot(pair, bands, detect, config):
 
 
 
-def estimate_biases(data, calibration_shear, cosmic_shear, weights=None, method="bootstrap", n_resample=1000):
+def estimate_biases(
+    data,
+    calibration_shear,
+    cosmic_shear,
+    weights=None,
+    method="bootstrap",
+    n_resample=1000,
+):
     """
     Estimate both additive and multiplicative biases with noise bias
     cancellation and resampled standard deviations.
@@ -943,3 +1102,4 @@ def measure_pairs(config, res_p, res_m):
         return data
     else:
         return None
+
