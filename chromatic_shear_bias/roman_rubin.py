@@ -15,17 +15,6 @@ from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
 from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_singlegal
 
 
-# FIXME what is the correct comology to use here?
-#       should store this in the dataset metadata
-cosmology = {
-    "Om0": 0.2648,
-    "Ob0": 0.0448,
-    "H0": 71.0,
-    "sigma8": 0.8,
-    "n_s": 0.963,
-}
-
-
 def get_scanner(directory, predicate=None):
     """
     Create an arrow dataset scanner with the necessary columns for diffsky
