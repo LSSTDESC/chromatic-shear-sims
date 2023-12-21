@@ -1,0 +1,113 @@
+galaxies:
+    path: /pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet
+    format: parquet
+    predicate:
+        and_kleene:
+           - less:
+               - field: LSST_obs_r
+               - scalar: 26.0
+           - less:
+               - field: LSST_obs_i
+               - scalar: 26.0
+    projection:
+        - "LSST_obs_g"
+        - "LSST_obs_r"
+        - "LSST_obs_i"
+        - "LSST_obs_z"
+        - "redshift"
+        - color:
+            subtract_checked:
+                - field: "LSST_obs_g"
+                - field: "LSST_obs_i"
+    aggregate:
+        - function: count
+          input: "color"
+          options: null
+          output: "count"
+        - function: min
+          input: "color"
+          options: null
+          output: "min_color"
+        - function: max
+          input: "color"
+          options: null
+          output: "max_color"
+        - function: approximate_median
+          input: "color"
+          options: null
+          output: "med_color"
+
+stars:
+    path: /pscratch/sd/s/smau/dc2_stellar_healpixel.arrow
+    format: arrow
+    predicate:
+       and_kleene:
+           - and_kleene:
+               - less:
+                   - field: imag
+                   - scalar: 21.0
+               - greater:
+                   - field: imag
+                   - scalar: 19.0
+           - match_substring_regex:
+               - field: "sedFilename"
+               - "^k[mp]*"
+    projection:
+        - "sedFilename"
+        - "gmag"
+        - "imag"
+        - color:
+            subtract_checked:
+                - field: "gmag"
+                - field: "imag"
+    aggregate:
+        - function: count
+          input: "color"
+          options: null
+          output: "count"
+        - function: min
+          input: "color"
+          options: null
+          output: "min_color"
+        - function: max
+          input: "color"
+          options: null
+          output: "max_color"
+        - function: approximate_median
+          input: "color"
+          options: null
+          output: "med_color"
+
+galsim:
+    image:
+      type: Scattered
+
+    stamp:
+      type: Basic
+      shear:
+        type: g1g2
+        g1: 0.02
+        g2: 0.00
+      scale: 0.2
+
+metadetect:
+  model: wmom
+  metacal:
+    psf: fitgauss
+    types: [noshear, 1p, 1m, 2p, 2m]
+    use_noise_image: true
+    # step: 0.01
+  weight:
+    fwhm: 1.2  # arcsec
+  meds:
+    box_padding: 2
+    box_type: iso_radius
+    max_box_size: 48
+    min_box_size: 48
+    rad_fac: 2
+    rad_min: 4
+
+output:
+    path: /pscratch/sd/s/smau/out
+    format: parquet
+    partitioning: None
