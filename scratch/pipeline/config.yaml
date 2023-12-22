@@ -36,6 +36,12 @@ galaxies:
           input: "color"
           options: null
           output: "med_color"
+        - function: tdigest
+          input: "color"
+          options:
+              TDigestOptions:
+                  q: [0.25, 0.50, 0.75]
+          output: "quantiles"
 
 stars:
     path: /pscratch/sd/s/smau/dc2_stellar_healpixel.arrow
@@ -77,35 +83,52 @@ stars:
           input: "color"
           options: null
           output: "med_color"
+        - function: tdigest
+          input: "color"
+          options:
+              TDigestOptions:
+                  q: [0.25, 0.50, 0.75]
+          output: "quantiles"
 
 galsim:
     image:
       type: Scattered
 
     stamp:
-      type: Basic
-      shear:
-        type: g1g2
-        g1: 0.02
-        g2: 0.00
-      scale: 0.2
+        type: Basic
+        shear:
+            type: g1g2
+            g1: 0.02
+            g2: 0.00
+        scale: 0.2
+
+    psf:
+        type: ChromaticAtmosphere
+        base_profile:
+            type: Gaussian
+            fwhm: 0.9
+        base_wavelength: 500
+        alpha: -0.3  # recommended by J. Meyers
+        zenith_angle: 0 deg  # set to 0 to disable DCR
+        parallactic_angle: 0 deg  # set to 0 to disable DCR
+
 
 metadetect:
-  model: wmom
-  metacal:
-    psf: fitgauss
-    types: [noshear, 1p, 1m, 2p, 2m]
-    use_noise_image: true
-    # step: 0.01
-  weight:
-    fwhm: 1.2  # arcsec
-  meds:
-    box_padding: 2
-    box_type: iso_radius
-    max_box_size: 48
-    min_box_size: 48
-    rad_fac: 2
-    rad_min: 4
+    model: wmom
+    metacal:
+        psf: fitgauss
+        types: [noshear, 1p, 1m, 2p, 2m]
+        use_noise_image: true
+        # step: 0.01
+    weight:
+        fwhm: 1.2  # arcsec
+    meds:
+        box_padding: 2
+        box_type: iso_radius
+        max_box_size: 48
+        min_box_size: 48
+        rad_fac: 2
+        rad_min: 4
 
 output:
     path: /pscratch/sd/s/smau/out
