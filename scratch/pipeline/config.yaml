@@ -1,3 +1,9 @@
+diffskypop_params: "roman_rubin_2023"
+ssp_templates: "/pscratch/sd/s/smau/dsps_ssp_data.h5"
+sed_dir: "/pscratch/sd/s/smau/starSED/"
+
+chromatic: True
+
 galaxies:
     path: /pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet
     format: parquet
@@ -32,10 +38,14 @@ galaxies:
           input: "color"
           options: null
           output: "max_color"
+        - function: mean
+          input: "color"
+          options: null
+          output: "mean_color"
         - function: approximate_median
           input: "color"
           options: null
-          output: "med_color"
+          output: "median_color"
         - function: tdigest
           input: "color"
           options:
@@ -71,24 +81,28 @@ stars:
           input: "color"
           options: null
           output: "count"
-        - function: min
-          input: "color"
-          options: null
-          output: "min_color"
-        - function: max
-          input: "color"
-          options: null
-          output: "max_color"
-        - function: approximate_median
-          input: "color"
-          options: null
-          output: "med_color"
-        - function: tdigest
-          input: "color"
-          options:
-              TDigestOptions:
-                  q: [0.25, 0.50, 0.75]
-          output: "quantiles"
+
+scene:
+    type: hex
+    separation: 10
+    border: 100
+    # type: random
+    # n: 1000
+    dither: 0.5
+
+image:
+    xsize: 320
+    ysize: 320
+    psf_size: 53
+    bands: ["g", "r", "i"]
+    shear: 0.02
+
+measure:
+    # type: metadetect
+    # type: chromatic_metadetect
+    type: drdc
+    shear_bands: [[1]]
+    det_bands: [[0, 1, 2]]
 
 galsim:
     image:
@@ -132,5 +146,5 @@ metadetect:
 
 output:
     path: /pscratch/sd/s/smau/out
-    format: parquet
+    format: arrow
     partitioning: None
