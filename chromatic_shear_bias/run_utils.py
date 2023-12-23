@@ -67,7 +67,7 @@ def _get_type():
     ])
 
 
-def _get_schema():
+def _get_schema(drdc=False):
     # schema = pa.schema([
     #     ("plus", pa.struct([
     #         ("g1p", pa.float64()),
@@ -90,24 +90,71 @@ def _get_schema():
     #     ("mfrac_cut", pa.int32()),
     #     ("weight", pa.float64()),
     # ])
-    schema = pa.schema([
-        ("p.g1p", pa.float64()),
-        ("p.g1m", pa.float64()),
-        ("p.g1", pa.float64()),
-        ("p.g2p", pa.float64()),
-        ("p.g2m", pa.float64()),
-        ("p.g2", pa.float64()),
-        ("m.g1p", pa.float64()),
-        ("m.g1m", pa.float64()),
-        ("m.g1", pa.float64()),
-        ("m.g2p", pa.float64()),
-        ("m.g2m", pa.float64()),
-        ("m.g2", pa.float64()),
-        ("s2n_cut", pa.int32()),
-        ("ormask_cut", pa.int32()),
-        ("mfrac_cut", pa.int32()),
-        ("weight", pa.float64()),
-    ])
+    match drdc:
+        case False:
+            schema = pa.schema([
+                ("p.g1p", pa.float64()),
+                ("p.g1m", pa.float64()),
+                ("p.g1", pa.float64()),
+                ("p.g2p", pa.float64()),
+                ("p.g2m", pa.float64()),
+                ("p.g2", pa.float64()),
+                ("m.g1p", pa.float64()),
+                ("m.g1m", pa.float64()),
+                ("m.g1", pa.float64()),
+                ("m.g2p", pa.float64()),
+                ("m.g2m", pa.float64()),
+                ("m.g2", pa.float64()),
+                ("s2n_cut", pa.int32()),
+                ("ormask_cut", pa.int32()),
+                ("mfrac_cut", pa.int32()),
+                ("weight", pa.float64()),
+            ])
+        case True:
+            schema = pa.schema([
+                ("p.g1p.c0", pa.float64()),
+                ("p.g1m.c0", pa.float64()),
+                ("p.g1.c0", pa.float64()),
+                ("p.g2p.c0", pa.float64()),
+                ("p.g2m.c0", pa.float64()),
+                ("p.g2.c0", pa.float64()),
+                ("m.g1p.c0", pa.float64()),
+                ("m.g1m.c0", pa.float64()),
+                ("m.g1.c0", pa.float64()),
+                ("m.g2p.c0", pa.float64()),
+                ("m.g2m.c0", pa.float64()),
+                ("m.g2.c0", pa.float64()),
+                ("p.g1p.c1", pa.float64()),
+                ("p.g1m.c1", pa.float64()),
+                ("p.g1.c1", pa.float64()),
+                ("p.g2p.c1", pa.float64()),
+                ("p.g2m.c1", pa.float64()),
+                ("p.g2.c1", pa.float64()),
+                ("m.g1p.c1", pa.float64()),
+                ("m.g1m.c1", pa.float64()),
+                ("m.g1.c1", pa.float64()),
+                ("m.g2p.c1", pa.float64()),
+                ("m.g2m.c1", pa.float64()),
+                ("m.g2.c1", pa.float64()),
+                ("p.g1p.c2", pa.float64()),
+                ("p.g1m.c2", pa.float64()),
+                ("p.g1.c2", pa.float64()),
+                ("p.g2p.c2", pa.float64()),
+                ("p.g2m.c2", pa.float64()),
+                ("p.g2.c2", pa.float64()),
+                ("m.g1p.c2", pa.float64()),
+                ("m.g1m.c2", pa.float64()),
+                ("m.g1.c2", pa.float64()),
+                ("m.g2p.c2", pa.float64()),
+                ("m.g2m.c2", pa.float64()),
+                ("m.g2.c2", pa.float64()),
+                ("s2n_cut", pa.int32()),
+                ("ormask_cut", pa.int32()),
+                ("mfrac_cut", pa.int32()),
+                ("weight", pa.float64()),
+            ])
+        case _:
+            schema = None
 
     return schema
 
@@ -470,7 +517,7 @@ def measure_pair(
     mbobs_m = pair["minus"]
 
     res_p = metadetect.do_metadetect(
-        config["metadetect"],
+        config,
         mbobs_p,
         mdet_rng_p,
         shear_band_combs=shear_bands,
@@ -480,7 +527,7 @@ def measure_pair(
     )
 
     res_m = metadetect.do_metadetect(
-        config["metadetect"],
+        config,
         mbobs_m,
         mdet_rng_m,
         shear_band_combs=shear_bands,
@@ -518,7 +565,8 @@ def measure_pair_color(
     mbobs_m = pair["minus"]
 
     bps = {
-        band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB") for band in bands
+        band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB")
+        for band in bands
     }
 
     def color_key_func(fluxes):
@@ -579,7 +627,7 @@ def measure_pair_color(
     #         assert np.all(np.equal(color_dep_mbobs_p[c][b][0].psf.image, color_dep_mbobs_m[c][b][0].psf.image))
 
     res_p = metadetect.do_metadetect(
-        config["metadetect"],
+        config,
         mbobs_p,
         mdet_rng_p,
         shear_band_combs=shear_bands,
@@ -589,7 +637,7 @@ def measure_pair_color(
     )
 
     res_m = metadetect.do_metadetect(
-        config["metadetect"],
+        config,
         mbobs_m,
         mdet_rng_m,
         shear_band_combs=shear_bands,
@@ -694,6 +742,398 @@ def build_and_measure_pair_color(
     )
 
     return meas
+
+
+def measure_more_pairs(
+    config,
+    res_p_c0,
+    res_p_c1,
+    res_p_c2,
+    res_m_c0,
+    res_m_c1,
+    res_m_c2,
+):
+    model = config["model"]
+    if model == "wmom":
+        tcut = 1.2
+    else:
+        tcut = 0.5
+
+    if len(res_p_c0) > 0:
+        # wgt = len(res_p)
+        wgt = sum(len(v) for v in res_p_c0.values()) \
+            + sum(len(v) for v in res_p_c1.values()) \
+            + sum(len(v) for v in res_p_c2.values()) \
+            + sum(len(v) for v in res_m_c0.values()) \
+            + sum(len(v) for v in res_m_c1.values()) \
+            + sum(len(v) for v in res_m_c2.values())
+
+        data = []
+        # data = {
+        #     "plus": [],
+        #     "minus": [],
+        #     "s2n_cut": [],
+        #     "ormask_cut": [],
+        #     "mfrac_cut": [],
+        #     "weight": [],
+        # }
+        for ormask_cut in ORMASK_CUTS:
+            for s2n_cut in S2N_CUTS:
+                pgm_c0 = measure_shear_metadetect(
+                    res_p_c0,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=ormask_cut,
+                    mfrac_cut=None,
+                    model=model,
+                )
+                pgm_c1 = measure_shear_metadetect(
+                    res_p_c1,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=ormask_cut,
+                    mfrac_cut=None,
+                    model=model,
+                )
+                pgm_c2 = measure_shear_metadetect(
+                    res_p_c2,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=ormask_cut,
+                    mfrac_cut=None,
+                    model=model,
+                )
+                mgm_c0 = measure_shear_metadetect(
+                    res_m_c0,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=ormask_cut,
+                    mfrac_cut=None,
+                    model=model,
+                )
+                mgm_c1 = measure_shear_metadetect(
+                    res_m_c1,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=ormask_cut,
+                    mfrac_cut=None,
+                    model=model,
+                )
+                mgm_c2 = measure_shear_metadetect(
+                    res_m_c2,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=ormask_cut,
+                    mfrac_cut=None,
+                    model=model,
+                )
+                if pgm_c0 is None or pgm_c1 is None or pgm_c2 is None or mgm_c0 is None or mgm_c1 is None or mgm_c2 is None:
+                    continue
+
+                # data.append(
+                #     tuple(list(pgm) + list(mgm) + [s2n_cut, 0 if ormask_cut else 1, -1, wgt])
+                # )
+                # data.append({
+                #     "pgm": list(pgm),
+                #     "mgm": list(mgm),
+                #     "s2n_cut": s2n_cut,
+                #     "ormask_cut": 0 if ormask_cut else 1,
+                #     "mfrac_cut":-1,
+                #     "weight": wgt,
+                # })
+                data.append({
+                    "p.g1p.c0": pgm_c0[0],
+                    "p.g1m.c0": pgm_c0[1],
+                    "p.g1.c0": pgm_c0[2],
+                    "p.g2p.c0": pgm_c0[3],
+                    "p.g2m.c0": pgm_c0[4],
+                    "p.g2.c0": pgm_c0[5],
+                    "m.g1p.c0": mgm_c0[0],
+                    "m.g1m.c0": mgm_c0[1],
+                    "m.g1.c0": mgm_c0[2],
+                    "m.g2p.c0": mgm_c0[3],
+                    "m.g2m.c0": mgm_c0[4],
+                    "m.g2c.c0": mgm_c0[5],
+                    "p.g1p.c1": pgm_c1[0],
+                    "p.g1m.c1": pgm_c1[1],
+                    "p.g1.c1": pgm_c1[2],
+                    "p.g2p.c1": pgm_c1[3],
+                    "p.g2m.c1": pgm_c1[4],
+                    "p.g2.c1": pgm_c1[5],
+                    "m.g1p.c1": mgm_c1[0],
+                    "m.g1m.c1": mgm_c1[1],
+                    "m.g1.c1": mgm_c1[2],
+                    "m.g2p.c1": mgm_c1[3],
+                    "m.g2m.c1": mgm_c1[4],
+                    "m.g2c.c1": mgm_c1[5],
+                    "p.g1p.c2": pgm_c2[0],
+                    "p.g1m.c2": pgm_c2[1],
+                    "p.g1.c2": pgm_c2[2],
+                    "p.g2p.c2": pgm_c2[3],
+                    "p.g2m.c2": pgm_c2[4],
+                    "p.g2.c2": pgm_c2[5],
+                    "m.g1p.c2": mgm_c2[0],
+                    "m.g1m.c2": mgm_c2[1],
+                    "m.g1.c2": mgm_c2[2],
+                    "m.g2p.c2": mgm_c2[3],
+                    "m.g2m.c2": mgm_c2[4],
+                    "m.g2c.c2": mgm_c2[5],
+                    "s2n_cut": s2n_cut,
+                    "ormask_cut": 0 if ormask_cut else 1,
+                    "mfrac_cut": -1,
+                    "weight": wgt,
+                })
+                # data["plus"].append(pgm)
+                # data["minus"].append(mgm)
+                # data["s2n_cut"].append(s2n_cut)
+                # data["ormask_cut"].append(0 if ormask_cut else 1)
+                # data["mfrac_cut"].append(1)
+                # data["weight"].append(wgt)
+
+        for mfrac_cut in MFRAC_CUTS:
+            for s2n_cut in S2N_CUTS:
+                pgm_c0 = measure_shear_metadetect(
+                    res_p_c0,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=False,
+                    mfrac_cut=mfrac_cut / 100,
+                    model=model,
+                )
+                pgm_c1 = measure_shear_metadetect(
+                    res_p_c1,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=False,
+                    mfrac_cut=mfrac_cut/100,
+                    model=model,
+                )
+                pgm_c2 = measure_shear_metadetect(
+                    res_p_c2,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=False,
+                    mfrac_cut=mfrac_cut/100,
+                    model=model,
+                )
+                mgm_c0 = measure_shear_metadetect(
+                    res_m_c0,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=False,
+                    mfrac_cut=mfrac_cut/100,
+                    model=model,
+                )
+                mgm_c1 = measure_shear_metadetect(
+                    res_m_c1,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=False,
+                    mfrac_cut=mfrac_cut/100,
+                    model=model,
+                )
+                mgm_c2 = measure_shear_metadetect(
+                    res_m_c2,
+                    s2n_cut=s2n_cut,
+                    t_ratio_cut=tcut,
+                    ormask_cut=False,
+                    mfrac_cut=mfrac_cut/100,
+                    model=model,
+                )
+                if pgm_c0 is None or pgm_c1 is None or pgm_c2 is None or mgm_c0 is None or mgm_c1 is None or mgm_c2 is None:
+                    continue
+
+                # data.append(
+                #     tuple(list(pgm) + list(mgm) + [s2n_cut, -1, mfrac_cut, wgt])
+                # )
+                # data.append({
+                #     "pgm": list(pgm),
+                #     "mgm": list(mgm),
+                #     "s2n_cut": s2n_cut,
+                #     "ormask_cut": -1,
+                #     "mfrac_cut": mfrac_cut,
+                #     "weight": wgt,
+                # })
+                data.append({
+                    "p.g1p.c0": pgm_c0[0],
+                    "p.g1m.c0": pgm_c0[1],
+                    "p.g1.c0": pgm_c0[2],
+                    "p.g2p.c0": pgm_c0[3],
+                    "p.g2m.c0": pgm_c0[4],
+                    "p.g2.c0": pgm_c0[5],
+                    "m.g1p.c0": mgm_c0[0],
+                    "m.g1m.c0": mgm_c0[1],
+                    "m.g1.c0": mgm_c0[2],
+                    "m.g2p.c0": mgm_c0[3],
+                    "m.g2m.c0": mgm_c0[4],
+                    "m.g2c.c0": mgm_c0[5],
+                    "p.g1p.c1": pgm_c1[0],
+                    "p.g1m.c1": pgm_c1[1],
+                    "p.g1.c1": pgm_c1[2],
+                    "p.g2p.c1": pgm_c1[3],
+                    "p.g2m.c1": pgm_c1[4],
+                    "p.g2.c1": pgm_c1[5],
+                    "m.g1p.c1": mgm_c1[0],
+                    "m.g1m.c1": mgm_c1[1],
+                    "m.g1.c1": mgm_c1[2],
+                    "m.g2p.c1": mgm_c1[3],
+                    "m.g2m.c1": mgm_c1[4],
+                    "m.g2c.c1": mgm_c1[5],
+                    "p.g1p.c2": pgm_c2[0],
+                    "p.g1m.c2": pgm_c2[1],
+                    "p.g1.c2": pgm_c2[2],
+                    "p.g2p.c2": pgm_c2[3],
+                    "p.g2m.c2": pgm_c2[4],
+                    "p.g2.c2": pgm_c2[5],
+                    "m.g1p.c2": mgm_c2[0],
+                    "m.g1m.c2": mgm_c2[1],
+                    "m.g1.c2": mgm_c2[2],
+                    "m.g2p.c2": mgm_c2[3],
+                    "m.g2m.c2": mgm_c2[4],
+                    "m.g2c.c2": mgm_c2[5],
+                    "s2n_cut": s2n_cut,
+                    "ormask_cut": 0 if ormask_cut else 1,
+                    "mfrac_cut": -1,
+                    "weight": wgt,
+                })
+                # data["plus"].append(pgm)
+                # data["minus"].append(mgm)
+                # data["s2n_cut"].append(s2n_cut)
+                # data["ormask_cut"].append(-1)
+                # data["mfrac_cut"].append(mfrac_cut)
+                # data["weight"].append(wgt)
+
+        return data
+    else:
+        return None
+
+
+def measure_pair_color_response(
+    survey,
+    pair,
+    psf,
+    colors,
+    stars,
+    psf_size,
+    bands,
+    shear_bands,
+    det_bands,
+    config,
+    seed,
+):
+    rng = np.random.default_rng(seed)
+    # given a pair of mbobs with a psf drawn at the median g-i color,
+    # create color_dep_mbobs at each of the provided stars
+    # and run color_dep metadetect
+    mdet_seed = rng.integers(1, 2**64 // 2 - 1)
+    mdet_rng_p = np.random.default_rng(mdet_seed)
+    mdet_rng_m = np.random.default_rng(mdet_seed)
+    mbobs_p = pair["plus"]
+    mbobs_m = pair["minus"]
+
+    bps = {
+        band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB")
+        for band in bands
+    }
+
+    color_dep_mbobs_p = {}
+    color_dep_mbobs_m = {}
+    for c, star in enumerate(stars):
+        _mbobs_p = copy.deepcopy(mbobs_p)
+        _mbobs_m = copy.deepcopy(mbobs_m)
+        observed_psf = galsim.Convolve([star, psf])
+        # get size, etc. from obs
+        psf_image = galsim.Image(
+            psf_size,
+            psf_size,
+            scale=survey.scale,
+        )
+
+        for i, (_obslist_p, _obslist_m) in enumerate(zip(_mbobs_p, _mbobs_m)):
+            band = bands[i]
+            observed_psf.drawImage(image=psf_image, bandpass=bps[band])
+            for _obs_p, _obs_m in zip(_obslist_p, _obslist_m):
+                _obs_p.psf.set_image(psf_image.array)
+                _obs_m.psf.set_image(psf_image.array)
+
+        color_dep_mbobs_p[c] = _mbobs_p
+        color_dep_mbobs_m[c] = _mbobs_m
+
+    # for c in range(len(stars)):
+    #     for b in range(len(color_dep_mbobs_p[c])):
+    #         assert np.all(np.equal(color_dep_mbobs_p[c][b][0].psf.image, color_dep_mbobs_m[c][b][0].psf.image))
+
+    res_p_c0 = metadetect.do_metadetect(
+        config,
+        color_dep_mbobs_p[0],
+        mdet_rng_p,
+        shear_band_combs=shear_bands,
+        det_band_combs=det_bands,
+        color_key_func=None,
+        color_dep_mbobs=None,
+    )
+
+    res_p_c1 = metadetect.do_metadetect(
+        config,
+        color_dep_mbobs_p[1],
+        mdet_rng_p,
+        shear_band_combs=shear_bands,
+        det_band_combs=det_bands,
+        color_key_func=None,
+        color_dep_mbobs=None,
+    )
+
+    res_p_c2 = metadetect.do_metadetect(
+        config,
+        color_dep_mbobs_p[2],
+        mdet_rng_p,
+        shear_band_combs=shear_bands,
+        det_band_combs=det_bands,
+        color_key_func=None,
+        color_dep_mbobs=None,
+    )
+
+    res_m_c0 = metadetect.do_metadetect(
+        config,
+        color_dep_mbobs_m[0],
+        mdet_rng_m,
+        shear_band_combs=shear_bands,
+        det_band_combs=det_bands,
+        color_key_func=None,
+        color_dep_mbobs=None,
+    )
+
+    res_m_c1 = metadetect.do_metadetect(
+        config,
+        color_dep_mbobs_m[1],
+        mdet_rng_m,
+        shear_band_combs=shear_bands,
+        det_band_combs=det_bands,
+        color_key_func=None,
+        color_dep_mbobs=None,
+    )
+
+    res_m_c2 = metadetect.do_metadetect(
+        config,
+        color_dep_mbobs_m[2],
+        mdet_rng_m,
+        shear_band_combs=shear_bands,
+        det_band_combs=det_bands,
+        color_key_func=None,
+        color_dep_mbobs=None,
+    )
+
+    measurement = measure_more_pairs(
+        config,
+        res_p_c0,
+        res_p_c1,
+        res_p_c2,
+        res_m_c0,
+        res_m_c1,
+        res_m_c2,
+    )
+
+    return measurement
 
 
 def build_plot(
@@ -970,7 +1410,7 @@ def measure_shear_metadetect(
 
 
 def measure_pairs(config, res_p, res_m):
-    model = config["metadetect"]["model"]
+    model = config["model"]
     if model == "wmom":
         tcut = 1.2
     else:

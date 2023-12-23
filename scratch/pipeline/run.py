@@ -196,6 +196,7 @@ if __name__ == "__main__":
                 pipeline.metadetect_config,
                 meas_seed,
             )
+            schema = run_utils._get_schema()
         case "chromatic_metadetect":
             shear_bands = measure_config.get("shear_bands")
             det_bands = measure_config.get("det_bands")
@@ -214,6 +215,7 @@ if __name__ == "__main__":
                 pipeline.metadetect_config,
                 meas_seed,
             )
+            schema = run_utils._get_schema()
         case "drdc":
             shear_bands = measure_config.get("shear_bands")
             det_bands = measure_config.get("det_bands")
@@ -232,12 +234,12 @@ if __name__ == "__main__":
                 pipeline.metadetect_config,
                 meas_seed,
             )
+            schema = run_utils._get_schema(drdc=True)
         case _:
             raise ValueError(f"Measure type {measure_type} not valid!")
 
     print("measure:", measure_type)
 
-    schema = run_utils._get_schema()
     table = pa.Table.from_pylist(
         measurement,
         schema,
