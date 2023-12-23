@@ -87,44 +87,33 @@ scene:
     separation: 10
     border: 100
     # type: random
-    # n: 1000
+    # n: 500
+    border: 10
     dither: 0.5
 
 image:
-    xsize: 320
-    ysize: 320
+    xsize: 640
+    ysize: 640
     psf_size: 53
     bands: ["g", "r", "i"]
     shear: 0.02
 
 measure:
-    # type: metadetect
+    type: metadetect
     # type: chromatic_metadetect
-    type: drdc
+    # type: drdc
     shear_bands: [[1]]
     det_bands: [[0, 1, 2]]
 
-galsim:
-    image:
-      type: Scattered
-
-    stamp:
-        type: Basic
-        shear:
-            type: g1g2
-            g1: 0.02
-            g2: 0.00
-        scale: 0.2
-
-    psf:
-        type: ChromaticAtmosphere
-        base_profile:
-            type: Gaussian
-            fwhm: 0.9
-        base_wavelength: 500
-        alpha: -0.3  # recommended by J. Meyers
-        zenith_angle: 0 deg  # set to 0 to disable DCR
-        parallactic_angle: 0 deg  # set to 0 to disable DCR
+psf:
+    type: ChromaticAtmosphere
+    base_profile:
+        type: Gaussian
+        fwhm: 0.9
+    base_wavelength: 500
+    alpha: -0.3  # recommended by J. Meyers
+    zenith_angle: 0 deg  # set to 0 to disable DCR
+    parallactic_angle: 0 deg  # set to 0 to disable DCR
 
 
 metadetect:

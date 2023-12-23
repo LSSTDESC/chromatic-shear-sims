@@ -98,13 +98,13 @@ if __name__ == "__main__":
         case "random":
             n_gals = scene_config["n"]
             xs = rng.uniform(
-                -image_config["xsize"] // 2,
-                image_config["xsize"] // 2,
+                -image_config["xsize"] // 2 + scene_config["border"],
+                image_config["xsize"] // 2 - scene_config["border"],
                 n_gals,
              )
             ys = rng.uniform(
-                -image_config["ysize"] // 2,
-                image_config["ysize"] // 2,
+                -image_config["ysize"] // 2 + scene_config["border"],
+                image_config["ysize"] // 2 - scene_config["border"],
                 n_gals,
              )
         case "hex":
@@ -262,7 +262,6 @@ if __name__ == "__main__":
         existing_data_behavior="overwrite_or_ignore",
     )
     print("done!")
-    exit()
 
 
 
