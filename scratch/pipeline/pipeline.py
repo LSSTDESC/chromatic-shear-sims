@@ -10,7 +10,7 @@ import pyarrow.dataset as ds
 from pyarrow import acero
 import yaml
 
-from loader import Loader, MultiLoader
+from loader import Loader  # , MultiLoader
 
 
 def parse_expression(predicate):
@@ -96,10 +96,11 @@ class Pipeline:
         if hasattr(self, "galaxies"):
             print("galaxies already processed; skipping...")
         else:
-            if type(self.galaxy_config) == list:
-                loader = MultiLoader(self.galaxy_config)
-            else:
-                loader = Loader(self.galaxy_config)
+            # if type(self.galaxy_config) == list:
+            #     loader = MultiLoader(self.galaxy_config)
+            # else:
+            #     loader = Loader(self.galaxy_config)
+            loader = Loader(self.galaxy_config)
             loader.process()
 
             self.galaxies = loader
@@ -110,10 +111,11 @@ class Pipeline:
         if hasattr(self, "stars"):
             print("stars already processed; skipping...")
         else:
-            if type(self.star_config) == list:
-                loader = MultiLoader(self.star_config)
-            else:
-                loader = Loader(self.star_config)
+            # if type(self.star_config) == list:
+            #     loader = MultiLoader(self.star_config)
+            # else:
+            #     loader = Loader(self.star_config)
+            loader = Loader(self.star_config)
             loader.process()
 
             self.stars = loader

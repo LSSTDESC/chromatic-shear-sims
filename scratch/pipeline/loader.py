@@ -120,7 +120,6 @@ class Loader:
         _path = self.config.get("path")
         _format = self.config.get("format")
         _predicate = self.config.get("predicate", None)
-
         predicate = parse_expression(_predicate)
 
         dataset = ds.dataset(_path, format=_format)
@@ -171,38 +170,63 @@ class Loader:
         indices = self.select(n, seed=seed)
         scanner = self.get_scanner(columns)
 
-        obj = scanner.take(indices)
+        obj = scanner.take(indices).to_pydict()
+
+        return obj
+
+    def sample_with(self, n, columns=None, predicate=None, seed=None):
+        _path = self.config.get("path")
+        _format = self.config.get("format")
+        _predicate = self.config.get("predicate", None)
+        base_predicate = parse_expression(_predicate)
+        if predicate is not None:
+            new_predicate = base_predicate & predicate
+        else:
+            new_predicate = base_predicate
+
+        dataset = ds.dataset(_path, format=_format)
+        scanner = dataset.scanner(columns=columns, filter=new_predicate)
+        nobj = scanner.count_rows()
+        rng = np.random.default_rng(seed)
+        indices = rng.choice(
+            nobj,
+            size=n,
+            replace=True,
+            shuffle=True,
+        )
+
+        obj = scanner.take(indices).to_pydict()
 
         return obj
 
 
-class MultiLoader:
-    # FIXME probably should remove this...
-    def __init__(self, configs):
-        self.configs = copy.copy(configs)
-
-        loaders = []
-        for config in self.configs:
-            loaders.append(Loader(config))
-
-        self.loaders = loaders
-
-    def process(self):
-        for loader in self.loaders:
-            loader.process()
-
-    @property
-    def aggregate(self):
-        aggregates = []
-        for loader in self.loaders:
-            aggregates.append(loader.aggregate)
-        return aggregates
-
-    def sample(self, *args, **kwargs):
-        samples = []
-        for loader in self.loaders:
-            samples.append(loader.sample(*args, **kwargs))
-        return samples
+# class MultiLoader:
+#     # FIXME probably should remove this...
+#     def __init__(self, configs):
+#         self.configs = copy.copy(configs)
+# 
+#         loaders = []
+#         for config in self.configs:
+#             loaders.append(Loader(config))
+# 
+#         self.loaders = loaders
+# 
+#     def process(self):
+#         for loader in self.loaders:
+#             loader.process()
+# 
+#     @property
+#     def aggregate(self):
+#         aggregates = []
+#         for loader in self.loaders:
+#             aggregates.append(loader.aggregate)
+#         return aggregates
+# 
+#     def sample(self, *args, **kwargs):
+#         samples = []
+#         for loader in self.loaders:
+#             samples.append(loader.sample(*args, **kwargs))
+#         return samples
 
 if __name__ == "__main__":
 
