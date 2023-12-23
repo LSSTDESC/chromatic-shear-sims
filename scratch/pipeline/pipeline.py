@@ -52,7 +52,7 @@ class Pipeline:
         self.stash = f"{self.name}.pickle"
         self.galaxy_config = self.config.get("galaxies", None)
         self.star_config = self.config.get("stars", None)
-        self.psf_config = self.config.get("psf", None)
+        self.galsim_config = self.config.get("galsim", None)
         self.metadetect_config = self.config.get("metadetect", None)
         self.output_config = self.config.get("output", None)
 
@@ -123,8 +123,8 @@ class Pipeline:
         return
 
     def get_psf(self):
-        psf_config = self.psf_config
-        psf, _ = galsim.config.BuildGSObject(psf_config, "psf", logger=None)
+        galsim_config = self.galsim_config
+        psf, _ = galsim.config.BuildGSObject(galsim_config, "psf", logger=None)
 
         return psf
 

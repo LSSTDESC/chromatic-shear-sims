@@ -84,11 +84,10 @@ stars:
 
 scene:
     type: hex
-    separation: 10
-    border: 100
+    separation: 20
     # type: random
     # n: 500
-    border: 10
+    border: 100
     dither: 0.5
 
 image:
@@ -105,15 +104,16 @@ measure:
     shear_bands: [[1]]
     det_bands: [[0, 1, 2]]
 
-psf:
-    type: ChromaticAtmosphere
-    base_profile:
-        type: Gaussian
-        fwhm: 0.9
-    base_wavelength: 500
-    alpha: -0.3  # recommended by J. Meyers
-    zenith_angle: 0 deg  # set to 0 to disable DCR
-    parallactic_angle: 0 deg  # set to 0 to disable DCR
+galsim:
+    psf:
+        type: ChromaticAtmosphere
+        base_profile:
+            type: Gaussian
+            fwhm: 0.9
+        base_wavelength: 500
+        alpha: -0.3  # recommended by J. Meyers
+        zenith_angle: 0 deg  # set to 0 to disable DCR
+        parallactic_angle: 0 deg  # set to 0 to disable DCR
 
 
 metadetect:
