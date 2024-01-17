@@ -301,7 +301,7 @@ if __name__ == "__main__":
     m_mean = np.mean(m_bootstrap)
     m_std = np.std(m_bootstrap)
 
-    print("m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_std * 3))
+    print("mdet: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_std * 3))
 
     rng = np.random.default_rng(1)
 
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     m_mean_chroma = np.mean(m_bootstrap_chroma)
     m_std_chroma = np.std(m_bootstrap_chroma)
 
-    print("m = %0.3e +/- %0.3e [3-sigma]" % (m_mean_chroma, m_std_chroma * 3))
+    print("drdc: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean_chroma, m_std_chroma * 3))
 
     m_req = 0.002
     plt.axvspan(-m_req, m_req, fc="k", alpha=0.1)
