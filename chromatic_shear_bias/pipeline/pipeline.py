@@ -10,42 +10,13 @@ import pyarrow.dataset as ds
 from pyarrow import acero
 import yaml
 
-from loader import Loader  # , MultiLoader
-
-
-def parse_expression(predicate):
-    """
-    Parse a predicate tree intro a pyarrow compute expression
-    """
-    # Parse through the tree
-    if type(predicate) is dict:
-        for k, v in predicate.items():
-            f = getattr(pc, k)
-            if type(v) is list:
-                return f(*[parse_expression(_v) for _v in v])
-            else:
-                return f(v)
-    else:
-        return predicate
-
-
-def parse_projection(projection):
-    """
-    Parse a projection tree for pyarrow
-    """
-    projection_dict = {}
-    for proj in projection:
-        if type(proj) == dict:
-            for k, v in proj.items():
-                projection_dict[k] = parse_expression(v)
-        else:
-            projection_dict[proj] = pc.field(proj)
-
-    return projection_dict
+from chromatic_shear_bias import run_utils
+from chromatic_shear_bias.pipeline.loader import Loader
+# from loader import Loader  # , MultiLoader
 
 
 class Pipeline:
-    def __init__(self, fname, load=False):
+    def __init__(self, fname):
         self.fname = fname
         self.name = os.path.splitext(os.path.basename(fname))[0]
         self.config = self.get_config(self.fname)
@@ -55,9 +26,6 @@ class Pipeline:
         self.galsim_config = self.config.get("galsim", None)
         self.metadetect_config = self.config.get("metadetect", None)
         self.output_config = self.config.get("output", None)
-
-        if load == True:
-            self.load()
 
     def get_config(self, fname):
         with open(fname, "r") as fobj:
@@ -80,15 +48,15 @@ class Pipeline:
     def load(self):
         exists = os.path.exists(self.stash)
         if exists:
-            print(f"loading pipeline from {self.stash}...")
+            # print(f"loading pipeline from {self.stash}...")
             with open(self.stash, "rb") as fobj:
                 stash = pickle.load(fobj)
 
             # for k, v in stash.items():
             #     setattr(self, k, v)
             self.__dict__ = stash
-        else:
-            print(f"{self.stash} does not exist; continuing...")
+        # else:
+        #     print(f"{self.stash} does not exist; continuing...")
 
         return
 
@@ -127,6 +95,21 @@ class Pipeline:
         psf, _ = galsim.config.BuildGSObject(galsim_config, "psf", logger=None)
 
         return psf
+
+    def get_schema(self):
+        measure_config = self.config.get("measure")
+        measure_type = measure_config.get("type")
+        match measure_type:
+            case "metadetect":
+                schema = run_utils._get_schema()
+            case "chromatic_metadetect":
+                schema = run_utils._get_schema()
+            case "drdc":
+                schema = run_utils._get_schema(drdc=True)
+            case _:
+                raise ValueError(f"Measure type {measure_type} has no registered schema!")
+
+        return schema
 
     def repartition_output(self, partitioning):
         """

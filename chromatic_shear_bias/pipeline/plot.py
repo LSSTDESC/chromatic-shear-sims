@@ -1,7 +1,9 @@
 import argparse
+import copy
 import os
 
 import galsim
+import joblib
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -10,54 +12,28 @@ import pyarrow.parquet as pq
 import yaml
 
 from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
-from pipeline import Pipeline
+from chromatic_shear_bias.pipeline.pipeline import Pipeline
 
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config",
-        type=str,
-        required=True,
-        help="configuration file [yaml]",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        required=False,
-        default=None,
-        help="RNG seed [int]",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        required=False,
-        default="",
-        help="Output directory"
-    )
-    return parser.parse_args()
+CHROMATIC_MEASURES = {
+    "chromatic_metadetect",
+    "drdc",
+}
 
 
-if __name__ == "__main__":
-    args = get_args()
-
-    seed = args.seed
+def run_pipeline(config, seed=None, detect=False):
     rng = np.random.default_rng(seed)
 
-    pipeline = Pipeline(args.config, load=False)
-    print("pipeline:", pipeline.name)
-    print("seed:", seed)
-    print("cpu count:", pa.cpu_count())
-    print("thread_count:", pa.io_thread_count())
+    pipeline = Pipeline(config)
 
-    # pipeline.load()
-    pipeline.load_galaxies()
-    pipeline.save(overwrite=True)
-    pipeline.load_stars()
-    pipeline.save(overwrite=True)
+    pipeline.load()
+    # pipeline.load_galaxies()
+    # pipeline.save(overwrite=True)
+    # pipeline.load_stars()
+    # pipeline.save(overwrite=True)
 
-    print("galxies:", pipeline.galaxies.aggregate)
-    print("stars:", pipeline.stars.aggregate)
+    measure_config = pipeline.config.get("measure")
+    measure_type = measure_config.get("type")
 
     lsst = surveys.lsst
 
@@ -74,11 +50,20 @@ if __name__ == "__main__":
     )
     star = dc2builder.build_star(star_params)
 
-    # more stars if we need them
-    # if (quantiles := pipeline.config.get("quantiles", None)) is not None:
-    if pipeline.config.get("chromatic", False):
-        chroma_colors = pipeline.galaxies.aggregate.get("quantiles")
-        print("colors:", chroma_colors)
+    # if using a chromatic measure, generate stars at the appropriate colors
+    if measure_type in CHROMATIC_MEASURES:
+        colors_type = measure_config.get("colors")
+        match colors_type:
+            case "quantiles":
+                chroma_colors = pipeline.galaxies.aggregate.get("quantiles")
+            case "uniform":
+                colors_min = pipeline.galaxies.aggregate.get("min_color")[0]
+                colors_max = pipeline.galaxies.aggregate.get("max_color")[0]
+                # TODO add config for number of colors here...
+                chroma_colors = np.linspace(colors_min, colors_max, 3)
+            case _:
+                raise ValueError(f"Colors type {colors_type} not valid!")
+
         chroma_stars = []
         for color in chroma_colors:
             TOL = 0.01
@@ -126,8 +111,6 @@ if __name__ == "__main__":
         case _:
             raise ValueError(f"Scene type {scene_type} not valid!")
 
-    print("scene:", scene_type)
-
     scene_pos = [
         galsim.PositionD(
             x=x * lsst.scale,
@@ -143,7 +126,6 @@ if __name__ == "__main__":
             )
             for pos in scene_pos
         ]
-    print("dither:", dither)
 
     # galaxies
     romanrubinbuilder = roman_rubin.RomanRubinBuilder(
@@ -164,8 +146,7 @@ if __name__ == "__main__":
     pair_seed = rng.integers(1, 2**64 // 2 - 1)
     bands = image_config["bands"]
     shear = image_config["shear"]
-    print(f"bands: {bands}")
-    print(f"shear: {shear}")
+
     pair = run_utils.build_pair(
         lsst,
         scene,
@@ -179,91 +160,60 @@ if __name__ == "__main__":
         pair_seed,
     )
 
-    # measure
-    meas_seed = rng.integers(1, 2**64 // 2 - 1)
+    if detect:
+        import metadetect
+        mdet_rng_p = np.random.default_rng(42)
+        mdet_rng_m = np.random.default_rng(42)
 
-    measure_config = pipeline.config.get("measure")
-    match (measure_type := measure_config.get("type")):
-        case "metadetect":
-            shear_bands = measure_config.get("shear_bands")
-            det_bands = measure_config.get("det_bands")
-            print(f"shear bands: {det_bands}")
-            print(f"det bands: {shear_bands}")
-            measurement = run_utils.measure_pair(
-                pair,
-                shear_bands,
-                det_bands,
-                pipeline.metadetect_config,
-                meas_seed,
+        res_p = metadetect.do_metadetect(
+            pipeline.metadetect_config,
+            pair["plus"],
+            mdet_rng_p,
+        )
+
+        res_m = metadetect.do_metadetect(
+            pipeline.metadetect_config,
+            pair["minus"],
+            mdet_rng_m,
+        )
+
+        model = pipeline.metadetect_config["model"]
+        if model == "wmom":
+            tcut = 1.2
+        else:
+            tcut = 0.5
+
+        # s2n_cut = 10
+        # t_ratio_cut = tcut
+        # mfrac_cut = 10
+        s2n_cut = 0
+        t_ratio_cut = 0
+        mfrac_cut = 0
+        ormask_cut = None
+
+        def _mask(data):
+            if "flags" in data.dtype.names:
+                flag_col = "flags"
+            else:
+                flag_col = model + "_flags"
+
+            _cut_msk = (
+                (data[flag_col] == 0)
+                & (data[model + "_s2n"] > s2n_cut)
+                & (data[model + "_T_ratio"] > t_ratio_cut)
             )
-            schema = run_utils._get_schema()
-        case "chromatic_metadetect":
-            shear_bands = measure_config.get("shear_bands")
-            det_bands = measure_config.get("det_bands")
-            print(f"shear bands: {det_bands}")
-            print(f"det bands: {shear_bands}")
-            measurement = run_utils.measure_pair_color(
-                pair,
-                psf,
-                chroma_colors,
-                chroma_stars,
-                image_config["psf_size"],
-                lsst.scale,
-                bands,
-                shear_bands,
-                det_bands,
-                pipeline.metadetect_config,
-                meas_seed,
-            )
-            schema = run_utils._get_schema()
-        case "drdc":
-            shear_bands = measure_config.get("shear_bands")
-            det_bands = measure_config.get("det_bands")
-            print(f"shear bands: {det_bands}")
-            print(f"det bands: {shear_bands}")
-            measurement = run_utils.measure_pair_color_response(
-                lsst,
-                pair,
-                psf,
-                chroma_colors,
-                chroma_stars,
-                image_config["psf_size"],
-                bands,
-                shear_bands,
-                det_bands,
-                pipeline.metadetect_config,
-                meas_seed,
-            )
-            schema = run_utils._get_schema(drdc=True)
-        case _:
-            raise ValueError(f"Measure type {measure_type} not valid!")
+            if ormask_cut:
+                _cut_msk = _cut_msk & (data["ormask"] == 0)
+            if mfrac_cut is not None:
+                _cut_msk = _cut_msk & (data["mfrac"] <= mfrac_cut)
+            return _cut_msk
 
-    print("measure:", measure_type)
-
-    table = pa.Table.from_pylist(
-        measurement,
-        schema,
-    )
-
-    # output
-    output_config = pipeline.output_config
-    output_path = os.path.join(
-        output_config.get("path"),
-        pipeline.name,
-    )
-    output_format = output_config.get("format", "parquet")
-    print("output:", output_path)
-    ds.write_dataset(
-        table,
-        output_path,
-        basename_template=f"{seed}-part-{{i}}.{output_format}",
-        format=output_format,
-        schema=schema,
-        existing_data_behavior="overwrite_or_ignore",
-    )
-    print("done!")
-
-
+        o_p = res_p["noshear"]
+        q_p = _mask(o_p)
+        o_m = res_m["noshear"]
+        q_m = _mask(o_m)
+        p_ns = o_p[q_p]
+        m_ns = o_m[q_m]
 
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import Divider, Size
@@ -300,12 +250,16 @@ if __name__ == "__main__":
     #         axes_locator=divider.new_locator(nx=2 * i + 1, ny=1)
     #     )
     #     ax.imshow(np.arcsinh(pair["minus"][i][0].image), origin="lower")
-    i = 0
+    i = 1
     ax = fig.add_axes(
         divider.get_position(),
         axes_locator=divider.new_locator(nx=1, ny=3)
     )
     ax.imshow(np.arcsinh(pair["plus"][i][0].image), origin="lower")
+    if detect:
+        for j in range(len(p_ns)):
+            # axs[i, 0].annotate(round(p_ns["wmom_s2n"][j]), (p_ns["sx_col"][j], p_ns["sx_row"][j]), c="r")
+            ax.text(p_ns["sx_col"][j], p_ns["sx_row"][j], round(p_ns["wmom_s2n"][j]), c="r", horizontalalignment="left", verticalalignment="bottom")
     ax.set_title(f"{bands[i]} image")
 
     ax = fig.add_axes(
@@ -327,6 +281,10 @@ if __name__ == "__main__":
         axes_locator=divider.new_locator(nx=1, ny=1)
     )
     ax.imshow(np.arcsinh(pair["minus"][i][0].image), origin="lower")
+    if detect:
+        for j in range(len(m_ns)):
+            # axs[i, 1].annotate(round(m_ns["wmom_s2n"][j]), (m_ns["sx_col"][j], m_ns["sx_row"][j]), c="r")
+            ax.text(m_ns["sx_col"][j], m_ns["sx_row"][j], round(m_ns["wmom_s2n"][j]), c="r", horizontalalignment="left", verticalalignment="bottom")
     ax.set_title(f"{bands[i]} image")
 
     ax = fig.add_axes(
@@ -343,22 +301,93 @@ if __name__ == "__main__":
     ax.imshow(np.arcsinh(pair["minus"][i][0].noise), origin="lower")
     ax.set_title(f"{bands[i]} noise")
 
-
     plt.show()
 
-    # jobs = []
-    # for seed in rng.integers(1, 2**32, 64):
-    #     jobs.append(
-    #         joblib.delayed(pipeline.stars.sample)(
-    #             1, columns=star_columns, seed=seed
-    #         )
-    #     )
-    # with joblib.Parallel(n_jobs=8, verbose=100) as parallel:
-    #     res = parallel(jobs)
+    return
 
-    # jobs = []
-    # for seed in rng.integers(1, 2**32, 64):
-    #     jobs.append(joblib.delayed(pipeline.sample_galaxies)(300, columns=gal_columns, seed=seed))
-    # with joblib.Parallel(n_jobs=8, verbose=100) as parallel:
-    #     res = parallel(jobs)
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="configuration file [yaml]",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=None,
+        help="RNG seed [int]",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        default="",
+        help="Output directory"
+    )
+    parser.add_argument(
+        "--n_sims",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of sims to run [int; 1]"
+    )
+    # parser.add_argument(
+    #     "--n_jobs",
+    #     type=int,
+    #     required=False,
+    #     default=1,
+    #     help="Number of parallel jobs to run [int; 1]"
+    # )
+    parser.add_argument(
+        "--detect",
+        type=bool,
+        required=False,
+        default=False,
+        help="Whether to make detections [bool; False]",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = get_args()
+
+    config = args.config
+    seed = args.seed
+    n_sims = args.n_sims
+    # n_jobs = args.n_jobs
+    detect = args.detect
+
+    pipeline = Pipeline(config)
+    print("pipeline:", pipeline.name)
+    print("seed:", seed)
+
+    print("measure:", pipeline.config["measure"]["type"])
+
+    print("image:", pipeline.config.get("image"))
+    print("scene:", pipeline.config.get("scene"))
+
+    pipeline.load_galaxies()
+    pipeline.load_stars()
+    pipeline.save(overwrite=True)
+
+    print("galxies:", pipeline.galaxies.aggregate)
+    print("stars:", pipeline.stars.aggregate)
+
+    rng = np.random.default_rng(seed)
+
+    jobs = []
+    for seed in rng.integers(1, 2**32, n_sims):
+        jobs.append(
+            joblib.delayed(run_pipeline)(
+                config, seed=seed, detect=detect
+            )
+        )
+    with joblib.Parallel(n_jobs=1, verbose=100) as parallel:
+        parallel(jobs)
+
+    print("done!")
 

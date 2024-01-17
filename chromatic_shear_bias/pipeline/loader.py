@@ -17,8 +17,11 @@ def parse_expression(predicate):
     if type(predicate) is dict:
         for k, v in predicate.items():
             f = getattr(pc, k)
+            # if the value is a list, then recursively parse each element and
+            # pass the result
             if type(v) is list:
                 return f(*[parse_expression(_v) for _v in v])
+            # else, the value can be directly used as the function argument
             else:
                 return f(v)
     else:
@@ -26,11 +29,16 @@ def parse_expression(predicate):
 
 
 def parse_projection(projection):
+    """Parse a projection from a dict of expressions or a list into a dict
+    """
     projection_dict = {}
     for proj in projection:
+        # if a projection is itself a dict, parse the expression as a pyarrow
+        # compute expression
         if type(proj) == dict:
             for k, v in proj.items():
                 projection_dict[k] = parse_expression(v)
+        # else interpret as a simple field from the schema
         else:
             projection_dict[proj] = pc.field(proj)
 
