@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -5,6 +6,10 @@ import matplotlib.pyplot as plt
 import fitsio as fits
 import tqdm
 import joblib
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 
 
 def f2c(f_g, f_i, zp_g=28.38, zp_i=27.85):
@@ -390,13 +395,55 @@ def compute_m_chromatic(pfile, mfile, dg, dc, resample=False, seed=None):
     ) / 0.02 - 1
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--s2n-cut", type=int, default=10,
+        help="Signal/noise cut [int; 10]",
+    )
+    parser.add_argument(
+        "--ormask-cut", type=int, default=None,
+        help="Cut to make on ormask. 0 indicates make a cut, 1 indicates no cut.",
+    )
+    parser.add_argument(
+        "--mfrac-cut", type=int, default=None,
+        help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
+    )
+    parser.add_argument("--output", type=str, required=True, help="Output directory")
+    parser.add_argument("--n_resample", type=int, required=False, default=1000, help="Number of resample iterations")
+    parser.add_argument(
+        "--n_jobs",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of jobs to run [int; 1]",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = get_args()
+
     dg = 0.01
     dc = 0.5
     # dc = (1.5550565719604492 - 0.2306804656982422) / 2.
     path = Path("/pscratch/sd/s/smau/drdc/mag-20-many")
     pfile = next(path.glob("*plus.fits")).as_posix()
     mfile = next(path.glob("*minus.fits")).as_posix()
+
+    dataset = ds.dataset(args.output, format="arrow")
+    predicate = \
+        pc.field("s2n_cut") == args.s2n_cut
+    if args.ormask_cut is not None:
+        predicate &= (pc.field("ormask_cut") == args.ormask_cut)
+    else:
+        predicate &= (pc.field("ormask_cut") == -1)
+    if args.mfrac_cut is not None:
+        predicate &= (pc.field("mfrac_cut") == args.mfrac_cut)
+    else:
+        predicate &= (pc.field("mfrac_cut") == -1)
+
+    batches = dataset.to_batches(filter=predicate)
 
 
     rng = np.random.default_rng(1)
