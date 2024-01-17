@@ -19,6 +19,8 @@ ORMASK_CUTS = [True, False]
 S2N_CUTS = [7, 8, 9, 10, 15, 20]
 MFRAC_CUTS = [0, 1, 2, 5, 8, 10, 20, 50, 80, 100]
 
+gsparams = galsim.GSParams(maximum_fft_size=16384)
+
 
 class AB_mag:
     """
@@ -299,6 +301,7 @@ def build_image(
         scale=survey.scale,
     )
     for obs in observed:
+        obs = obs.withGSParams(gsparams)
         # obs.drawImage(
         #     image=image,
         #     add_to_image=True,
@@ -306,23 +309,27 @@ def build_image(
         # )
         obs.drawImage(
             image=image,
-            exptime=survey.exptime * survey.ncoadd[band],
-            area=survey.area,
-            gain=survey.gain,
+            # exptime=survey.exptime * survey.ncoadd[band],
+            # area=survey.area,
+            # gain=survey.gain,
             add_to_image=True,
             bandpass=survey.bandpasses[band],
         )
         # stamp = obs.drawImage(
-        #     exptime=30 * n_coadd,
-        #     area=319 / 9.6 * 1e4,
-        #     bandpass=bandpass,
-        # )  # Need to sort out centering...
+        #     scale=survey.scale,
+        #     exptime=survey.exptime * survey.ncoadd[band],
+        #     area=survey.area,
+        #     gain=survey.gain,
+        #     bandpass=survey.bandpasses[band],
+        # )  # FIXME Need to sort out centering...
         # b = stamp.bounds & image.bounds
         # if b.isDefined():
         #     image[b] += stamp[b]
 
     # TODO: what is the correct expression here?
-    noise_sigma = np.sqrt(survey.sky_rms[band] * survey.ncoadd[band]) / 10
+    # noise_sigma = survey.sky_rms[band] * np.sqrt(survey.ncoadd[band])
+    # noise = galsim.GaussianNoise(scene_grng, sigma=noise_sigma)
+    noise_sigma = survey.sky_rms[band]
     noise = galsim.GaussianNoise(scene_grng, sigma=noise_sigma)
     image.addNoise(noise)
 

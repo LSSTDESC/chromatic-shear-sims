@@ -11,25 +11,12 @@ import galsim
 _lsst_i = galsim.Bandpass("LSST_i.dat", "nm").withZeropoint("AB")
 
 
-def get_scanner(directory, predicate=None):
-    """
-    Create an arrow dataset scanner with the necessary columns for DC2 stars
-    """
-    columns= [
-        "sedFilename",
-        "imag",
-    ]
-
-    scanner = ds.dataset(directory, format="arrow").scanner(columns=columns, filter=predicate)
-    return scanner
-
-
 @functools.cache
 def read_sed_file(file_name, wave_type, flux_type):
     return galsim.sed.SED(file_name, wave_type, flux_type)
 
 
-def build_star(star_params, sed_dir):
+def build_star(star_params, sed_dir, i_bandpass):
     _standard_dict = {
         "lte*": "phoSimMLT",
         "bergeron*": "wDs",
@@ -37,7 +24,7 @@ def build_star(star_params, sed_dir):
     }
     wave_type = "Nm"
     flux_type = "flambda"
-    sed_filename = star_params.get("sedFilename").strip()
+    sed_filename = star_params.get("sedFilename")[0].strip()  # FIXME
     if not sed_filename.endswith(".gz"):
         # Some files are missing ".gz" in their suffix; if this is the case,
         # append to the current suffix
@@ -62,9 +49,24 @@ def build_star(star_params, sed_dir):
     sed_file = sed_path.as_posix()
     sed = read_sed_file(sed_file, wave_type, flux_type)
     # Use the catalog to recover normalization of SED
-    sed = sed.withMagnitude(star_params.get("imag"), _lsst_i)
+    sed = sed.withMagnitude(star_params.get("imag")[0], i_bandpass)  # FIXME
 
     return galsim.DeltaFunction() * sed
+
+class DC2Builder:
+    def __init__(self, sed_dir=None):
+        self.sed_dir = sed_dir
+        self.lsst_i = galsim.Bandpass("LSST_i.dat", "nm").withZeropoint("AB")
+
+        self.columns = ["sedFilename", "imag"]
+
+    def build_star(
+        self,
+        params,
+    ):
+        star = build_star(params, self.sed_dir, self.lsst_i)
+
+        return star
 
 
 if __name__ == "__main__":

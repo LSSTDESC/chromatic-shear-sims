@@ -28,8 +28,16 @@ class Survey:
         self.sky_rms = self.get_sky_rms()
 
     def get_sky_rms(self):
+        # return {
+        #     f: np.power(10, -0.4 * (self.sky[f] - self.zeropoints[f])) * self.exptime * self.scale**2 / self.area / 100
+        #     for f in self.sky.keys()
+        # }
+        # return {
+        #     f: np.power(10, -0.4 * (self.sky[f] - self.zeropoints[f]))
+        #     for f in self.sky.keys()
+        # }
         return {
-            f: np.power(10, -0.4 * (self.sky[f] - self.zeropoints[f])) * self.exptime * self.scale
+            f: 1e-6
             for f in self.sky.keys()
         }
 

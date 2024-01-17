@@ -5,28 +5,12 @@ import pyarrow.dataset as ds
 import galsim
 
 import dsps
+from dsps.data_loaders import load_ssp_templates
+from lsstdesc_diffsky import read_diffskypop_params
 from lsstdesc_diffsky.defaults import OUTER_RIM_COSMO_PARAMS
 from lsstdesc_diffsky.io_utils.load_diffsky_healpixel import ALL_DIFFSKY_PNAMES
-
-
-def get_scanner(directory, predicate=None):
-    """
-    Create an arrow dataset scanner with the necessary columns for diffsky
-    galaxies
-    """
-    morph_columns = [
-       "redshift",
-       "spheroidEllipticity1",
-       "spheroidEllipticity2",
-       "spheroidHalfLightRadiusArcsec",
-       "diskEllipticity1",
-       "diskEllipticity2",
-       "diskHalfLightRadiusArcsec",
-    ]
-    columns = list(set(morph_columns + ALL_DIFFSKY_PNAMES))
-
-    scanner = ds.dataset(directory, format="parquet").scanner(columns=columns, filter=predicate)
-    return scanner
+from lsstdesc_diffsky.io_utils import load_diffsky_params
+from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
 
 
 def make_gal(
@@ -185,42 +169,75 @@ def get_gal(
     return gal
 
 
-def sample_gal(
-     seed,
-     mock,
-     ssp_data,
-     disk_bulge_sed_info,
-     cosmo_params,
-     n_knots=0,
-     morphology="achromatic",
-     rotate=True,
-):
-    """
-    Deprecated
-    """
-    rng = np.random.default_rng(seed)
-    igal = rng.choice(len(mock["redshift"]), replace=True)
+class RomanRubinBuilder:
+    def __init__(self, diffskypop_params=None, ssp_templates=None):
+        self.diffskypop_params=diffskypop_params
+        self.ssp_templates=ssp_templates
 
-    gal = get_gal(
-        rng,
-        igal,
-        mock,
-        ssp_data,
-        disk_bulge_sed_info,
-        cosmo_params,
-        n_knots=n_knots,
-        morphology=morphology,
-        rotate=rotate,
-    )
+        self.all_diffskypop_params = read_diffskypop_params(self.diffskypop_params)
+        self.ssp_data = load_ssp_templates(fn=ssp_templates)
 
-    return gal
+        morph_columns = [
+           "redshift",
+           "spheroidEllipticity1",
+           "spheroidEllipticity2",
+           "spheroidHalfLightRadiusArcsec",
+           "diskEllipticity1",
+           "diskEllipticity2",
+           "diskHalfLightRadiusArcsec",
+        ]
+        self.columns = list(set(morph_columns + ALL_DIFFSKY_PNAMES))
+
+    def build_gals(
+        self,
+        params,
+        n_knots=0,
+        morphology="achromatic",
+    ):
+        diffsky_param_data = load_diffsky_params(params)
+        args = (
+            np.array(params['redshift']),
+            diffsky_param_data.mah_params,
+            diffsky_param_data.ms_params,
+            diffsky_param_data.q_params,
+            diffsky_param_data.fbulge_params,
+            diffsky_param_data.fknot,
+            self.ssp_data,
+            self.all_diffskypop_params,
+            OUTER_RIM_COSMO_PARAMS
+        )
+
+        disk_bulge_sed_info = calc_rest_sed_disk_bulge_knot_galpop(*args)
+
+        # FIXME add rotate toggle
+        gals = [
+            make_gal(
+                params["redshift"][igal],
+                params["spheroidEllipticity1"][igal],
+                params["spheroidEllipticity2"][igal],
+                params["spheroidHalfLightRadiusArcsec"][igal],
+                params["diskEllipticity1"][igal],
+                params["diskEllipticity2"][igal],
+                params["diskHalfLightRadiusArcsec"][igal],
+                self.ssp_data,
+                disk_bulge_sed_info.rest_sed_bulge[igal],
+                disk_bulge_sed_info.rest_sed_diffuse_disk[igal],
+                disk_bulge_sed_info.rest_sed_knot[igal],
+                disk_bulge_sed_info.mstar_total[igal],
+                disk_bulge_sed_info.mstar_bulge[igal],
+                disk_bulge_sed_info.mstar_diffuse_disk[igal],
+                disk_bulge_sed_info.mstar_knot[igal],
+                OUTER_RIM_COSMO_PARAMS,
+                n_knots=n_knots,
+                morphology=morphology,
+            )
+            for igal in range(len(params["redshift"]))
+        ]
+
+        return gals
 
 
 if __name__ == "__main__":
-    from dsps.data_loaders import load_ssp_templates
-    from lsstdesc_diffsky.io_utils import load_diffsky_params
-    from lsstdesc_diffsky import read_diffskypop_params
-    from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
 
 
     seed = 42
