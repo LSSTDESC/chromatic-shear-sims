@@ -61,6 +61,9 @@ def run_pipeline(config, seed=None):
                 colors_max = pipeline.galaxies.aggregate.get("max_color")[0]
                 # TODO add config for number of colors here...
                 chroma_colors = np.linspace(colors_min, colors_max, 3)
+            case "centered":
+                median = pipeline.galaxies.aggregate.get("median_color")
+                chroma_colors = [median - 0.1, median, median + 0.1]
             case _:
                 raise ValueError(f"Colors type {colors_type} not valid!")
 
