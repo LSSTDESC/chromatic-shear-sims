@@ -44,6 +44,10 @@ def get_sky_rms(exposure_time, zeropoint, sky_brightness, pixel_scale):
     return sky_level_pixel**(1/2)
 
 
+def f2c(f_1, f_2, zp_1=30, zp_2=30):
+    return -2.5 * np.log10(np.divide(f_1, f_2)) + zp_1 - zp_2
+
+
 def _get_dtype():
     fkeys = ["g1p", "g1m", "g1", "g2p", "g2m", "g2"]
     ikeys = ["s2n_cut", "ormask_cut", "mfrac_cut"]
@@ -150,6 +154,78 @@ def _get_schema(drdc=False):
                 ("m.g2p.c2", pa.float64()),
                 ("m.g2m.c2", pa.float64()),
                 ("m.g2.c2", pa.float64()),
+                ("p.c0.g1p", pa.float64()),
+                ("p.c0.g1m", pa.float64()),
+                ("p.c0.g1", pa.float64()),
+                ("p.c0.g2p", pa.float64()),
+                ("p.c0.g2m", pa.float64()),
+                ("p.c0.g2", pa.float64()),
+                ("p.c0.cg1p", pa.float64()),
+                ("p.c0.cg1m", pa.float64()),
+                ("p.c0.cg1", pa.float64()),
+                ("p.c0.cg2p", pa.float64()),
+                ("p.c0.cg2m", pa.float64()),
+                ("p.c0.cg2", pa.float64()),
+                ("m.c0.g1p", pa.float64()),
+                ("m.c0.g1m", pa.float64()),
+                ("m.c0.g1", pa.float64()),
+                ("m.c0.g2p", pa.float64()),
+                ("m.c0.g2m", pa.float64()),
+                ("m.c0.g2", pa.float64()),
+                ("m.c0.cg1p", pa.float64()),
+                ("m.c0.cg1m", pa.float64()),
+                ("m.c0.cg1", pa.float64()),
+                ("m.c0.cg2p", pa.float64()),
+                ("m.c0.cg2m", pa.float64()),
+                ("m.c0.cg2", pa.float64()),
+                ("p.c1.g1p", pa.float64()),
+                ("p.c1.g1m", pa.float64()),
+                ("p.c1.g1", pa.float64()),
+                ("p.c1.g2p", pa.float64()),
+                ("p.c1.g2m", pa.float64()),
+                ("p.c1.g2", pa.float64()),
+                ("p.c1.cg1p", pa.float64()),
+                ("p.c1.cg1m", pa.float64()),
+                ("p.c1.cg1", pa.float64()),
+                ("p.c1.cg2p", pa.float64()),
+                ("p.c1.cg2m", pa.float64()),
+                ("p.c1.cg2", pa.float64()),
+                ("m.c1.g1p", pa.float64()),
+                ("m.c1.g1m", pa.float64()),
+                ("m.c1.g1", pa.float64()),
+                ("m.c1.g2p", pa.float64()),
+                ("m.c1.g2m", pa.float64()),
+                ("m.c1.g2", pa.float64()),
+                ("m.c1.cg1p", pa.float64()),
+                ("m.c1.cg1m", pa.float64()),
+                ("m.c1.cg1", pa.float64()),
+                ("m.c1.cg2p", pa.float64()),
+                ("m.c1.cg2m", pa.float64()),
+                ("m.c2.cg2", pa.float64()),
+                ("p.c2.g1p", pa.float64()),
+                ("p.c2.g1m", pa.float64()),
+                ("p.c2.g1", pa.float64()),
+                ("p.c2.g2p", pa.float64()),
+                ("p.c2.g2m", pa.float64()),
+                ("p.c2.g2", pa.float64()),
+                ("p.c2.cg1p", pa.float64()),
+                ("p.c2.cg1m", pa.float64()),
+                ("p.c2.cg1", pa.float64()),
+                ("p.c2.cg2p", pa.float64()),
+                ("p.c2.cg2m", pa.float64()),
+                ("p.c2.cg2", pa.float64()),
+                ("m.c2.g1p", pa.float64()),
+                ("m.c2.g1m", pa.float64()),
+                ("m.c2.g1", pa.float64()),
+                ("m.c2.g2p", pa.float64()),
+                ("m.c2.g2m", pa.float64()),
+                ("m.c2.g2", pa.float64()),
+                ("m.c2.cg1p", pa.float64()),
+                ("m.c2.cg1m", pa.float64()),
+                ("m.c2.cg1", pa.float64()),
+                ("m.c2.cg2p", pa.float64()),
+                ("m.c2.cg2m", pa.float64()),
+                ("m.c2.cg2", pa.float64()),
                 ("s2n_cut", pa.int32()),
                 ("ormask_cut", pa.int32()),
                 ("mfrac_cut", pa.int32()),
@@ -752,13 +828,15 @@ def build_and_measure_pair_color(
 
 
 def measure_more_pairs(
-    config,
     res_p_c0,
     res_p_c1,
     res_p_c2,
     res_m_c0,
     res_m_c1,
     res_m_c2,
+    *,
+    config,
+    color=None,
 ):
     model = config["model"]
     if model == "wmom":
@@ -786,6 +864,8 @@ def measure_more_pairs(
         # }
         for ormask_cut in ORMASK_CUTS:
             for s2n_cut in S2N_CUTS:
+                # [shear type]gm_c[color index]
+                # no idea what the m is here... "metadetect"?
                 pgm_c0 = measure_shear_metadetect(
                     res_p_c0,
                     s2n_cut=s2n_cut,
@@ -793,6 +873,7 @@ def measure_more_pairs(
                     ormask_cut=ormask_cut,
                     mfrac_cut=None,
                     model=model,
+                    color=color,
                 )
                 pgm_c1 = measure_shear_metadetect(
                     res_p_c1,
@@ -801,6 +882,7 @@ def measure_more_pairs(
                     ormask_cut=ormask_cut,
                     mfrac_cut=None,
                     model=model,
+                    color=color,
                 )
                 pgm_c2 = measure_shear_metadetect(
                     res_p_c2,
@@ -809,6 +891,7 @@ def measure_more_pairs(
                     ormask_cut=ormask_cut,
                     mfrac_cut=None,
                     model=model,
+                    color=color,
                 )
                 mgm_c0 = measure_shear_metadetect(
                     res_m_c0,
@@ -817,6 +900,7 @@ def measure_more_pairs(
                     ormask_cut=ormask_cut,
                     mfrac_cut=None,
                     model=model,
+                    color=color,
                 )
                 mgm_c1 = measure_shear_metadetect(
                     res_m_c1,
@@ -825,6 +909,7 @@ def measure_more_pairs(
                     ormask_cut=ormask_cut,
                     mfrac_cut=None,
                     model=model,
+                    color=color,
                 )
                 mgm_c2 = measure_shear_metadetect(
                     res_m_c2,
@@ -833,6 +918,7 @@ def measure_more_pairs(
                     ormask_cut=ormask_cut,
                     mfrac_cut=None,
                     model=model,
+                    color=color,
                 )
                 if pgm_c0 is None or pgm_c1 is None or pgm_c2 is None or mgm_c0 is None or mgm_c1 is None or mgm_c2 is None:
                     continue
@@ -848,43 +934,83 @@ def measure_more_pairs(
                 #     "mfrac_cut":-1,
                 #     "weight": wgt,
                 # })
+
+                # we need e_gp_cp * (c - c_0), etc. for each combination of
+                # shear and color and so forth. note that this also means we
+                # need to compute colors here
                 data.append({
-                    "p.g1p.c0": pgm_c0[0],
-                    "p.g1m.c0": pgm_c0[1],
-                    "p.g1.c0": pgm_c0[2],
-                    "p.g2p.c0": pgm_c0[3],
-                    "p.g2m.c0": pgm_c0[4],
-                    "p.g2.c0": pgm_c0[5],
-                    "m.g1p.c0": mgm_c0[0],
-                    "m.g1m.c0": mgm_c0[1],
-                    "m.g1.c0": mgm_c0[2],
-                    "m.g2p.c0": mgm_c0[3],
-                    "m.g2m.c0": mgm_c0[4],
-                    "m.g2c.c0": mgm_c0[5],
-                    "p.g1p.c1": pgm_c1[0],
-                    "p.g1m.c1": pgm_c1[1],
-                    "p.g1.c1": pgm_c1[2],
-                    "p.g2p.c1": pgm_c1[3],
-                    "p.g2m.c1": pgm_c1[4],
-                    "p.g2.c1": pgm_c1[5],
-                    "m.g1p.c1": mgm_c1[0],
-                    "m.g1m.c1": mgm_c1[1],
-                    "m.g1.c1": mgm_c1[2],
-                    "m.g2p.c1": mgm_c1[3],
-                    "m.g2m.c1": mgm_c1[4],
-                    "m.g2c.c1": mgm_c1[5],
-                    "p.g1p.c2": pgm_c2[0],
-                    "p.g1m.c2": pgm_c2[1],
-                    "p.g1.c2": pgm_c2[2],
-                    "p.g2p.c2": pgm_c2[3],
-                    "p.g2m.c2": pgm_c2[4],
-                    "p.g2.c2": pgm_c2[5],
-                    "m.g1p.c2": mgm_c2[0],
-                    "m.g1m.c2": mgm_c2[1],
-                    "m.g1.c2": mgm_c2[2],
-                    "m.g2p.c2": mgm_c2[3],
-                    "m.g2m.c2": mgm_c2[4],
-                    "m.g2c.c2": mgm_c2[5],
+                    "p.c0.g1p": pgm_c0[0],
+                    "p.c0.g1m": pgm_c0[1],
+                    "p.c0.g1": pgm_c0[2],
+                    "p.c0.g2p": pgm_c0[3],
+                    "p.c0.g2m": pgm_c0[4],
+                    "p.c0.g2": pgm_c0[5],
+                    "p.c0.cg1p": pgm_c0[6],
+                    "p.c0.cg1m": pgm_c0[7],
+                    "p.c0.cg1": pgm_c0[8],
+                    "p.c0.cg2p": pgm_c0[9],
+                    "p.c0.cg2m": pgm_c0[10],
+                    "p.c0.cg2": pgm_c0[11],
+                    "m.c0.g1p": mgm_c0[0],
+                    "m.c0.g1m": mgm_c0[1],
+                    "m.c0.g1": mgm_c0[2],
+                    "m.c0.g2p": mgm_c0[3],
+                    "m.c0.g2m": mgm_c0[4],
+                    "m.c0.g2": mgm_c0[5],
+                    "m.c0.cg1p": mgm_c0[6],
+                    "m.c0.cg1m": mgm_c0[7],
+                    "m.c0.cg1": mgm_c0[8],
+                    "m.c0.cg2p": mgm_c0[9],
+                    "m.c0.cg2m": mgm_c0[10],
+                    "m.c0.cg2": mgm_c0[11],
+                    "p.c1.g1p": pgm_c1[0],
+                    "p.c1.g1m": pgm_c1[1],
+                    "p.c1.g1": pgm_c1[2],
+                    "p.c1.g2p": pgm_c1[3],
+                    "p.c1.g2m": pgm_c1[4],
+                    "p.c1.g2": pgm_c1[5],
+                    "p.c1.cg1p": pgm_c1[6],
+                    "p.c1.cg1m": pgm_c1[7],
+                    "p.c1.cg1": pgm_c1[8],
+                    "p.c1.cg2p": pgm_c1[9],
+                    "p.c1.cg2m": pgm_c1[10],
+                    "p.c1.cg2": pgm_c1[11],
+                    "m.c1.g1p": mgm_c1[0],
+                    "m.c1.g1m": mgm_c1[1],
+                    "m.c1.g1": mgm_c1[2],
+                    "m.c1.g2p": mgm_c1[3],
+                    "m.c1.g2m": mgm_c1[4],
+                    "m.c1.g2": mgm_c1[5],
+                    "m.c1.cg1p": mgm_c1[6],
+                    "m.c1.cg1m": mgm_c1[7],
+                    "m.c1.cg1": mgm_c1[8],
+                    "m.c1.cg2p": mgm_c1[9],
+                    "m.c1.cg2m": mgm_c1[10],
+                    "m.c1.cg2": mgm_c1[11],
+                    "p.c2.g1p": pgm_c2[0],
+                    "p.c2.g1m": pgm_c2[1],
+                    "p.c2.g1": pgm_c2[2],
+                    "p.c2.g2p": pgm_c2[3],
+                    "p.c2.g2m": pgm_c2[4],
+                    "p.c2.g2": pgm_c2[5],
+                    "p.c2.cg1p": pgm_c2[6],
+                    "p.c2.cg1m": pgm_c2[7],
+                    "p.c2.cg1": pgm_c2[8],
+                    "p.c2.cg2p": pgm_c2[9],
+                    "p.c2.cg2m": pgm_c2[10],
+                    "p.c2.cg2": pgm_c2[11],
+                    "m.c2.g1p": mgm_c2[0],
+                    "m.c2.g1m": mgm_c2[1],
+                    "m.c2.g1": mgm_c2[2],
+                    "m.c2.g2p": mgm_c2[3],
+                    "m.c2.g2m": mgm_c2[4],
+                    "m.c2.g2": mgm_c2[5],
+                    "m.c2.cg1p": mgm_c2[6],
+                    "m.c2.cg1m": mgm_c2[7],
+                    "m.c2.cg1": mgm_c2[8],
+                    "m.c2.cg2p": mgm_c2[9],
+                    "m.c2.cg2m": mgm_c2[10],
+                    "m.c2.cg2": mgm_c2[11],
                     "s2n_cut": s2n_cut,
                     "ormask_cut": 0 if ormask_cut else 1,
                     "mfrac_cut": -1,
@@ -906,6 +1032,7 @@ def measure_more_pairs(
                     ormask_cut=False,
                     mfrac_cut=mfrac_cut / 100,
                     model=model,
+                    color=color,
                 )
                 pgm_c1 = measure_shear_metadetect(
                     res_p_c1,
@@ -914,6 +1041,7 @@ def measure_more_pairs(
                     ormask_cut=False,
                     mfrac_cut=mfrac_cut/100,
                     model=model,
+                    color=color,
                 )
                 pgm_c2 = measure_shear_metadetect(
                     res_p_c2,
@@ -922,6 +1050,7 @@ def measure_more_pairs(
                     ormask_cut=False,
                     mfrac_cut=mfrac_cut/100,
                     model=model,
+                    color=color,
                 )
                 mgm_c0 = measure_shear_metadetect(
                     res_m_c0,
@@ -930,6 +1059,7 @@ def measure_more_pairs(
                     ormask_cut=False,
                     mfrac_cut=mfrac_cut/100,
                     model=model,
+                    color=color,
                 )
                 mgm_c1 = measure_shear_metadetect(
                     res_m_c1,
@@ -938,6 +1068,7 @@ def measure_more_pairs(
                     ormask_cut=False,
                     mfrac_cut=mfrac_cut/100,
                     model=model,
+                    color=color,
                 )
                 mgm_c2 = measure_shear_metadetect(
                     res_m_c2,
@@ -946,6 +1077,7 @@ def measure_more_pairs(
                     ormask_cut=False,
                     mfrac_cut=mfrac_cut/100,
                     model=model,
+                    color=color,
                 )
                 if pgm_c0 is None or pgm_c1 is None or pgm_c2 is None or mgm_c0 is None or mgm_c1 is None or mgm_c2 is None:
                     continue
@@ -962,42 +1094,78 @@ def measure_more_pairs(
                 #     "weight": wgt,
                 # })
                 data.append({
-                    "p.g1p.c0": pgm_c0[0],
-                    "p.g1m.c0": pgm_c0[1],
-                    "p.g1.c0": pgm_c0[2],
-                    "p.g2p.c0": pgm_c0[3],
-                    "p.g2m.c0": pgm_c0[4],
-                    "p.g2.c0": pgm_c0[5],
-                    "m.g1p.c0": mgm_c0[0],
-                    "m.g1m.c0": mgm_c0[1],
-                    "m.g1.c0": mgm_c0[2],
-                    "m.g2p.c0": mgm_c0[3],
-                    "m.g2m.c0": mgm_c0[4],
-                    "m.g2c.c0": mgm_c0[5],
-                    "p.g1p.c1": pgm_c1[0],
-                    "p.g1m.c1": pgm_c1[1],
-                    "p.g1.c1": pgm_c1[2],
-                    "p.g2p.c1": pgm_c1[3],
-                    "p.g2m.c1": pgm_c1[4],
-                    "p.g2.c1": pgm_c1[5],
-                    "m.g1p.c1": mgm_c1[0],
-                    "m.g1m.c1": mgm_c1[1],
-                    "m.g1.c1": mgm_c1[2],
-                    "m.g2p.c1": mgm_c1[3],
-                    "m.g2m.c1": mgm_c1[4],
-                    "m.g2c.c1": mgm_c1[5],
-                    "p.g1p.c2": pgm_c2[0],
-                    "p.g1m.c2": pgm_c2[1],
-                    "p.g1.c2": pgm_c2[2],
-                    "p.g2p.c2": pgm_c2[3],
-                    "p.g2m.c2": pgm_c2[4],
-                    "p.g2.c2": pgm_c2[5],
-                    "m.g1p.c2": mgm_c2[0],
-                    "m.g1m.c2": mgm_c2[1],
-                    "m.g1.c2": mgm_c2[2],
-                    "m.g2p.c2": mgm_c2[3],
-                    "m.g2m.c2": mgm_c2[4],
-                    "m.g2c.c2": mgm_c2[5],
+                    "p.c0.g1p": pgm_c0[0],
+                    "p.c0.g1m": pgm_c0[1],
+                    "p.c0.g1": pgm_c0[2],
+                    "p.c0.g2p": pgm_c0[3],
+                    "p.c0.g2m": pgm_c0[4],
+                    "p.c0.g2": pgm_c0[5],
+                    "p.c0.cg1p": pgm_c0[6],
+                    "p.c0.cg1m": pgm_c0[7],
+                    "p.c0.cg1": pgm_c0[8],
+                    "p.c0.cg2p": pgm_c0[9],
+                    "p.c0.cg2m": pgm_c0[10],
+                    "p.c0.cg2": pgm_c0[11],
+                    "m.c0.g1p": mgm_c0[0],
+                    "m.c0.g1m": mgm_c0[1],
+                    "m.c0.g1": mgm_c0[2],
+                    "m.c0.g2p": mgm_c0[3],
+                    "m.c0.g2m": mgm_c0[4],
+                    "m.c0.g2": mgm_c0[5],
+                    "m.c0.cg1p": mgm_c0[6],
+                    "m.c0.cg1m": mgm_c0[7],
+                    "m.c0.cg1": mgm_c0[8],
+                    "m.c0.cg2p": mgm_c0[9],
+                    "m.c0.cg2m": mgm_c0[10],
+                    "m.c0.cg2": mgm_c0[11],
+                    "p.c1.g1p": pgm_c1[0],
+                    "p.c1.g1m": pgm_c1[1],
+                    "p.c1.g1": pgm_c1[2],
+                    "p.c1.g2p": pgm_c1[3],
+                    "p.c1.g2m": pgm_c1[4],
+                    "p.c1.g2": pgm_c1[5],
+                    "p.c1.cg1p": pgm_c1[6],
+                    "p.c1.cg1m": pgm_c1[7],
+                    "p.c1.cg1": pgm_c1[8],
+                    "p.c1.cg2p": pgm_c1[9],
+                    "p.c1.cg2m": pgm_c1[10],
+                    "p.c1.cg2": pgm_c1[11],
+                    "m.c1.g1p": mgm_c1[0],
+                    "m.c1.g1m": mgm_c1[1],
+                    "m.c1.g1": mgm_c1[2],
+                    "m.c1.g2p": mgm_c1[3],
+                    "m.c1.g2m": mgm_c1[4],
+                    "m.c1.g2": mgm_c1[5],
+                    "m.c1.cg1p": mgm_c1[6],
+                    "m.c1.cg1m": mgm_c1[7],
+                    "m.c1.cg1": mgm_c1[8],
+                    "m.c1.cg2p": mgm_c1[9],
+                    "m.c1.cg2m": mgm_c1[10],
+                    "m.c1.cg2": mgm_c1[11],
+                    "p.c2.g1p": pgm_c2[0],
+                    "p.c2.g1m": pgm_c2[1],
+                    "p.c2.g1": pgm_c2[2],
+                    "p.c2.g2p": pgm_c2[3],
+                    "p.c2.g2m": pgm_c2[4],
+                    "p.c2.g2": pgm_c2[5],
+                    "p.c2.cg1p": pgm_c2[6],
+                    "p.c2.cg1m": pgm_c2[7],
+                    "p.c2.cg1": pgm_c2[8],
+                    "p.c2.cg2p": pgm_c2[9],
+                    "p.c2.cg2m": pgm_c2[10],
+                    "p.c2.cg2": pgm_c2[11],
+                    "m.c2.g1p": mgm_c2[0],
+                    "m.c2.g1m": mgm_c2[1],
+                    "m.c2.g1": mgm_c2[2],
+                    "m.c2.g2p": mgm_c2[3],
+                    "m.c2.g2m": mgm_c2[4],
+                    "m.c2.g2": mgm_c2[5],
+                    "m.c2.cg1p": mgm_c2[6],
+                    "m.c2.cg1m": mgm_c2[7],
+                    "m.c2.cg1": mgm_c2[8],
+                    "m.c2.cg2p": mgm_c2[9],
+                    "m.c2.cg2m": mgm_c2[10],
+                    "m.c2.cg2": mgm_c2[11],
                     "s2n_cut": s2n_cut,
                     "ormask_cut": 0 if ormask_cut else 1,
                     "mfrac_cut": -1,
@@ -1130,14 +1298,17 @@ def measure_pair_color_response(
         color_dep_mbobs=None,
     )
 
+    # calibrate chromatic response about the central color
+    color = colors[1]
     measurement = measure_more_pairs(
-        config,
         res_p_c0,
         res_p_c1,
         res_p_c2,
         res_m_c0,
         res_m_c1,
         res_m_c2,
+        config=config,
+        color=color,
     )
 
     return measurement
@@ -1320,7 +1491,8 @@ def estimate_biases(
 
 
 def measure_shear_metadetect(
-    res, *, s2n_cut, t_ratio_cut, ormask_cut, mfrac_cut, model
+    res, *, s2n_cut, t_ratio_cut, ormask_cut, mfrac_cut, model,
+    color=None
 ):
     """Measure the shear parameters for metadetect.
 
@@ -1380,40 +1552,71 @@ def measure_shear_metadetect(
     if not np.any(q):
         return None
     g1p = op[model + "_g"][q, 0]
+    if color is not None:
+        _f = op["wmom_band_flux"]
+        c_1p = f2c(_f[0], _f[2])
 
     om = res["1m"]
     q = _mask(om)
     if not np.any(q):
         return None
     g1m = om[model + "_g"][q, 0]
+    if color is not None:
+        _f = om["wmom_band_flux"]
+        c_1m = f2c(_f[0], _f[2])
 
     o = res["noshear"]
     q = _mask(o)
     if not np.any(q):
         return None
-    g1 = o[model + "_g"][q, 0]
-    g2 = o[model + "_g"][q, 1]
+    g1_ns = o[model + "_g"][q, 0]
+    g2_ns = o[model + "_g"][q, 1]
+    if color is not None:
+        _f = o["wmom_band_flux"]
+        c_ns = f2c(_f[0], _f[2])
 
     op = res["2p"]
     q = _mask(op)
     if not np.any(q):
         return None
     g2p = op[model + "_g"][q, 1]
+    if color is not None:
+        _f = op["wmom_band_flux"]
+        c_2p = f2c(_f[0], _f[2])
 
     om = res["2m"]
     q = _mask(om)
     if not np.any(q):
         return None
     g2m = om[model + "_g"][q, 1]
+    if color is not None:
+        _f = om["wmom_band_flux"]
+        c_2m = f2c(_f[0], _f[2])
 
-    return (
-        np.mean(g1p),
-        np.mean(g1m),
-        np.mean(g1),
-        np.mean(g2p),
-        np.mean(g2m),
-        np.mean(g2),
-    )
+    if color is not None:
+        return (
+            np.mean(g1p),
+            np.mean(g1m),
+            np.mean(g1_ns),
+            np.mean(g2p),
+            np.mean(g2m),
+            np.mean(g2_ns),
+            np.mean(g1p * (c_1p - color)),
+            np.mean(g1m * (c_1m - color)),
+            np.mean(g1_ns * (c_ns - color)),
+            np.mean(g2p * (c_2p - color)),
+            np.mean(g2m * (c_2m - color)),
+            np.mean(g2_ns * (c_ns - color)),
+        )
+    else:
+        return (
+            np.mean(g1p),
+            np.mean(g1m),
+            np.mean(g1_ns),
+            np.mean(g2p),
+            np.mean(g2m),
+            np.mean(g2_ns),
+        )
 
 
 def measure_pairs(config, res_p, res_m):
