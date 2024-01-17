@@ -1,18 +1,13 @@
 import argparse
-from pathlib import Path
 
 import ngmix
 import numpy as np
 import matplotlib.pyplot as plt
-import fitsio as fits
-import tqdm
 import joblib
-import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
-import pyarrow.parquet as pq
+import tqdm
 
-from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
 
 
@@ -217,8 +212,19 @@ def get_args():
         "--mfrac-cut", type=int, default=None,
         help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
     )
-    parser.add_argument("--output", type=str, required=True, help="Output directory")
-    parser.add_argument("--n_resample", type=int, required=False, default=1000, help="Number of resample iterations")
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=True,
+        help="Output directory"
+    )
+    parser.add_argument(
+        "--n_resample",
+        type=int,
+        required=False,
+        default=1000,
+        help="Number of resample iterations"
+    )
     parser.add_argument(
         "--n_jobs",
         type=int,
@@ -234,12 +240,13 @@ if __name__ == "__main__":
 
     config = args.config
     seed = args.seed
-    n_sims = args.n_sims
     n_jobs = args.n_jobs
 
     pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
     print("seed:", seed)
+
+    rng = np.random.default_rng(seed)
 
     measure_config = pipeline.config.get("measure")
     measure_type = measure_config.get("type")
@@ -261,17 +268,8 @@ if __name__ == "__main__":
             case _:
                 raise ValueError(f"Colors type {colors_type} not valid!")
 
-    #placeholder
-
     dg = ngmix.metacal.DEFAULT_STEP
     dc = (chroma_colors[2] - chroma_colors[0]) / 2.
-
-    # dg = 0.01
-    # dc = 0.5
-    # dc = (1.5550565719604492 - 0.2306804656982422) / 2.
-    path = Path("/pscratch/sd/s/smau/drdc/mag-20-many")
-    pfile = next(path.glob("*plus.fits")).as_posix()
-    mfile = next(path.glob("*minus.fits")).as_posix()
 
     dataset = ds.dataset(args.output, format="arrow")
     predicate = \
@@ -291,8 +289,14 @@ if __name__ == "__main__":
         for batch in batches
     ]
 
-    with joblib.Parallel(n_jobs=32, backend="loky", verbose=10) as par:
-        m_bootstrap = par(jobs)
+    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
+        m_chunks = parallel(jobs)
+
+    m_bootstrap = []
+    for i in tqdm.trange(args.n_resample, ncols=80):
+        m_resample = rng.choice(m_chunks, size=len(m_chunks), replace=True)
+        m_bootstrap.append(m_resample)
+    m_bootstrap = np.array(m_bootstrap)
 
     m_mean = np.mean(m_bootstrap)
     m_std = np.std(m_bootstrap)
@@ -307,8 +311,14 @@ if __name__ == "__main__":
         for batch in batches
     ]
 
-    with joblib.Parallel(n_jobs=4, backend="loky", verbose=10) as par:
-        m_bootstrap_chroma = par(jobs)
+    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
+        m_chunks_chroma = parallel(jobs)
+
+    m_bootstrap_chroma = []
+    for i in tqdm.trange(args.n_resample, ncols=80):
+        m_resample_chroma = rng.choice(m_chunks_chroma, size=len(m_chunks_chroma), replace=True)
+        m_bootstrap_chroma.append(m_resample_chroma)
+    m_bootstrap_chroma = np.array(m_bootstrap_chroma)
 
     m_mean_chroma = np.mean(m_bootstrap_chroma)
     m_std_chroma = np.std(m_bootstrap_chroma)
