@@ -1517,8 +1517,8 @@ def measure_shear_metadetect(
         return None
     g1p = op[model + "_g"][q, 0]
     if color is not None:
-        _f = op["wmom_band_flux"]
-        c_1p = f2c(_f[0], _f[2])
+        _f = op["wmom_band_flux"][q]
+        c_1p = f2c(_f[:, 0], _f[:, 2])
 
     om = res["1m"]
     q = _mask(om)
@@ -1526,8 +1526,8 @@ def measure_shear_metadetect(
         return None
     g1m = om[model + "_g"][q, 0]
     if color is not None:
-        _f = om["wmom_band_flux"]
-        c_1m = f2c(_f[0], _f[2])
+        _f = om["wmom_band_flux"][q]
+        c_1m = f2c(_f[:, 0], _f[:, 2])
 
     o = res["noshear"]
     q = _mask(o)
@@ -1536,8 +1536,8 @@ def measure_shear_metadetect(
     g1_ns = o[model + "_g"][q, 0]
     g2_ns = o[model + "_g"][q, 1]
     if color is not None:
-        _f = o["wmom_band_flux"]
-        c_ns = f2c(_f[0], _f[2])
+        _f = o["wmom_band_flux"][q]
+        c_ns = f2c(_f[:, 0], _f[:, 2])
 
     op = res["2p"]
     q = _mask(op)
@@ -1545,8 +1545,8 @@ def measure_shear_metadetect(
         return None
     g2p = op[model + "_g"][q, 1]
     if color is not None:
-        _f = op["wmom_band_flux"]
-        c_2p = f2c(_f[0], _f[2])
+        _f = op["wmom_band_flux"][q]
+        c_2p = f2c(_f[:, 0], _f[:, 2])
 
     om = res["2m"]
     q = _mask(om)
@@ -1554,8 +1554,8 @@ def measure_shear_metadetect(
         return None
     g2m = om[model + "_g"][q, 1]
     if color is not None:
-        _f = om["wmom_band_flux"]
-        c_2m = f2c(_f[0], _f[2])
+        _f = om["wmom_band_flux"][q]
+        c_2m = f2c(_f[:, 0], _f[:, 2])
 
     if color is not None:
         return (

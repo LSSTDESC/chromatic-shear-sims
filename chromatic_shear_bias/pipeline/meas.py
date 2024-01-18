@@ -138,6 +138,80 @@ def compute_dRdc(batch, dg, dc, alt=False):
 
     #--------------------------------------------------------------------------
 
+    # c0 -----------------------------------------------------------------------
+
+    # NOSHEAR
+    m_c0_g1_ns = np.nanmean(batch["m.c0.g1"])
+    m_c0_g2_ns = np.nanmean(batch["m.c0.g2"])
+    m_c0_cg1_ns = np.nanmean(batch["m.c0.cg1"])
+    m_c0_cg2_ns = np.nanmean(batch["m.c0.cg2"])
+
+    # 1p
+    m_c0_g1_p = np.nanmean(batch["m.c0.g1p"])
+    m_c0_cg1_p = np.nanmean(batch["m.c0.cg1p"])
+
+    # 1m
+    m_c0_g1_m = np.nanmean(batch["m.c0.g1m"])
+    m_c0_cg1_m = np.nanmean(batch["m.c0.cg1m"])
+
+    # 2p
+    m_c0_g2_p = np.nanmean(batch["m.c0.g2p"])
+    m_c0_cg2_p = np.nanmean(batch["m.c0.cg2p"])
+
+    # 2m
+    m_c0_g2_m = np.nanmean(batch["m.c0.g2m"])
+    m_c0_cg2_m = np.nanmean(batch["m.c0.cg2m"])
+
+    # c1 -----------------------------------------------------------------------
+
+    # NOSHEAR
+    m_c1_g1_ns = np.nanmean(batch["m.c1.g1"])
+    m_c1_g2_ns = np.nanmean(batch["m.c1.g2"])
+    m_c1_cg1_ns = np.nanmean(batch["m.c1.cg1"])
+    m_c1_cg2_ns = np.nanmean(batch["m.c1.cg2"])
+
+    # 1p
+    m_c1_g1_p = np.nanmean(batch["m.c1.g1p"])
+    m_c1_cg1_p = np.nanmean(batch["m.c1.cg1p"])
+
+    # 1m
+    m_c1_g1_m = np.nanmean(batch["m.c1.g1m"])
+    m_c1_cg1_m = np.nanmean(batch["m.c1.cg1m"])
+
+    # 2p
+    m_c1_g2_p = np.nanmean(batch["m.c1.g2p"])
+    m_c1_cg2_p = np.nanmean(batch["m.c1.cg2p"])
+
+    # 2m
+    m_c1_g2_m = np.nanmean(batch["m.c1.g2m"])
+    m_c1_cg2_m = np.nanmean(batch["m.c1.cg2m"])
+
+    # c2 -----------------------------------------------------------------------
+
+    # NOSHEAR
+    m_c2_g1_ns = np.nanmean(batch["m.c2.g1"])
+    m_c2_g2_ns = np.nanmean(batch["m.c2.g2"])
+    m_c2_cg1_ns = np.nanmean(batch["m.c2.cg1"])
+    m_c2_cg2_ns = np.nanmean(batch["m.c2.cg2"])
+
+    # 1p
+    m_c2_g1_p = np.nanmean(batch["m.c2.g1p"])
+    m_c2_cg1_p = np.nanmean(batch["m.c2.cg1p"])
+
+    # 1m
+    m_c2_g1_m = np.nanmean(batch["m.c2.g1m"])
+    m_c2_cg1_m = np.nanmean(batch["m.c2.cg1m"])
+
+    # 2p
+    m_c2_g2_p = np.nanmean(batch["m.c2.g2p"])
+    m_c2_cg2_p = np.nanmean(batch["m.c2.cg2p"])
+
+    # 2m
+    m_c2_g2_m = np.nanmean(batch["m.c2.g2m"])
+    m_c2_cg2_m = np.nanmean(batch["m.c2.cg2m"])
+
+    #--------------------------------------------------------------------------
+
     if not alt:
         return (
             np.array(
@@ -209,7 +283,7 @@ def get_args():
         help="Cut to make on ormask. 0 indicates make a cut, 1 indicates no cut.",
     )
     parser.add_argument(
-        "--mfrac-cut", type=int, default=None,
+        "--mfrac-cut", type=float, default=None,
         help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
     )
     parser.add_argument(
@@ -245,6 +319,7 @@ if __name__ == "__main__":
     pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
     print("seed:", seed)
+    pipeline.load()
 
     rng = np.random.default_rng(seed)
 
@@ -263,7 +338,7 @@ if __name__ == "__main__":
                 # TODO add config for number of colors here...
                 chroma_colors = np.linspace(colors_min, colors_max, 3)
             case "centered":
-                median = pipeline.galaxies.aggregate.get("median_color")
+                median = pipeline.galaxies.aggregate.get("median_color")[0]
                 chroma_colors = [median - 0.1, median, median + 0.1]
             case _:
                 raise ValueError(f"Colors type {colors_type} not valid!")
@@ -296,7 +371,7 @@ if __name__ == "__main__":
     for i in tqdm.trange(args.n_resample, ncols=80):
         m_resample = rng.choice(m_chunks, size=len(m_chunks), replace=True)
         m_bootstrap.append(m_resample)
-    m_bootstrap = np.array(m_bootstrap)
+    m_bootstrap = np.concatenate(m_bootstrap)
 
     m_mean = np.mean(m_bootstrap)
     m_std = np.std(m_bootstrap)
@@ -318,7 +393,7 @@ if __name__ == "__main__":
     for i in tqdm.trange(args.n_resample, ncols=80):
         m_resample_chroma = rng.choice(m_chunks_chroma, size=len(m_chunks_chroma), replace=True)
         m_bootstrap_chroma.append(m_resample_chroma)
-    m_bootstrap_chroma = np.array(m_bootstrap_chroma)
+    m_bootstrap_chroma = np.concatenate(m_bootstrap_chroma)
 
     m_mean_chroma = np.mean(m_bootstrap_chroma)
     m_std_chroma = np.std(m_bootstrap_chroma)
@@ -329,7 +404,7 @@ if __name__ == "__main__":
     plt.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     plt.axvline(4e-4, c="k", alpha=0.1, ls="--")
     plt.hist(m_bootstrap, histtype="step", label="R", ec="k")
-    plt.hist(m_bootstrap_chroma, histtype="step", label="R \& dR/dc", ec="b")
+    plt.hist(m_bootstrap_chroma, histtype="step", label="R & dR/dc", ec="b")
     plt.axvline(m_mean, c="k")
     plt.axvline(m_mean_chroma, c="b")
     plt.legend()
