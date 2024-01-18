@@ -10,7 +10,9 @@ from lsstdesc_diffsky import read_diffskypop_params
 from lsstdesc_diffsky.defaults import OUTER_RIM_COSMO_PARAMS
 from lsstdesc_diffsky.io_utils.load_diffsky_healpixel import ALL_DIFFSKY_PNAMES
 from lsstdesc_diffsky.io_utils import load_diffsky_params
-from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
+# from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
+from lsstdesc_diffsky.legacy.roman_rubin_2023.dsps.data_loaders.load_ssp_data import load_ssp_templates_singlemet
+from lsstdesc_diffsky.sed.disk_bulge_sed_kernels_singlemet import calc_rest_sed_disk_bulge_knot_galpop
 
 
 def make_gal(
@@ -175,7 +177,8 @@ class RomanRubinBuilder:
         self.ssp_templates=ssp_templates
 
         self.all_diffskypop_params = read_diffskypop_params(self.diffskypop_params)
-        self.ssp_data = load_ssp_templates(fn=ssp_templates)
+        # self.ssp_data = load_ssp_templates(fn=ssp_templates)
+        self.ssp_data = load_ssp_templates_singlemet(fn=ssp_templates)
 
         morph_columns = [
            "redshift",
