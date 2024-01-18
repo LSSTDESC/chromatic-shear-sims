@@ -17,30 +17,6 @@ CHROMATIC_MEASURES = {
 }
 
 
-# def f2c(f_g, f_i, zp_g=28.38, zp_i=27.85):
-#     return -2.5 * np.log10(np.divide(f_g, f_i)) + zp_g - zp_i
-
-
-# def _mask(data, s2n_cut, ormask_cut, mfrac_cut):
-#     model = "wmom"
-#     t_ratio_cut = 1.2
-#     if "flags" in data.dtype.names:
-#         flag_col = "flags"
-#     else:
-#         flag_col = model + "_flags"
-# 
-#     _cut_msk = (
-#         (data[flag_col] == 0)
-#         & (data[model + "_s2n"] > s2n_cut)
-#         & (data[model + "_T_ratio"] > t_ratio_cut)
-#     )
-#     if ormask_cut:
-#         _cut_msk = _cut_msk & (data["ormask"] == 0)
-#     if mfrac_cut is not None:
-#         _cut_msk = _cut_msk & (data["mfrac"] <= mfrac_cut)
-#     return _cut_msk
-
-
 def compute_e(batch):
     # NOSHEAR
     p_c1_g1_ns = np.nanmean(batch["p.c1.g1"])
@@ -245,14 +221,15 @@ def compute_m(batch, dg, dc):
     return (e_p[0] - e_m[0]) / (R_p[0, 0] + R_m[0, 0]) / 0.02 - 1
 
 
-def compute_m_chromatic(batch, dg, dc):
+def compute_m_chromatic(batch, dg, dc, alt=False):
     e_p, e_m = compute_e(batch)
 
     R_p, R_m = compute_R(batch, dg)
 
-    dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc)
+    dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc, alt=alt)
 
     return (e_p[0] - e_m[0]) / (R_p[0, 0] + dRdc_p[0, 0] + R_m[0, 0] + dRdc_m[0, 0]) / 0.02 - 1
+    # return (e_p[0] / (R_p[0, 0] + dRdc_p[0, 0]) / 2 -  e_m[0] / (R_m[0, 0] + dRdc_m[0, 0]) / 2)  / 0.02 - 1
     # return (
     #     (np.linalg.inv(R_p + dRdc_p) @ e_p)[0] / 2
     #     - (np.linalg.inv(R_m + dRdc_m) @ e_m)[0] / 2
@@ -373,16 +350,14 @@ if __name__ == "__main__":
         m_bootstrap.append(m_resample)
     m_bootstrap = np.concatenate(m_bootstrap)
 
-    m_mean = np.mean(m_bootstrap)
-    m_std = np.std(m_bootstrap)
+    m_mean = np.nanmean(m_bootstrap)
+    m_std = np.nanstd(m_bootstrap)
 
     print("mdet: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_std * 3))
 
-    rng = np.random.default_rng(1)
-
     batches = dataset.to_batches(filter=predicate)
     jobs = [
-        joblib.delayed(compute_m_chromatic)(batch, dg, dc)
+        joblib.delayed(compute_m_chromatic)(batch, dg, dc, alt=False)
         for batch in batches
     ]
 
@@ -395,8 +370,8 @@ if __name__ == "__main__":
         m_bootstrap_chroma.append(m_resample_chroma)
     m_bootstrap_chroma = np.concatenate(m_bootstrap_chroma)
 
-    m_mean_chroma = np.mean(m_bootstrap_chroma)
-    m_std_chroma = np.std(m_bootstrap_chroma)
+    m_mean_chroma = np.nanmean(m_bootstrap_chroma)
+    m_std_chroma = np.nanstd(m_bootstrap_chroma)
 
     print("drdc: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean_chroma, m_std_chroma * 3))
 

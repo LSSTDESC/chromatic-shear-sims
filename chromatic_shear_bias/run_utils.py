@@ -44,7 +44,17 @@ def get_sky_rms(exposure_time, zeropoint, sky_brightness, pixel_scale):
     return sky_level_pixel**(1/2)
 
 
-def f2c(f_1, f_2, zp_1=30, zp_2=30):
+def get_AB_zeropoint(bandpass):
+    # from galsim.Bandpass.withZeropoint
+    AB_source = 3631e-23 # 3631 Jy in units of erg/s/Hz/cm^2
+    AB_sed = galsim.SED(lambda wave: AB_source, wave_type='nm', flux_type='fnu')
+    AB_flux = AB_sed.calculateFlux(bandpass)
+    AB_zeropoint = 2.5 * np.log10(AB_flux)
+
+    return AB_zeropoint
+
+
+def f2c(f_1, f_2, zp_1, zp_2):
     return -2.5 * np.log10(np.divide(f_1, f_2)) + zp_1 - zp_2
 
 
@@ -61,6 +71,7 @@ def _get_dtype():
     dtype.append(("weight", "f8"))
 
     return dtype
+
 
 def _get_type():
     return pa.struct([
@@ -838,6 +849,7 @@ def measure_more_pairs(
                     mfrac_cut=None,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 pgm_c1 = measure_shear_metadetect(
                     res_p_c1,
@@ -847,6 +859,7 @@ def measure_more_pairs(
                     mfrac_cut=None,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 pgm_c2 = measure_shear_metadetect(
                     res_p_c2,
@@ -856,6 +869,7 @@ def measure_more_pairs(
                     mfrac_cut=None,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 mgm_c0 = measure_shear_metadetect(
                     res_m_c0,
@@ -865,6 +879,7 @@ def measure_more_pairs(
                     mfrac_cut=None,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 mgm_c1 = measure_shear_metadetect(
                     res_m_c1,
@@ -874,6 +889,7 @@ def measure_more_pairs(
                     mfrac_cut=None,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 mgm_c2 = measure_shear_metadetect(
                     res_m_c2,
@@ -883,6 +899,7 @@ def measure_more_pairs(
                     mfrac_cut=None,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 if pgm_c0 is None or pgm_c1 is None or pgm_c2 is None or mgm_c0 is None or mgm_c1 is None or mgm_c2 is None:
                     continue
@@ -997,6 +1014,7 @@ def measure_more_pairs(
                     mfrac_cut=mfrac_cut / 100,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 pgm_c1 = measure_shear_metadetect(
                     res_p_c1,
@@ -1006,6 +1024,7 @@ def measure_more_pairs(
                     mfrac_cut=mfrac_cut/100,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 pgm_c2 = measure_shear_metadetect(
                     res_p_c2,
@@ -1015,6 +1034,7 @@ def measure_more_pairs(
                     mfrac_cut=mfrac_cut/100,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 mgm_c0 = measure_shear_metadetect(
                     res_m_c0,
@@ -1024,6 +1044,7 @@ def measure_more_pairs(
                     mfrac_cut=mfrac_cut/100,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 mgm_c1 = measure_shear_metadetect(
                     res_m_c1,
@@ -1033,6 +1054,7 @@ def measure_more_pairs(
                     mfrac_cut=mfrac_cut/100,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 mgm_c2 = measure_shear_metadetect(
                     res_m_c2,
@@ -1042,6 +1064,7 @@ def measure_more_pairs(
                     mfrac_cut=mfrac_cut/100,
                     model=model,
                     color=color,
+                    bands=[2, 0],
                 )
                 if pgm_c0 is None or pgm_c1 is None or pgm_c2 is None or mgm_c0 is None or mgm_c1 is None or mgm_c2 is None:
                     continue
@@ -1456,7 +1479,7 @@ def estimate_biases(
 
 def measure_shear_metadetect(
     res, *, s2n_cut, t_ratio_cut, ormask_cut, mfrac_cut, model,
-    color=None
+    color=None, bands=None
 ):
     """Measure the shear parameters for metadetect.
 
@@ -1493,6 +1516,19 @@ def measure_shear_metadetect(
     g2 : float
         The mean 2-component shape for the zero-shear metadetect measurement.
     """
+    if color is not None and bands is not None:
+        assert len(bands) == 2
+        assert bands == sorted(bands, reverse=True)
+        bps = [
+            galsim.Bandpass(f"LSST_{band}.dat", wave_type="nm").withZeropoint("AB")
+            for band in ["u", "g", "r", "i", "z", "y"]
+        ]
+        bp_0 = bps[bands[0]]
+        bp_1 = bps[bands[1]]
+        # FIXME: better solution would be to pass in the survey object; then,
+        #        get zeropoint with survey.bandpasses[...].zeropoint
+        zp_0 = get_AB_zeropoint(bp_0)
+        zp_1 = get_AB_zeropoint(bp_1)
 
     def _mask(data):
         if "flags" in data.dtype.names:
@@ -1516,18 +1552,20 @@ def measure_shear_metadetect(
     if not np.any(q):
         return None
     g1p = op[model + "_g"][q, 0]
-    if color is not None:
-        _f = op["wmom_band_flux"][q]
-        c_1p = f2c(_f[:, 0], _f[:, 2])
+    if color is not None and bands is not None:
+        f_0 = op["wmom_band_flux"][q, bands[0]]
+        f_1 = op["wmom_band_flux"][q, bands[1]]
+        c_1p = f2c(f_0, f_1, zp_0, zp_1)
 
     om = res["1m"]
     q = _mask(om)
     if not np.any(q):
         return None
     g1m = om[model + "_g"][q, 0]
-    if color is not None:
-        _f = om["wmom_band_flux"][q]
-        c_1m = f2c(_f[:, 0], _f[:, 2])
+    if color is not None and bands is not None:
+        f_0 = om["wmom_band_flux"][q, bands[0]]
+        f_1 = om["wmom_band_flux"][q, bands[1]]
+        c_1m = f2c(f_0, f_1, zp_0, zp_1)
 
     o = res["noshear"]
     q = _mask(o)
@@ -1535,29 +1573,32 @@ def measure_shear_metadetect(
         return None
     g1_ns = o[model + "_g"][q, 0]
     g2_ns = o[model + "_g"][q, 1]
-    if color is not None:
-        _f = o["wmom_band_flux"][q]
-        c_ns = f2c(_f[:, 0], _f[:, 2])
+    if color is not None and bands is not None:
+        f_0 = o["wmom_band_flux"][q, bands[0]]
+        f_1 = o["wmom_band_flux"][q, bands[1]]
+        c_ns = f2c(f_0, f_1, zp_0, zp_1)
 
     op = res["2p"]
     q = _mask(op)
     if not np.any(q):
         return None
     g2p = op[model + "_g"][q, 1]
-    if color is not None:
-        _f = op["wmom_band_flux"][q]
-        c_2p = f2c(_f[:, 0], _f[:, 2])
+    if color is not None and bands is not None:
+        f_0 = op["wmom_band_flux"][q, bands[0]]
+        f_1 = op["wmom_band_flux"][q, bands[1]]
+        c_2p = f2c(f_0, f_1, zp_0, zp_1)
 
     om = res["2m"]
     q = _mask(om)
     if not np.any(q):
         return None
     g2m = om[model + "_g"][q, 1]
-    if color is not None:
-        _f = om["wmom_band_flux"][q]
-        c_2m = f2c(_f[:, 0], _f[:, 2])
+    if color is not None and bands is not None:
+        f_0 = om["wmom_band_flux"][q, bands[0]]
+        f_1 = om["wmom_band_flux"][q, bands[1]]
+        c_2m = f2c(f_0, f_1, zp_0, zp_1)
 
-    if color is not None:
+    if color is not None and bands is not None:
         return (
             np.mean(g1p),
             np.mean(g1m),
