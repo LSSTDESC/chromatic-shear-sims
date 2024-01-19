@@ -21,15 +21,14 @@ CHROMATIC_MEASURES = {
 }
 
 
-def run_pipeline(pipeline, seed=None):
+def run_pipeline(config, seed=None):
     rng = np.random.default_rng(seed)
 
-    # pipeline = Pipeline(config)
+    pipeline = Pipeline(config)
 
-    # pipeline.load()
-    # pipeline.load_galaxies()
-    # pipeline.save(overwrite=True)
-    # pipeline.load_stars()
+    pipeline.load()
+    pipeline.load_galaxies()
+    pipeline.load_stars()
     # pipeline.save(overwrite=True)
 
     measure_config = pipeline.config.get("measure")
@@ -302,7 +301,7 @@ if __name__ == "__main__":
     for seed in rng.integers(1, 2**32, n_sims):
         jobs.append(
             joblib.delayed(run_pipeline)(
-                pipeline, seed=seed
+                config, seed=seed
             )
         )
     # with joblib.Parallel(n_jobs=n_jobs, verbose=100, return_as="generator") as parallel:

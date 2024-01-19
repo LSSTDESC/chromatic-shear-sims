@@ -48,7 +48,7 @@ class Pipeline:
     def load(self):
         exists = os.path.exists(self.stash)
         if exists:
-            # print(f"loading pipeline from {self.stash}...")
+            print(f"loading pipeline from {self.stash}...")
             with open(self.stash, "rb") as fobj:
                 stash = pickle.load(fobj)
 

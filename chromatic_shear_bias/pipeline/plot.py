@@ -26,9 +26,8 @@ def run_pipeline(config, seed=None, detect=False):
     pipeline = Pipeline(config)
 
     pipeline.load()
-    # pipeline.load_galaxies()
-    # pipeline.save(overwrite=True)
-    # pipeline.load_stars()
+    pipeline.load_galaxies()
+    pipeline.load_stars()
     # pipeline.save(overwrite=True)
 
     measure_config = pipeline.config.get("measure")

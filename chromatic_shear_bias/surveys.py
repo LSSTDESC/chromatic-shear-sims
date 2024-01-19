@@ -37,7 +37,7 @@ class Survey:
         #     for f in self.sky.keys()
         # }
         return {
-            f: 1e-7
+            f: 1e-9
             for f in self.sky.keys()
         }
 
