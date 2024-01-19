@@ -346,7 +346,7 @@ if __name__ == "__main__":
         for batch in batches
     ]
 
-    with joblib.Parallel(n_jobs=n_jobs) as parallel:
+    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
         m_chunks = parallel(jobs)
 
     m_bootstrap = []
@@ -366,7 +366,7 @@ if __name__ == "__main__":
         for batch in batches
     ]
 
-    with joblib.Parallel(n_jobs=n_jobs) as parallel:
+    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
         m_chunks_chroma = parallel(jobs)
 
     m_bootstrap_chroma = []
