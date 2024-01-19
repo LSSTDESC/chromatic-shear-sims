@@ -3,7 +3,6 @@ import copy
 import os
 
 import galsim
-import joblib
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -61,6 +60,9 @@ def run_pipeline(config, seed=None, detect=False):
                 colors_max = pipeline.galaxies.aggregate.get("max_color")[0]
                 # TODO add config for number of colors here...
                 chroma_colors = np.linspace(colors_min, colors_max, 3)
+            case "centered":
+                median = pipeline.galaxies.aggregate.get("median_color")[0]
+                chroma_colors = [median - 0.1, median, median + 0.1]
             case _:
                 raise ValueError(f"Colors type {colors_type} not valid!")
 
@@ -370,24 +372,19 @@ if __name__ == "__main__":
     print("image:", pipeline.config.get("image"))
     print("scene:", pipeline.config.get("scene"))
 
+    pipeline.load()
     pipeline.load_galaxies()
     pipeline.load_stars()
-    pipeline.save(overwrite=True)
 
     print("galxies:", pipeline.galaxies.aggregate)
     print("stars:", pipeline.stars.aggregate)
 
     rng = np.random.default_rng(seed)
 
-    jobs = []
     for seed in rng.integers(1, 2**32, n_sims):
-        jobs.append(
-            joblib.delayed(run_pipeline)(
-                config, seed=seed, detect=detect
-            )
+        run_pipeline(
+            config, seed=seed, detect=detect
         )
-    with joblib.Parallel(n_jobs=1, verbose=100) as parallel:
-        parallel(jobs)
 
     print("done!")
 

@@ -31,8 +31,8 @@ if __name__ == "__main__":
     print("pipeline:", pipeline.name)
 
     pipeline.load_galaxies()
-    pipeline.save(overwrite=True)
     pipeline.load_stars()
+
     pipeline.save(overwrite=True)
 
     print("galxies:", pipeline.galaxies.aggregate)
