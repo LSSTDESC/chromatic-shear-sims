@@ -298,10 +298,10 @@ if __name__ == "__main__":
     rng = np.random.default_rng(seed)
 
     jobs = []
-    for seed in rng.integers(1, 2**32, n_sims):
+    for _seed in rng.integers(1, 2**32, n_sims):
         jobs.append(
             joblib.delayed(run_pipeline)(
-                config, seed=seed
+                config, seed=_seed
             )
         )
     # with joblib.Parallel(n_jobs=n_jobs, verbose=100, return_as="generator") as parallel:
