@@ -227,6 +227,11 @@ def compute_m_chromatic(batch, dg, dc, alt=False):
     R_p, R_m = compute_R(batch, dg)
 
     dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc, alt=alt)
+    # TODO average both forms of the derivative -- is this a better measure?
+    # dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc, alt=False)
+    # dRdc_p_alt, dRdc_m_alt = compute_dRdc(batch, dg, dc, alt=True)
+    # dRdc_p = 0.5 * (dRdc_p + dRdc_p_alt)
+    # dRdc_m = 0.5 * (dRdc_m + dRdc_m_alt)
 
     return (e_p[0] - e_m[0]) / (R_p[0, 0] + dRdc_p[0, 0] + R_m[0, 0] + dRdc_m[0, 0]) / 0.02 - 1
     # return (e_p[0] / (R_p[0, 0] + dRdc_p[0, 0]) / 2 -  e_m[0] / (R_m[0, 0] + dRdc_m[0, 0]) / 2)  / 0.02 - 1
@@ -341,19 +346,19 @@ if __name__ == "__main__":
         for batch in batches
     ]
 
-    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
+    with joblib.Parallel(n_jobs=n_jobs) as parallel:
         m_chunks = parallel(jobs)
 
     m_bootstrap = []
     for i in tqdm.trange(args.n_resample, ncols=80):
         m_resample = rng.choice(m_chunks, size=len(m_chunks), replace=True)
-        m_bootstrap.append(m_resample)
-    m_bootstrap = np.concatenate(m_bootstrap)
+        m_bootstrap.append(np.nanmean(m_resample))
+    m_bootstrap = np.array(m_bootstrap)
 
     m_mean = np.nanmean(m_bootstrap)
-    m_std = np.nanstd(m_bootstrap)
+    m_error = np.nanstd(m_bootstrap)
 
-    print("mdet: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_std * 3))
+    print("mdet: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_error * 3))
 
     batches = dataset.to_batches(filter=predicate)
     jobs = [
@@ -361,19 +366,19 @@ if __name__ == "__main__":
         for batch in batches
     ]
 
-    with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
+    with joblib.Parallel(n_jobs=n_jobs) as parallel:
         m_chunks_chroma = parallel(jobs)
 
     m_bootstrap_chroma = []
     for i in tqdm.trange(args.n_resample, ncols=80):
         m_resample_chroma = rng.choice(m_chunks_chroma, size=len(m_chunks_chroma), replace=True)
-        m_bootstrap_chroma.append(m_resample_chroma)
-    m_bootstrap_chroma = np.concatenate(m_bootstrap_chroma)
+        m_bootstrap_chroma.append(np.nanmean(m_resample_chroma))
+    m_bootstrap_chroma = np.array(m_bootstrap_chroma)
 
     m_mean_chroma = np.nanmean(m_bootstrap_chroma)
-    m_std_chroma = np.nanstd(m_bootstrap_chroma)
+    m_error_chroma = np.nanstd(m_bootstrap_chroma)
 
-    print("drdc: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean_chroma, m_std_chroma * 3))
+    print("drdc: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean_chroma, m_error_chroma * 3))
 
     m_req = 0.002
     plt.axvspan(-m_req, m_req, fc="k", alpha=0.1)
