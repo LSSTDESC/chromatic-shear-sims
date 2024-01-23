@@ -101,11 +101,11 @@ class Pipeline:
         measure_type = measure_config.get("type")
         match measure_type:
             case "metadetect":
-                schema = run_utils._get_schema()
+                schema = run_utils._mdet_schema
             case "chromatic_metadetect":
-                schema = run_utils._get_schema()
+                schema = run_utils._mdet_schema
             case "drdc":
-                schema = run_utils._get_schema(drdc=True)
+                schema = run_utils._chromatic_schema
             case _:
                 raise ValueError(f"Measure type {measure_type} has no registered schema!")
 

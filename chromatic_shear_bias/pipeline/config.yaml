@@ -137,6 +137,5 @@ metadetect:
         rad_min: 4
 
 output:
-    path: /pscratch/sd/s/smau/out
     format: arrow
     partitioning: None

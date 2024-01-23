@@ -1,6 +1,7 @@
 import argparse
 import copy
 import os
+from itertools import chain
 
 import galsim
 import joblib
@@ -13,6 +14,43 @@ import yaml
 
 from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
+
+# import time
+# from psutil import Process
+# from threading import Thread
+# 
+# # FIXME
+# class MemoryMonitor(Thread):
+#     """Monitor the memory usage in MB in a separate thread.
+# 
+#     Note that this class is good enough to highlight the memory profile of
+#     Parallel in this example, but is not a general purpose profiler fit for
+#     all cases.
+#     """
+#     def __init__(self):
+#         super().__init__()
+#         self.stop = False
+#         self.memory_buffer = []
+#         self.start()
+# 
+#     def get_memory(self):
+#         "Get memory of a process and its children."
+#         p = Process()
+#         memory = p.memory_info().rss
+#         for c in p.children():
+#             memory += c.memory_info().rss
+#         return memory
+# 
+#     def run(self):
+#         memory_start = self.get_memory()
+#         while not self.stop:
+#             self.memory_buffer.append(self.get_memory() - memory_start)
+#             time.sleep(0.2)
+# 
+#     def join(self):
+#         self.stop = True
+#         super().join()
+# #FIXME
 
 
 CHROMATIC_MEASURES = {
@@ -169,6 +207,7 @@ def run_pipeline(config, seed=None):
         case "metadetect":
             shear_bands = measure_config.get("shear_bands")
             det_bands = measure_config.get("det_bands")
+            # FIXME return batches...
             measurement = run_utils.measure_pair(
                 pair,
                 shear_bands,
@@ -179,6 +218,7 @@ def run_pipeline(config, seed=None):
         case "chromatic_metadetect":
             shear_bands = measure_config.get("shear_bands")
             det_bands = measure_config.get("det_bands")
+            # FIXME return batches...
             measurement = run_utils.measure_pair_color(
                 pair,
                 psf,
@@ -195,7 +235,20 @@ def run_pipeline(config, seed=None):
         case "drdc":
             shear_bands = measure_config.get("shear_bands")
             det_bands = measure_config.get("det_bands")
-            measurement = run_utils.measure_pair_color_response(
+            # measurement = run_utils.measure_pair_color_response(
+            #     lsst,
+            #     pair,
+            #     psf,
+            #     chroma_colors,
+            #     chroma_stars,
+            #     image_config["psf_size"],
+            #     bands,
+            #     shear_bands,
+            #     det_bands,
+            #     pipeline.metadetect_config,
+            #     meas_seed,
+            # )
+            batches = run_utils.run_pair_color_response(
                 lsst,
                 pair,
                 psf,
@@ -211,14 +264,7 @@ def run_pipeline(config, seed=None):
         case _:
             raise ValueError(f"Measure type {measure_type} not valid!")
 
-    schema = pipeline.get_schema()
-
-    batch = pa.RecordBatch.from_pylist(
-        measurement,
-        schema,
-    )
-
-    return batch
+    return batches
 
 
 def get_args():
@@ -234,14 +280,14 @@ def get_args():
         type=int,
         required=False,
         default=None,
-        help="RNG seed [int]",
+        help="RNG seed [int; None]",
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        default="",
-        help="Output directory"
+        default=".",
+        help="Output directory [str; .]"
     )
     parser.add_argument(
         "--n_sims",
@@ -267,6 +313,7 @@ if __name__ == "__main__":
     seed = args.seed
     n_sims = args.n_sims
     n_jobs = args.n_jobs
+    output = args.output
 
     pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
@@ -287,7 +334,7 @@ if __name__ == "__main__":
     # TODO use command line arguments, rather than config here
     output_config = pipeline.output_config
     output_path = os.path.join(
-        output_config.get("path"),
+        output,
         pipeline.name,
     )
     output_format = output_config.get("format", "parquet")
@@ -311,9 +358,12 @@ if __name__ == "__main__":
     #     _batches = parallel(jobs)
     # batches = iter(_batches)
 
-    # for batch in res_generator:
+    # monitor = MemoryMonitor()
+    chained = chain.from_iterable(batches)
+
+
     ds.write_dataset(
-        batches,
+        chained,
         output_path,
         basename_template=f"{seed}-part-{{i}}.{output_format}",
         format=output_format,
@@ -322,4 +372,18 @@ if __name__ == "__main__":
         max_rows_per_file=1024**2 * 100,
     )
     print("done!")
+
+    # del chained
+    # del batches
+    # monitor.join()
+
+    # import matplotlib.pyplot as plt
+    # plt.semilogy(
+    #     np.maximum.accumulate(monitor.memory_buffer),
+    # )
+    # plt.xlabel("Time")
+    # plt.xticks([], [])
+    # plt.ylabel("Memory usage")
+    # plt.yticks([1e7, 1e8, 1e9], ['10MB', '100MB', '1GB'])
+    # plt.show()
 

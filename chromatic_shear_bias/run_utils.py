@@ -22,6 +22,83 @@ MFRAC_CUTS = [0, 1, 2, 5, 8, 10, 20, 50, 80, 100]
 gsparams = galsim.GSParams(maximum_fft_size=16384)
 
 
+_mdet_schema = pa.schema([
+    ("wmom_flags", pa.int64()),
+    ("wmom_psf_flags", pa.int64()),
+    ("wmom_psf_g", pa.list_(pa.float64())),
+    ("wmom_psf_T", pa.float64()),
+    ("wmom_obj_flags", pa.int64()),
+    ("wmom_s2n", pa.float64()),
+    ("wmom_g", pa.list_(pa.float64())),
+    ("wmom_g_cov", pa.list_(pa.list_(pa.float64()))),
+    ("wmom_T", pa.float64()),
+    ("wmom_T_flags", pa.int64()),
+    ("wmom_T_err", pa.float64()),
+    ("wmom_T_ratio", pa.float64()),
+    ("wmom_band_flux_flags", pa.list_(pa.int64())),
+    ("wmom_band_flux", pa.list_(pa.float64())),
+    ("wmom_band_flux_err", pa.list_(pa.float64())),
+    ("shear_bands", pa.string()),
+    ("sx_row", pa.float64()),
+    ("sx_col", pa.float64()),
+    ("sx_row_noshear", pa.float64()),
+    ("sx_col_noshear", pa.float64()),
+    ("ormask", pa.int64()),
+    ("mfrac", pa.float64()),
+    ("bmask", pa.int64()),
+    ("mfrac_img", pa.float64()),
+    ("ormask_noshear", pa.int64()),
+    ("mfrac_noshear", pa.float64()),
+    ("bmask_noshear", pa.int64()),
+    ("det_bands", pa.string()),
+    ("psfrec_flags", pa.int64()),
+    ("psfrec_g", pa.list_(pa.float64())),
+    ("psfrec_T", pa.float64()),
+    ("mdet_step", pa.string()),
+    ("shear", pa.string()),
+    ("seed", pa.int64()),
+])
+
+
+_chromatic_schema = pa.schema([
+    ("wmom_flags", pa.int64()),
+    ("wmom_psf_flags", pa.int64()),
+    ("wmom_psf_g", pa.list_(pa.float64())),
+    ("wmom_psf_T", pa.float64()),
+    ("wmom_obj_flags", pa.int64()),
+    ("wmom_s2n", pa.float64()),
+    ("wmom_g", pa.list_(pa.float64())),
+    ("wmom_g_cov", pa.list_(pa.list_(pa.float64()))),
+    ("wmom_T", pa.float64()),
+    ("wmom_T_flags", pa.int64()),
+    ("wmom_T_err", pa.float64()),
+    ("wmom_T_ratio", pa.float64()),
+    ("wmom_band_flux_flags", pa.list_(pa.int64())),
+    ("wmom_band_flux", pa.list_(pa.float64())),
+    ("wmom_band_flux_err", pa.list_(pa.float64())),
+    ("shear_bands", pa.string()),
+    ("sx_row", pa.float64()),
+    ("sx_col", pa.float64()),
+    ("sx_row_noshear", pa.float64()),
+    ("sx_col_noshear", pa.float64()),
+    ("ormask", pa.int64()),
+    ("mfrac", pa.float64()),
+    ("bmask", pa.int64()),
+    ("mfrac_img", pa.float64()),
+    ("ormask_noshear", pa.int64()),
+    ("mfrac_noshear", pa.float64()),
+    ("bmask_noshear", pa.int64()),
+    ("det_bands", pa.string()),
+    ("psfrec_flags", pa.int64()),
+    ("psfrec_g", pa.list_(pa.float64())),
+    ("psfrec_T", pa.float64()),
+    ("mdet_step", pa.string()),
+    ("shear", pa.string()),
+    ("color_step", pa.string()),
+    ("seed", pa.int64()),
+])
+
+
 class AB_mag:
     """
     Convert flux to AB magnitude for a set of bandpasses.
@@ -1287,6 +1364,7 @@ def measure_pair_color_response(
 
     # calibrate chromatic response about the central color
     color = colors[1]
+
     measurement = measure_more_pairs(
         res_p_c0,
         res_p_c1,
@@ -1299,6 +1377,116 @@ def measure_pair_color_response(
     )
 
     return measurement
+
+
+def run_pair_color_response(
+    survey,
+    pair,
+    psf,
+    colors,
+    stars,
+    psf_size,
+    bands,
+    shear_bands,
+    det_bands,
+    config,
+    seed,
+):
+    rng = np.random.default_rng(seed)
+
+    # given a pair of mbobs with a psf drawn at the median g-i color,
+    # create color_dep_mbobs at each of the provided stars
+    # and run color_dep metadetect
+    mdet_seed = rng.integers(1, 2**64 // 2 - 1)
+    mdet_rng = np.random.default_rng(mdet_seed)
+
+    mbobs_p = pair["plus"]
+    mbobs_m = pair["minus"]
+
+    bps = {
+        band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB")
+        for band in bands
+    }
+
+    color_dep_mbobs_p = {}
+    color_dep_mbobs_m = {}
+    for c, star in enumerate(stars):
+        _mbobs_p = copy.deepcopy(mbobs_p)
+        _mbobs_m = copy.deepcopy(mbobs_m)
+        observed_psf = galsim.Convolve([star, psf])
+        # get size, etc. from obs
+        psf_image = galsim.Image(
+            psf_size,
+            psf_size,
+            scale=survey.scale,
+        )
+
+        for i, (_obslist_p, _obslist_m) in enumerate(zip(_mbobs_p, _mbobs_m)):
+            band = bands[i]
+            observed_psf.drawImage(image=psf_image, bandpass=bps[band])
+            for _obs_p, _obs_m in zip(_obslist_p, _obslist_m):
+                _obs_p.psf.set_image(psf_image.array)
+                _obs_m.psf.set_image(psf_image.array)
+
+        color_dep_mbobs_p[c] = _mbobs_p
+        color_dep_mbobs_m[c] = _mbobs_m
+
+    batches = []
+    for (shear, color_dep_mbobs) in [("plus", color_dep_mbobs_p), ("minus", color_dep_mbobs_m)]:
+        for i, color in enumerate(colors):
+            color_step = f"c{i}"
+            res = metadetect.do_metadetect(
+                config,
+                color_dep_mbobs[i],
+                mdet_rng,
+                shear_band_combs=shear_bands,
+                det_band_combs=det_bands,
+                color_key_func=None,
+                color_dep_mbobs=None,
+            )
+
+            # # FIXME
+            # # pa.table({"wmom_band_flux": pa.array(list(res["wmom_band_flux"]), pa.list_(pa.float64()))})
+            # _schema = []
+            # for dt in res["noshear"].dtype.descr:
+            #     dt_name = dt[0]
+            #     dt_type = pa.from_numpy_dtype(dt[1])
+            #     dt_is_list = len(dt) > 2
+
+            #     if not dt_is_list:
+            #         _schema.append((dt_name, dt_type))
+            #     else:
+            #         dt_list_size = dt[2][0]
+            #         # _schema.append((dt_name, pa.list_(dt_type, dt_list_size)))
+            #         _schema.append((dt_name, pa.list_(dt_type)))
+
+            # _schema.append(("mdet_step", pa.string()))
+            # _schema.append(("shear", pa.string()))
+            # _schema.append(("color", pa.float64()))
+            # _schema.append(("seed", pa.int64()))
+            # schema = pa.schema(_schema)
+
+            for mdet_step in res.keys():
+                mdet_cat = res[mdet_step]
+                data_dict = {name: mdet_cat[name].tolist() for name in mdet_cat.dtype.names}
+                data_dict["mdet_step"] = [mdet_step for _ in range(len(mdet_cat))]
+                data_dict["shear"] = [shear for _ in range(len(mdet_cat))]
+                data_dict["color_step"] = [color_step for _ in range(len(mdet_cat))]
+                data_dict["seed"] = [seed for _ in range(len(mdet_cat))]
+
+                # # data_list = [mdet_cat[name].tolist() for name in schema.names]
+                # data_list = [mdet_cat[name].tolist() for name in mdet_cat.dtype.names]
+                # data_list.append([mdet_step for _ in range(len(mdet_cat))])
+                # data_list.append([shear for _ in range(len(mdet_cat))])
+                # data_list.append([color for _ in range(len(mdet_cat))])
+                # data_list.append([seed for _ in range(len(mdet_cat))])
+
+                # table = pa.table(data_dict, schema=_schema)
+                # tables.append(table)
+                batch = pa.RecordBatch.from_pydict(data_dict, schema=_schema)
+                batches.append(batch)
+
+    return batches
 
 
 def build_plot(
