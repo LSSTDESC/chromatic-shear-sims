@@ -58,6 +58,8 @@ CHROMATIC_MEASURES = {
     "drdc",
 }
 
+TOL = 0.01
+
 
 def run_pipeline(config, seed=None):
     rng = np.random.default_rng(seed)
@@ -81,11 +83,6 @@ def run_pipeline(config, seed=None):
     dc2builder = DC2_stars.DC2Builder(
         sed_dir=pipeline.config.get("sed_dir"),
     )
-    star_params = pipeline.stars.sample(
-        1,
-        columns=dc2builder.columns,
-    )
-    star = dc2builder.build_star(star_params)
 
     # if using a chromatic measure, generate stars at the appropriate colors
     if measure_type in CHROMATIC_MEASURES:
@@ -106,7 +103,6 @@ def run_pipeline(config, seed=None):
 
         chroma_stars = []
         for color in chroma_colors:
-            TOL = 0.01
             predicate = (pc.abs_checked(pc.field("gmag") - pc.field("imag") - color) < TOL)
             star_params = pipeline.stars.sample_with(
                 1,
@@ -115,6 +111,13 @@ def run_pipeline(config, seed=None):
             )
             chroma_star = dc2builder.build_star(star_params)
             chroma_stars.append(chroma_star)
+        star = chroma_stars[1]
+    else:
+        star_params = pipeline.stars.sample(
+            1,
+            columns=dc2builder.columns,
+        )
+        star = dc2builder.build_star(star_params)
 
     # scene & image
     image_config = pipeline.config.get("image")
