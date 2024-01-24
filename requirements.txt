@@ -1,11 +1,10 @@
 astropy
-dsps
-dust_extinction
-fitsio
+dsps==0.3.5
+diffstar==0.2.2
+diffmah==0.4.2
 galsim
-galsim_extra
 joblib
-lsstdesc-diffsky
+lsstdesc-diffsky==1.0.0
 matplotlib
 metadetect
 ngmix

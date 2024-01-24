@@ -9,9 +9,9 @@ dependencies:
   - galsim
   - galsim_extra
   - joblib
-  - lsstdesc_diffsky==v1.0.0
-  - dsps==v0.3.5
-  - diffstar==v0.2.2
+  - lsstdesc_diffsky
+  - dsps
+  - diffstar
   - matplotlib
   - metadetect
   - ngmix
