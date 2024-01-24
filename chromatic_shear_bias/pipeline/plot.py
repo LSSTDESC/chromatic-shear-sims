@@ -81,6 +81,10 @@ def run_pipeline(config, seed=None, detect=False):
     image_config = pipeline.config.get("image")
     scene_config = pipeline.config.get("scene")
     match (scene_type := scene_config.get("type")):
+        case "single":
+            n_gals = 1
+            xs = [0]
+            ys = [0]
         case "random":
             n_gals = scene_config["n"]
             xs = rng.uniform(
@@ -138,6 +142,7 @@ def run_pipeline(config, seed=None, detect=False):
         columns=romanrubinbuilder.columns,
     )
     galaxies = romanrubinbuilder.build_gals(gal_params)
+    print(galaxies[0].calculateMagnitude(lsst.bandpasses["g"]) - galaxies[0].calculateMagnitude(lsst.bandpasses["i"]))
 
     scene = [
         gal.shift(pos)
@@ -215,6 +220,15 @@ def run_pipeline(config, seed=None, detect=False):
         q_m = _mask(o_m)
         p_ns = o_p[q_p]
         m_ns = o_m[q_m]
+
+    zp_g = lsst.bandpasses["g"].zeropoint
+    zp_i = lsst.bandpasses["i"].zeropoint
+    if detect:
+        for j in range(len(p_ns)):
+            mag_g = -2.5 * np.log10(p_ns["wmom_band_flux"][j][0]) + zp_g
+            mag_i = -2.5 * np.log10(p_ns["wmom_band_flux"][j][2]) + zp_i
+            print(mag_g - mag_i)
+
 
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import Divider, Size
@@ -321,13 +335,6 @@ def get_args():
         required=False,
         default=None,
         help="RNG seed [int]",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        required=False,
-        default="",
-        help="Output directory"
     )
     parser.add_argument(
         "--n_sims",

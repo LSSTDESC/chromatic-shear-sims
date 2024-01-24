@@ -120,6 +120,10 @@ def run_pipeline(config, seed=None):
     image_config = pipeline.config.get("image")
     scene_config = pipeline.config.get("scene")
     match (scene_type := scene_config.get("type")):
+        case "single":
+            n_gals = 1
+            xs = [0]
+            ys = [0]
         case "random":
             n_gals = scene_config["n"]
             xs = rng.uniform(
