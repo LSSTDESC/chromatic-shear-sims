@@ -71,6 +71,30 @@ def compute_R(results, dg):
 
 def compute_dedc(results, dg, dc, color):
     # c0
+    p_c0_g1c_ns = np.nanmean(results["plus"]["c0"]["noshear"]["g1c"])
+    p_c0_g2c_ns = np.nanmean(results["plus"]["c0"]["noshear"]["g2c"])
+
+    m_c0_g1c_ns = np.nanmean(results["minus"]["c0"]["noshear"]["g1c"])
+    m_c0_g2c_ns = np.nanmean(results["minus"]["c0"]["noshear"]["g2c"])
+
+    # c2
+    p_c2_g1c_ns = np.nanmean(results["plus"]["c2"]["noshear"]["g1c"])
+    p_c2_g2c_ns = np.nanmean(results["plus"]["c2"]["noshear"]["g2c"])
+
+    m_c2_g1c_ns = np.nanmean(results["minus"]["c2"]["noshear"]["g1c"])
+    m_c2_g2c_ns = np.nanmean(results["minus"]["c2"]["noshear"]["g2c"])
+
+    p_dedc_1 = (p_c2_g1c_ns - p_c0_g1c_ns) / (2 * dc)
+    p_dedc_2 = (p_c2_g2c_ns - p_c0_g2c_ns) / (2 * dc)
+
+    m_dedc_1 = (m_c2_g1c_ns - m_c0_g1c_ns) / (2 * dc)
+    m_dedc_2 = (m_c2_g2c_ns - m_c0_g2c_ns) / (2 * dc)
+
+    return np.array([p_dedc_1, p_dedc_2]), np.array([m_dedc_1, m_dedc_2])
+
+
+def compute_dedc_factored(results, dg, dc, color):
+    # c0
     p_c0_g1_ns = np.nanmean(results["plus"]["c0"]["noshear"]["g1"])
     p_c0_g2_ns = np.nanmean(results["plus"]["c0"]["noshear"]["g2"])
 
@@ -96,7 +120,7 @@ def compute_dedc(results, dg, dc, color):
     return np.array([p_dedc_1 * (p_c1 - color), p_dedc_2 * (p_c1 - color)]), np.array([m_dedc_1 * (m_c1 - color), m_dedc_2 * (m_c1 - color)])
 
 
-def compute_dRdc_direct(results, dg, dc, color):
+def compute_dRdc_factored(results, dg, dc, color):
     # c0
     p_c0_R11 = np.nanmean(pc.divide(pc.subtract(
         results["plus"]["c0"]["1p"]["g1"],
@@ -464,13 +488,13 @@ def compute_bias(results, dg, dc):
     return m, c
 
 
-def compute_bias_chromatic_direct(batch, dg, dc, color):
+def compute_bias_chromatic_factored(batch, dg, dc, color):
     e_p, e_m = compute_e(batch)
 
     R_p, R_m = compute_R(batch, dg)
 
-    dedc_p, dedc_m = compute_dedc(batch, dg, dc, color)
-    dRdc_p, dRdc_m = compute_dRdc_direct(batch, dg, dc, color)
+    dedc_p, dedc_m = compute_dedc_factored(batch, dg, dc, color)
+    dRdc_p, dRdc_m = compute_dRdc_factored(batch, dg, dc, color)
 
     # m = (
     #     np.linalg.inv(R_p + dRdc_p) @ e_p
@@ -489,7 +513,7 @@ def compute_bias_chromatic_direct(batch, dg, dc, color):
 
     c = (
         (np.linalg.inv(R_p + dRdc_p) @ e_p - np.linalg.inv(R_p + dRdc_p) @ dedc_p)
-        - (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
+        + (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
     )[1] / 2
 
     return m, c
@@ -520,7 +544,7 @@ def compute_bias_chromatic(batch, dg, dc, alt=False):
 
     c = (
         (np.linalg.inv(R_p + dRdc_p) @ e_p - np.linalg.inv(R_p + dRdc_p) @ dedc_p)
-        - (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
+        + (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
     )[1] / 2
 
     return m, c
@@ -821,8 +845,9 @@ if __name__ == "__main__":
     seed = args.seed
     n_jobs = args.n_jobs
 
-    pa.set_cpu_count(32)
-    pa.set_io_thread_count(8)
+    pa.set_cpu_count(n_jobs)
+    # pa.set_io_thread_count(8)
+    pa.set_io_thread_count(n_jobs)
 
     pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
@@ -870,7 +895,7 @@ if __name__ == "__main__":
     results = pivot_aggregates(aggregates, all_seeds)
     m_mean, c_mean = compute_bias(results, dg, dc)
     # m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
-    m_mean_chroma, c_mean_chroma = compute_bias_chromatic_direct(results, dg, dc, color)
+    m_mean_chroma, c_mean_chroma = compute_bias_chromatic_factored(results, dg, dc, color)
 
     pa.set_cpu_count(max(1, pa.cpu_count() // n_jobs))
     pa.set_io_thread_count(1)
@@ -890,7 +915,7 @@ if __name__ == "__main__":
 
         _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
         # _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
-        _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_direct(_res, dg, dc, color)
+        _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_factored(_res, dg, dc, color)
 
         m_bootstrap.append(_m_bootstrap)
         m_bootstrap_chroma.append(_m_bootstrap_chroma)
@@ -916,18 +941,20 @@ if __name__ == "__main__":
 
     axs[0].axvspan(-m_req, m_req, fc="k", alpha=0.1)
     axs[0].axvline(4e-4, c="k", alpha=0.1, ls="--")
-    axs[0].hist(m_bootstrap, histtype="step", label="R", ec="k")
-    axs[0].hist(m_bootstrap_chroma, histtype="step", label="R & dR/dc", ec="b")
+    axs[0].hist(m_bootstrap, histtype="step", label=r"$R$", ec="k")
+    axs[0].hist(m_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
     axs[0].axvline(m_mean, c="k")
     axs[0].axvline(m_mean_chroma, c="b")
     axs[0].legend()
     axs[0].set_xlabel("$m$")
 
-    axs[1].hist(c_bootstrap, histtype="step", label="R", ec="k")
-    axs[1].hist(c_bootstrap_chroma, histtype="step", label="R & dR/dc", ec="b")
+    axs[1].hist(c_bootstrap, histtype="step", label=r"$R$", ec="k")
+    axs[1].hist(c_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
     axs[1].axvline(c_mean, c="k")
     axs[1].axvline(c_mean_chroma, c="b")
     axs[1].legend()
     axs[1].set_xlabel("$c$")
+
+    plt.savefig("out.pdf")
 
     plt.show()
