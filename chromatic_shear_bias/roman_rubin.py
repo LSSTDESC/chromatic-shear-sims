@@ -111,7 +111,6 @@ def make_gal(
             m_disk = mstar_diffuse_disk
             m_knot = mstar_knot
 
-            # note that we also thin the SED in this case
             if n_knots > 0:
                 gal = (
                     (bulge * m_bulge + disk * m_disk + knots * m_knot) / m_total \
