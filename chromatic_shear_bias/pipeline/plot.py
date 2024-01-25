@@ -19,6 +19,8 @@ CHROMATIC_MEASURES = {
     "drdc",
 }
 
+TOL = 0.01
+
 
 def run_pipeline(config, seed=None, detect=False):
     rng = np.random.default_rng(seed)
@@ -42,11 +44,6 @@ def run_pipeline(config, seed=None, detect=False):
     dc2builder = DC2_stars.DC2Builder(
         sed_dir=pipeline.config.get("sed_dir"),
     )
-    star_params = pipeline.stars.sample(
-        1,
-        columns=dc2builder.columns,
-    )
-    star = dc2builder.build_star(star_params)
 
     # if using a chromatic measure, generate stars at the appropriate colors
     if measure_type in CHROMATIC_MEASURES:
@@ -67,7 +64,6 @@ def run_pipeline(config, seed=None, detect=False):
 
         chroma_stars = []
         for color in chroma_colors:
-            TOL = 0.01
             predicate = (pc.abs_checked(pc.field("gmag") - pc.field("imag") - color) < TOL)
             star_params = pipeline.stars.sample_with(
                 1,
@@ -76,6 +72,13 @@ def run_pipeline(config, seed=None, detect=False):
             )
             chroma_star = dc2builder.build_star(star_params)
             chroma_stars.append(chroma_star)
+        star = chroma_stars[1]
+    else:
+        star_params = pipeline.stars.sample(
+            1,
+            columns=dc2builder.columns,
+        )
+        star = dc2builder.build_star(star_params)
 
     # scene & image
     image_config = pipeline.config.get("image")
@@ -137,12 +140,38 @@ def run_pipeline(config, seed=None, detect=False):
         diffskypop_params=pipeline.config.get("diffskypop_params"),
         ssp_templates=pipeline.config.get("ssp_templates"),
     )
+
     gal_params = pipeline.galaxies.sample(
         n_gals,
         columns=romanrubinbuilder.columns,
     )
+    # predicate = (pc.abs_checked(pc.field("LSST_obs_g") - pc.field("LSST_obs_i") - chroma_colors[1]) < TOL)
+    # gal_params = pipeline.galaxies.sample_with(
+    #     n_gals,
+    #     columns=romanrubinbuilder.columns,
+    #     predicate=predicate,
+    # )
     galaxies = romanrubinbuilder.build_gals(gal_params)
-    print(galaxies[0].calculateMagnitude(lsst.bandpasses["g"]) - galaxies[0].calculateMagnitude(lsst.bandpasses["i"]))
+
+    # FIXME
+    mag_g = star.calculateMagnitude(lsst.bandpasses["g"])
+    mag_i = star.calculateMagnitude(lsst.bandpasses["i"])
+    print("[star]")
+    print("g", mag_g)
+    print("i", mag_i)
+    print("g-i", mag_g - mag_i)
+    print("")
+    # FIXME
+
+    # FIXME
+    mag_g = galaxies[0].calculateMagnitude(lsst.bandpasses["g"])
+    mag_i = galaxies[0].calculateMagnitude(lsst.bandpasses["i"])
+    print("[obj]")
+    print("g", mag_g)
+    print("i", mag_i)
+    print("g-i", mag_g - mag_i)
+    print("")
+    # FIXME
 
     scene = [
         gal.shift(pos)
@@ -221,13 +250,45 @@ def run_pipeline(config, seed=None, detect=False):
         p_ns = o_p[q_p]
         m_ns = o_m[q_m]
 
+
+    # FIXME
     zp_g = lsst.bandpasses["g"].zeropoint
     zp_i = lsst.bandpasses["i"].zeropoint
+
+    print("[p image]")
+    mag_g = -2.5 * np.log10(pair["plus"][0][0].image.sum()) + zp_g
+    mag_i = -2.5 * np.log10(pair["plus"][2][0].image.sum()) + zp_i
+    print("g", mag_g)
+    print("i", mag_i)
+    print("g-i:", mag_g - mag_i)
+    print("")
+
+    print("[m image]")
+    mag_g = -2.5 * np.log10(pair["minus"][0][0].image.sum()) + zp_g
+    mag_i = -2.5 * np.log10(pair["minus"][2][0].image.sum()) + zp_i
+    print("g", mag_g)
+    print("i", mag_i)
+    print("g-i:", mag_g - mag_i)
+    print("")
+
     if detect:
         for j in range(len(p_ns)):
-            mag_g = -2.5 * np.log10(p_ns["wmom_band_flux"][j][0]) + zp_g
-            mag_i = -2.5 * np.log10(p_ns["wmom_band_flux"][j][2]) + zp_i
-            print(mag_g - mag_i)
+            mag_g = -2.5 * np.log10(p_ns[model + "_band_flux"][j][0]) + zp_g
+            mag_i = -2.5 * np.log10(p_ns[model + "_band_flux"][j][2]) + zp_i
+            print("[p meas]")
+            print("g", mag_g)
+            print("i", mag_i)
+            print("g-i:", mag_g - mag_i)
+            print("")
+        for j in range(len(m_ns)):
+            mag_g = -2.5 * np.log10(m_ns[model + "_band_flux"][j][0]) + zp_g
+            mag_i = -2.5 * np.log10(m_ns[model + "_band_flux"][j][2]) + zp_i
+            print("[m meas]")
+            print("g", mag_g)
+            print("i", mag_i)
+            print("g-i:", mag_g - mag_i)
+            print("")
+    # FIXME
 
 
     import matplotlib.pyplot as plt
@@ -274,7 +335,7 @@ def run_pipeline(config, seed=None, detect=False):
     if detect:
         for j in range(len(p_ns)):
             # axs[i, 0].annotate(round(p_ns["wmom_s2n"][j]), (p_ns["sx_col"][j], p_ns["sx_row"][j]), c="r")
-            ax.text(p_ns["sx_col"][j], p_ns["sx_row"][j], round(p_ns["wmom_s2n"][j]), c="r", horizontalalignment="left", verticalalignment="bottom")
+            ax.text(p_ns["sx_col"][j], p_ns["sx_row"][j], round(p_ns[model + "_s2n"][j]), c="r", horizontalalignment="left", verticalalignment="bottom")
     ax.set_title(f"{bands[i]} image")
 
     ax = fig.add_axes(
@@ -299,7 +360,7 @@ def run_pipeline(config, seed=None, detect=False):
     if detect:
         for j in range(len(m_ns)):
             # axs[i, 1].annotate(round(m_ns["wmom_s2n"][j]), (m_ns["sx_col"][j], m_ns["sx_row"][j]), c="r")
-            ax.text(m_ns["sx_col"][j], m_ns["sx_row"][j], round(m_ns["wmom_s2n"][j]), c="r", horizontalalignment="left", verticalalignment="bottom")
+            ax.text(m_ns["sx_col"][j], m_ns["sx_row"][j], round(m_ns[model + "_s2n"][j]), c="r", horizontalalignment="left", verticalalignment="bottom")
     ax.set_title(f"{bands[i]} image")
 
     ax = fig.add_axes(
@@ -362,6 +423,9 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
+
+    pa.set_cpu_count(8)
+    pa.set_io_thread_count(8)
 
     config = args.config
     seed = args.seed
