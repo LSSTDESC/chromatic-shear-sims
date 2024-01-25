@@ -738,13 +738,13 @@ def get_args():
         default=1000,
         help="Number of resample iterations"
     )
-    # parser.add_argument(
-    #     "--n_jobs",
-    #     type=int,
-    #     required=False,
-    #     default=1,
-    #     help="Number of jobs to run [int; 1]",
-    # )
+    parser.add_argument(
+        "--n_jobs",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of jobs to run [int; 1]",
+    )
     return parser.parse_args()
 
 
@@ -753,10 +753,10 @@ if __name__ == "__main__":
 
     config = args.config
     seed = args.seed
-    # n_jobs = args.n_jobs
+    n_jobs = args.n_jobs
 
     pa.set_cpu_count(32)
-    pa.set_io_thread_count(32)
+    pa.set_io_thread_count(8)
 
     pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
@@ -797,7 +797,6 @@ if __name__ == "__main__":
         & (pc.field("pgauss_T_ratio") > 0.5)
 
     aggregates = pre_aggregate(dataset, predicate, color)
-    # results = pivot_aggregates(aggregates)
 
     seeds = np.sort(np.unique(aggregates["seed"]))
     all_seeds = pa.array(seeds)
@@ -807,15 +806,22 @@ if __name__ == "__main__":
     # m_mean_chroma = compute_m_chromatic(results, dg, dc)
     m_mean_chroma = compute_m_chromatic_direct(results, dg, dc, color)
 
-    m_bootstrap = []
-    m_bootstrap_chroma = []
+    pa.set_cpu_count(max(1, pa.cpu_count() // n_jobs))
+    pa.set_io_thread_count(1)
+
+    jobs = []
     for i in tqdm.trange(args.n_resample, ncols=80):
         _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
-        _results = pivot_aggregates(aggregates, _seeds)
+        jobs.append(joblib.delayed(pivot_aggregates)(aggregates, _seeds))
 
-        _m_bootstrap = compute_m(_results, dg, dc)
+    _results = joblib.Parallel(n_jobs=n_jobs, verbose=10, return_as="generator")(jobs)
+    m_bootstrap = []
+    m_bootstrap_chroma = []
+    for _res in _results:
+
+        _m_bootstrap = compute_m(_res, dg, dc)
         # _m_bootstrap_chroma = compute_m_chromatic(_results, dg, dc)
-        _m_bootstrap_chroma = compute_m_chromatic_direct(_results, dg, dc, color)
+        _m_bootstrap_chroma = compute_m_chromatic_direct(_res, dg, dc, color)
 
         m_bootstrap.append(_m_bootstrap)
         m_bootstrap_chroma.append(_m_bootstrap_chroma)
@@ -823,45 +829,10 @@ if __name__ == "__main__":
     m_bootstrap = np.array(m_bootstrap)
     m_bootstrap_chroma = np.array(m_bootstrap_chroma)
 
-
-    # jobs = [
-    #     joblib.delayed(compute_m)(res, dg, dc)
-    #     for res in results
-    # ]
-
-    # with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
-    #     m_chunks = parallel(jobs)
-
-    # m_bootstrap = []
-    # for i in tqdm.trange(args.n_resample, ncols=80):
-    #     m_resample = rng.choice(m_chunks, size=len(m_chunks), replace=True)
-    #     m_bootstrap.append(np.nanmean(m_resample))
-    # m_bootstrap = np.array(m_bootstrap)
-
-    # m_mean = np.nanmean(m_bootstrap)
     m_error = np.nanstd(m_bootstrap)
-
-    print("mdet: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_error * 3))
-
-    # batches = dataset.to_batches(filter=predicate)
-    # jobs = [
-    #     joblib.delayed(compute_m_chromatic)(res, dg, dc, alt=False)
-    #     # joblib.delayed(compute_m_chromatic_direct)(res, dg, dc, color)
-    #     for res in results
-    # ]
-
-    # with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
-    #     m_chunks_chroma = parallel(jobs)
-
-    # m_bootstrap_chroma = []
-    # for i in tqdm.trange(args.n_resample, ncols=80):
-    #     m_resample_chroma = rng.choice(m_chunks_chroma, size=len(m_chunks_chroma), replace=True)
-    #     m_bootstrap_chroma.append(np.nanmean(m_resample_chroma))
-    # m_bootstrap_chroma = np.array(m_bootstrap_chroma)
-
-    # m_mean_chroma = np.nanmean(m_bootstrap_chroma)
     m_error_chroma = np.nanstd(m_bootstrap_chroma)
 
+    print("mdet: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean, m_error * 3))
     print("drdc: m = %0.3e +/- %0.3e [3-sigma]" % (m_mean_chroma, m_error_chroma * 3))
 
     m_req = 2e-3
