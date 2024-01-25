@@ -256,6 +256,7 @@ def run_pipeline(config, seed=None):
             #     meas_seed,
             # )
             batches = run_utils.run_pair_color_response(
+                pipeline,
                 lsst,
                 pair,
                 psf,
@@ -367,7 +368,6 @@ if __name__ == "__main__":
 
     # monitor = MemoryMonitor()
     chained = chain.from_iterable(batches)
-
 
     ds.write_dataset(
         chained,

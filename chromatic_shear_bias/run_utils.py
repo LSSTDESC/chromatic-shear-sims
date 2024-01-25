@@ -19,25 +19,29 @@ ORMASK_CUTS = [True, False]
 S2N_CUTS = [7, 8, 9, 10, 15, 20]
 MFRAC_CUTS = [0, 1, 2, 5, 8, 10, 20, 50, 80, 100]
 
-gsparams = galsim.GSParams(maximum_fft_size=16384)
+gsparams = galsim.GSParams(
+    maximum_fft_size=16384,
+    kvalue_accuracy=1e-8,
+    maxk_threshold=1e-5,
+)
 
 
 _mdet_schema = pa.schema([
-    ("wmom_flags", pa.int64()),
-    ("wmom_psf_flags", pa.int64()),
-    ("wmom_psf_g", pa.list_(pa.float64())),
-    ("wmom_psf_T", pa.float64()),
-    ("wmom_obj_flags", pa.int64()),
-    ("wmom_s2n", pa.float64()),
-    ("wmom_g", pa.list_(pa.float64())),
-    ("wmom_g_cov", pa.list_(pa.list_(pa.float64()))),
-    ("wmom_T", pa.float64()),
-    ("wmom_T_flags", pa.int64()),
-    ("wmom_T_err", pa.float64()),
-    ("wmom_T_ratio", pa.float64()),
-    ("wmom_band_flux_flags", pa.list_(pa.int64())),
-    ("wmom_band_flux", pa.list_(pa.float64())),
-    ("wmom_band_flux_err", pa.list_(pa.float64())),
+    ("pgauss_flags", pa.int64()),
+    ("pgauss_psf_flags", pa.int64()),
+    ("pgauss_psf_g", pa.list_(pa.float64())),
+    ("pgauss_psf_T", pa.float64()),
+    ("pgauss_obj_flags", pa.int64()),
+    ("pgauss_s2n", pa.float64()),
+    ("pgauss_g", pa.list_(pa.float64())),
+    ("pgauss_g_cov", pa.list_(pa.list_(pa.float64()))),
+    ("pgauss_T", pa.float64()),
+    ("pgauss_T_flags", pa.int64()),
+    ("pgauss_T_err", pa.float64()),
+    ("pgauss_T_ratio", pa.float64()),
+    ("pgauss_band_flux_flags", pa.list_(pa.int64())),
+    ("pgauss_band_flux", pa.list_(pa.float64())),
+    ("pgauss_band_flux_err", pa.list_(pa.float64())),
     ("shear_bands", pa.string()),
     ("sx_row", pa.float64()),
     ("sx_col", pa.float64()),
@@ -61,21 +65,21 @@ _mdet_schema = pa.schema([
 
 
 _chromatic_schema = pa.schema([
-    ("wmom_flags", pa.int64()),
-    ("wmom_psf_flags", pa.int64()),
-    ("wmom_psf_g", pa.list_(pa.float64())),
-    ("wmom_psf_T", pa.float64()),
-    ("wmom_obj_flags", pa.int64()),
-    ("wmom_s2n", pa.float64()),
-    ("wmom_g", pa.list_(pa.float64())),
-    ("wmom_g_cov", pa.list_(pa.list_(pa.float64()))),
-    ("wmom_T", pa.float64()),
-    ("wmom_T_flags", pa.int64()),
-    ("wmom_T_err", pa.float64()),
-    ("wmom_T_ratio", pa.float64()),
-    ("wmom_band_flux_flags", pa.list_(pa.int64())),
-    ("wmom_band_flux", pa.list_(pa.float64())),
-    ("wmom_band_flux_err", pa.list_(pa.float64())),
+    ("pgauss_flags", pa.int64()),
+    ("pgauss_psf_flags", pa.int64()),
+    ("pgauss_psf_g", pa.list_(pa.float64())),
+    ("pgauss_psf_T", pa.float64()),
+    ("pgauss_obj_flags", pa.int64()),
+    ("pgauss_s2n", pa.float64()),
+    ("pgauss_g", pa.list_(pa.float64())),
+    ("pgauss_g_cov", pa.list_(pa.list_(pa.float64()))),
+    ("pgauss_T", pa.float64()),
+    ("pgauss_T_flags", pa.int64()),
+    ("pgauss_T_err", pa.float64()),
+    ("pgauss_T_ratio", pa.float64()),
+    ("pgauss_band_flux_flags", pa.list_(pa.int64())),
+    ("pgauss_band_flux", pa.list_(pa.float64())),
+    ("pgauss_band_flux_err", pa.list_(pa.float64())),
     ("shear_bands", pa.string()),
     ("sx_row", pa.float64()),
     ("sx_col", pa.float64()),
@@ -471,6 +475,9 @@ def build_image(
         bandpass=survey.bandpasses[band],
         add_to_image=True,
     )
+    # renormalize the psf image to unity
+    psf_norm = psf_image.array.sum()
+    psf_image.array[:] /= psf_norm
 
     noise_image = galsim.Image(
         xsize,
@@ -750,6 +757,9 @@ def measure_pair_color(
         for i, (_obslist_p, _obslist_m) in enumerate(zip(_mbobs_p, _mbobs_m)):
             band = bands[i]
             observed_psf.drawImage(image=psf_image, bandpass=bps[band])
+            # renormalize the psf image to unity
+            psf_norm = psf_image.array.sum()
+            psf_image.array[:] /= psf_norm
             for _obs_p, _obs_m in zip(_obslist_p, _obslist_m):
                 _obs_p.psf.set_image(psf_image.array)
                 _obs_m.psf.set_image(psf_image.array)
@@ -1291,6 +1301,9 @@ def measure_pair_color_response(
         for i, (_obslist_p, _obslist_m) in enumerate(zip(_mbobs_p, _mbobs_m)):
             band = bands[i]
             observed_psf.drawImage(image=psf_image, bandpass=bps[band])
+            # renormalize the psf image to unity
+            psf_norm = psf_image.array.sum()
+            psf_image.array[:] /= psf_norm
             for _obs_p, _obs_m in zip(_obslist_p, _obslist_m):
                 _obs_p.psf.set_image(psf_image.array)
                 _obs_m.psf.set_image(psf_image.array)
@@ -1380,6 +1393,7 @@ def measure_pair_color_response(
 
 
 def run_pair_color_response(
+    pipeline,
     survey,
     pair,
     psf,
@@ -1424,6 +1438,9 @@ def run_pair_color_response(
         for i, (_obslist_p, _obslist_m) in enumerate(zip(_mbobs_p, _mbobs_m)):
             band = bands[i]
             observed_psf.drawImage(image=psf_image, bandpass=bps[band])
+            # renormalize the psf image to unity
+            psf_norm = psf_image.array.sum()
+            psf_image.array[:] /= psf_norm
             for _obs_p, _obs_m in zip(_obslist_p, _obslist_m):
                 _obs_p.psf.set_image(psf_image.array)
                 _obs_m.psf.set_image(psf_image.array)
@@ -1431,6 +1448,7 @@ def run_pair_color_response(
         color_dep_mbobs_p[c] = _mbobs_p
         color_dep_mbobs_m[c] = _mbobs_m
 
+    schema = pipeline.get_schema()
     batches = []
     for (shear, color_dep_mbobs) in [("plus", color_dep_mbobs_p), ("minus", color_dep_mbobs_m)]:
         for i, color in enumerate(colors):
@@ -1483,7 +1501,7 @@ def run_pair_color_response(
 
                 # table = pa.table(data_dict, schema=_schema)
                 # tables.append(table)
-                batch = pa.RecordBatch.from_pydict(data_dict, schema=_schema)
+                batch = pa.RecordBatch.from_pydict(data_dict, schema=schema)
                 batches.append(batch)
 
     return batches
