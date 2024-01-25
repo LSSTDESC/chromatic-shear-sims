@@ -99,6 +99,7 @@ class Pipeline:
     def get_schema(self):
         measure_config = self.config.get("measure")
         measure_type = measure_config.get("type")
+        measure_model = measure_config.get("model")
         match measure_type:
             case "metadetect":
                 schema = run_utils._mdet_schema
