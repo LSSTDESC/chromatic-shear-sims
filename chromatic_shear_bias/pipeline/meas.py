@@ -69,6 +69,33 @@ def compute_R(results, dg):
     return np.array([[p_c1_R11, p_c1_R12], [p_c1_R21, p_c1_R22]]), np.array([[m_c1_R11, m_c1_R12], [m_c1_R21, m_c1_R22]])
 
 
+def compute_dedc(results, dg, dc, color):
+    # c0
+    p_c0_g1_ns = np.nanmean(results["plus"]["c0"]["noshear"]["g1"])
+    p_c0_g2_ns = np.nanmean(results["plus"]["c0"]["noshear"]["g2"])
+
+    m_c0_g1_ns = np.nanmean(results["minus"]["c0"]["noshear"]["g1"])
+    m_c0_g2_ns = np.nanmean(results["minus"]["c0"]["noshear"]["g2"])
+
+    # c2
+    p_c2_g1_ns = np.nanmean(results["plus"]["c2"]["noshear"]["g1"])
+    p_c2_g2_ns = np.nanmean(results["plus"]["c2"]["noshear"]["g2"])
+
+    m_c2_g1_ns = np.nanmean(results["minus"]["c2"]["noshear"]["g1"])
+    m_c2_g2_ns = np.nanmean(results["minus"]["c2"]["noshear"]["g2"])
+
+    p_dedc_1 = (p_c2_g1_ns - p_c0_g1_ns) / (2 * dc)
+    p_dedc_2 = (p_c2_g2_ns - p_c0_g2_ns) / (2 * dc)
+
+    m_dedc_1 = (m_c2_g1_ns - m_c0_g1_ns) / (2 * dc)
+    m_dedc_2 = (m_c2_g2_ns - m_c0_g2_ns) / (2 * dc)
+
+    p_c1 = np.nanmean(results["plus"]["c1"]["noshear"]["color"])
+    m_c1 = np.nanmean(results["minus"]["c1"]["noshear"]["color"])
+
+    return np.array([p_dedc_1 * (p_c1 - color), p_dedc_2 * (p_c1 - color)]), np.array([m_dedc_1 * (m_c1 - color), m_dedc_2 * (m_c1 - color)])
+
+
 def compute_dRdc_direct(results, dg, dc, color):
     # c0
     p_c0_R11 = np.nanmean(pc.divide(pc.subtract(
