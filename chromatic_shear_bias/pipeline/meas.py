@@ -509,25 +509,25 @@ def compute_bias_chromatic_factored(batch, dg, dc, color):
     #     + (e_m[1] / (R_m + dRdc_m)[1, 1] - dedc_m[1] / (R_m + dRdc_m)[1, 1])
     # ) / 2
 
-    m = (
-        np.linalg.inv(R_p + dRdc_p) @ e_p
-        - np.linalg.inv(R_m + dRdc_m) @ e_m
-    )[0] / 2 / 0.02 - 1
-
-    c = (
-        np.linalg.inv(R_p + dRdc_p) @ e_p
-        + np.linalg.inv(R_m + dRdc_m) @ e_m
-    )[1] / 2
-
     # m = (
-    #     (np.linalg.inv(R_p + dRdc_p) @ e_p - np.linalg.inv(R_p + dRdc_p) @ dedc_p)
-    #     - (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
+    #     np.linalg.inv(R_p + dRdc_p) @ e_p
+    #     - np.linalg.inv(R_m + dRdc_m) @ e_m
     # )[0] / 2 / 0.02 - 1
 
     # c = (
-    #     (np.linalg.inv(R_p + dRdc_p) @ e_p - np.linalg.inv(R_p + dRdc_p) @ dedc_p)
-    #     + (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
+    #     np.linalg.inv(R_p + dRdc_p) @ e_p
+    #     + np.linalg.inv(R_m + dRdc_m) @ e_m
     # )[1] / 2
+
+    m = (
+        (np.linalg.inv(R_p + dRdc_p) @ e_p - np.linalg.inv(R_p + dRdc_p) @ dedc_p)
+        - (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
+    )[0] / 2 / 0.02 - 1
+
+    c = (
+        (np.linalg.inv(R_p + dRdc_p) @ e_p - np.linalg.inv(R_p + dRdc_p) @ dedc_p)
+        + (np.linalg.inv(R_m + dRdc_m) @ e_m - np.linalg.inv(R_m + dRdc_m) @ dedc_m)
+    )[1] / 2
 
     return m, c
 
