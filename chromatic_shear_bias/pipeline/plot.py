@@ -3,12 +3,15 @@ import copy
 import os
 
 import galsim
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import Divider, Size
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
+
 
 from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
@@ -153,26 +156,6 @@ def run_pipeline(config, seed=None, detect=False):
     # )
     galaxies = romanrubinbuilder.build_gals(gal_params)
 
-    # FIXME
-    mag_g = star.calculateMagnitude(lsst.bandpasses["g"])
-    mag_i = star.calculateMagnitude(lsst.bandpasses["i"])
-    print("[star]")
-    print("g", mag_g)
-    print("i", mag_i)
-    print("g-i", mag_g - mag_i)
-    print("")
-    # FIXME
-
-    # FIXME
-    mag_g = galaxies[0].calculateMagnitude(lsst.bandpasses["g"])
-    mag_i = galaxies[0].calculateMagnitude(lsst.bandpasses["i"])
-    print("[obj]")
-    print("g", mag_g)
-    print("i", mag_i)
-    print("g-i", mag_g - mag_i)
-    print("")
-    # FIXME
-
     scene = [
         gal.shift(pos)
         for (gal, pos) in zip(galaxies, scene_pos)
@@ -249,50 +232,6 @@ def run_pipeline(config, seed=None, detect=False):
         q_m = _mask(o_m)
         p_ns = o_p[q_p]
         m_ns = o_m[q_m]
-
-
-    # FIXME
-    zp_g = lsst.bandpasses["g"].zeropoint
-    zp_i = lsst.bandpasses["i"].zeropoint
-
-    print("[p image]")
-    mag_g = -2.5 * np.log10(pair["plus"][0][0].image.sum()) + zp_g
-    mag_i = -2.5 * np.log10(pair["plus"][2][0].image.sum()) + zp_i
-    print("g", mag_g)
-    print("i", mag_i)
-    print("g-i:", mag_g - mag_i)
-    print("")
-
-    print("[m image]")
-    mag_g = -2.5 * np.log10(pair["minus"][0][0].image.sum()) + zp_g
-    mag_i = -2.5 * np.log10(pair["minus"][2][0].image.sum()) + zp_i
-    print("g", mag_g)
-    print("i", mag_i)
-    print("g-i:", mag_g - mag_i)
-    print("")
-
-    if detect:
-        for j in range(len(p_ns)):
-            mag_g = -2.5 * np.log10(p_ns[model + "_band_flux"][j][0]) + zp_g
-            mag_i = -2.5 * np.log10(p_ns[model + "_band_flux"][j][2]) + zp_i
-            print("[p meas]")
-            print("g", mag_g)
-            print("i", mag_i)
-            print("g-i:", mag_g - mag_i)
-            print("")
-        for j in range(len(m_ns)):
-            mag_g = -2.5 * np.log10(m_ns[model + "_band_flux"][j][0]) + zp_g
-            mag_i = -2.5 * np.log10(m_ns[model + "_band_flux"][j][2]) + zp_i
-            print("[m meas]")
-            print("g", mag_g)
-            print("i", mag_i)
-            print("g-i:", mag_g - mag_i)
-            print("")
-    # FIXME
-
-
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.axes_grid1 import Divider, Size
 
     fig = plt.figure(figsize=(8.5, 5.5))
     h = [
