@@ -329,7 +329,7 @@ if __name__ == "__main__":
     n_jobs = args.n_jobs
     output = args.output
 
-    pipeline = Pipeline(config, log_level=2)
+    pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
     print("seed:", seed)
 
