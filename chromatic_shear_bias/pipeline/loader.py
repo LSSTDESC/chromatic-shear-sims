@@ -64,6 +64,18 @@ def parse_options(options):
 class Loader:
     def __init__(self, config):
         self.config = copy.copy(config)
+        self.path = self.config.get("path")
+        self.format = self.config.get("format")
+
+        self.predicate_dict = self.config.get("predicate", None)
+        self.predicate = parse_expression(self.predicate_dict)
+
+        self.projection_dict = self.config.get("projection", None)
+        self.projection = parse_projection(self.projection_dict)
+
+        self.aggregate_dict = self.config.get("aggregate", None)
+
+        logger.info(f"initializing loader for {self.path}")
 
     def do_aggregate(self, dataset, projection, predicate, aggregate):
         """
@@ -129,13 +141,8 @@ class Loader:
         """
         Load a dataset defined in a config
         """
-        _path = self.config.get("path")
-        _format = self.config.get("format")
-        _predicate = self.config.get("predicate", None)
-        predicate = parse_expression(_predicate)
-
-        dataset = ds.dataset(_path, format=_format)
-        scanner = dataset.scanner(columns=columns, filter=predicate)
+        dataset = ds.dataset(self.path, format=self.format)
+        scanner = dataset.scanner(columns=columns, filter=self.predicate)
 
         return scanner
 
@@ -143,23 +150,15 @@ class Loader:
         """
         Process a dataset defined in a config
         """
-        _path = self.config.get("path")
-        _format = self.config.get("format")
-        _filter = self.config.get("filter", None)
-        _predicate = self.config.get("predicate", None)
-        _projection = self.config.get("projection", None)
-        _aggregate = self.config.get("aggregate", None)
+        logger.info(f"processing aggregates for {self.path}")
 
-        predicate = parse_expression(_predicate)
-        projection = parse_projection(_projection)
-
-        dataset = ds.dataset(_path, format=_format)
+        dataset = ds.dataset(self.path, format=self.format)
 
         aggregate = self.do_aggregate(
             dataset,
-            projection,
-            predicate,
-            _aggregate,
+            self.projection,
+            self.predicate,
+            self.aggregate_dict,
         )
         aggregate_dict = aggregate.to_pydict()
 
@@ -182,23 +181,23 @@ class Loader:
         indices = self.select(n, seed=seed)
         scanner = self.get_scanner(columns)
 
+        logger.info(f"loader sampling {n} records")
+
         obj = scanner.take(indices).to_pydict()
 
         return obj
 
     def sample_with(self, n, columns=None, predicate=None, seed=None):
-        _path = self.config.get("path")
-        _format = self.config.get("format")
-        _predicate = self.config.get("predicate", None)
-        base_predicate = parse_expression(_predicate)
+        base_predicate = self.predicate
         if predicate is not None:
             new_predicate = base_predicate & predicate
         else:
             new_predicate = base_predicate
 
-        dataset = ds.dataset(_path, format=_format)
+        dataset = ds.dataset(self.path, format=self.format)
         scanner = dataset.scanner(columns=columns, filter=new_predicate)
         nobj = scanner.count_rows()
+
         rng = np.random.default_rng(seed)
         indices = rng.choice(
             nobj,
@@ -206,6 +205,8 @@ class Loader:
             replace=True,
             shuffle=True,
         )
+
+        logger.info(f"loader sampling {n} records")
 
         obj = scanner.take(indices).to_pydict()
 
