@@ -36,7 +36,7 @@ class Pipeline:
     def save(self, overwrite=False):
         exists = os.path.exists(self.stash)
         if (overwrite == False) and exists:
-            print(f"{self.stash} exists and overwrite=False; continuing...")
+            raise ValueError(f"{self.stash} exists and overwrite=False")
         else:
             print(f"saving pipeline to {self.stash}...")
             with open(self.stash, "wb") as fobj:
@@ -52,12 +52,14 @@ class Pipeline:
             with open(self.stash, "rb") as fobj:
                 stash = pickle.load(fobj)
 
-            assert self.config == stash.get("config"), f"Config in {self.fname} differs from {self.stash}!"
-            # for k, v in stash.items():
-            #     setattr(self, k, v)
-            self.__dict__ = stash
-        # else:
-        #     print(f"{self.stash} does not exist; continuing...")
+            if self.config == stash.get("config"):
+                # for k, v in stash.items():
+                #     setattr(self, k, v)
+                self.__dict__ = stash
+            else:
+                raise ValueError(f"config in {self.fname} differs from {self.stash}!")
+        else:
+            print(f"{self.stash} does not exist; continuing...")
 
         return
 
@@ -69,8 +71,11 @@ class Pipeline:
             #     loader = MultiLoader(self.galaxy_config)
             # else:
             #     loader = Loader(self.galaxy_config)
-            loader = Loader(self.galaxy_config)
-            loader.process()
+            if self.galaxy_config is not None:
+                loader = Loader(self.galaxy_config)
+                loader.process()
+            else:
+                loader = None
 
             self.galaxies = loader
 
@@ -84,8 +89,11 @@ class Pipeline:
             #     loader = MultiLoader(self.star_config)
             # else:
             #     loader = Loader(self.star_config)
-            loader = Loader(self.star_config)
-            loader.process()
+            if self.star_config is not None:
+                loader = Loader(self.star_config)
+                loader.process()
+            else:
+                loader = None
 
             self.stars = loader
 
