@@ -108,7 +108,7 @@ class Pipeline:
         return
 
     def get_psf(self):
-        galsim_config = self.galsim_config
+        galsim_config = copy.deepcopy(self.galsim_config)
         psf, _ = galsim.config.BuildGSObject(galsim_config, "psf", logger=self.logger)
 
         return psf
