@@ -113,27 +113,6 @@ class Pipeline:
 
         return schema
 
-    def repartition_output(self, partitioning):
-        """
-        Repartition and serialize output
-        """
-        raw_output_path = self.raw_output_path
-        output_path = self.output_path
-
-        raw_output_dataset = ds.dataset(
-            raw_output_path,
-            format="arrow",
-        )
-
-        ds.write_dataset(
-            raw_output_dataset,
-            output_path,
-            format="parquet",
-            partitioning=parititioning,
-        )
-
-        return
-
 
 if __name__ == "__main__":
 
