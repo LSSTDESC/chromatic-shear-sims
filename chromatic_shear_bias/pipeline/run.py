@@ -313,6 +313,13 @@ def get_args():
         default=1,
         help="Number of parallel jobs to run [int; 1]"
     )
+    parser.add_argument(
+        "--log_level",
+        type=int,
+        required=False,
+        default=2,
+        help="logging level [int; 2]",
+    )
     return parser.parse_args()
 
 
