@@ -52,6 +52,7 @@ class Pipeline:
             with open(self.stash, "rb") as fobj:
                 stash = pickle.load(fobj)
 
+            assert self.config == stash.get("config"), f"Config in {self.fname} differs from {self.stash}!"
             # for k, v in stash.items():
             #     setattr(self, k, v)
             self.__dict__ = stash
