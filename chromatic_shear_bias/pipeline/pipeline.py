@@ -11,12 +11,15 @@ from pyarrow import acero
 import yaml
 
 from chromatic_shear_bias import run_utils
+from chromatic_shear_bias.pipeline import logging_config
 from chromatic_shear_bias.pipeline.loader import Loader
-# from loader import Loader  # , MultiLoader
 
 
 class Pipeline:
-    def __init__(self, fname):
+    def __init__(self, fname, log_level=2):
+        self.logger = logging_config.get_logger(log_name=__name__, log_level=log_level)
+        self.logger.info(f"Initializing pipeline for {fname}")
+
         self.fname = fname
         self.name = os.path.splitext(os.path.basename(fname))[0]
         self.config = self.get_config(self.fname)
@@ -38,7 +41,7 @@ class Pipeline:
         if (overwrite == False) and exists:
             raise ValueError(f"{self.stash} exists and overwrite=False")
         else:
-            print(f"saving pipeline to {self.stash}...")
+            self.logger.info(f"saving pipeline to {self.stash}...")
             with open(self.stash, "wb") as fobj:
                 # pickle.dump(self, fobj, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.__dict__, fobj, pickle.HIGHEST_PROTOCOL)
@@ -48,31 +51,35 @@ class Pipeline:
     def load(self):
         exists = os.path.exists(self.stash)
         if exists:
-            print(f"loading pipeline from {self.stash}...")
+            self.logger.info(f"loading pipeline from {self.stash}...")
             with open(self.stash, "rb") as fobj:
                 stash = pickle.load(fobj)
 
             if self.config == stash.get("config"):
-                # for k, v in stash.items():
-                #     setattr(self, k, v)
-                self.__dict__ = stash
+                # Persist current logger
+                logger = getattr(self, "logger", None)
+                # self.__dict__ = stash
+                for k, v in stash.items():
+                    setattr(self, k, v)
+                setattr(self, "logger", logger)
             else:
                 raise ValueError(f"config in {self.fname} differs from {self.stash}!")
         else:
-            print(f"{self.stash} does not exist; continuing...")
+            self.logger.info(f"{self.stash} does not exist; continuing...")
 
         return
 
     def load_galaxies(self):
         if hasattr(self, "galaxies"):
-            print("galaxies already processed; skipping...")
+            self.logger.info("galaxies already processed; skipping...")
         else:
-            # if type(self.galaxy_config) == list:
-            #     loader = MultiLoader(self.galaxy_config)
-            # else:
-            #     loader = Loader(self.galaxy_config)
+            self.logger.info("loading galaxies...")
             if self.galaxy_config is not None:
-                loader = Loader(self.galaxy_config)
+                loader = Loader(
+                    self.galaxy_config,
+                    log_name="galaxy_loader",
+                    log_level=self.logger.level,
+                )
                 loader.process()
             else:
                 loader = None
@@ -83,14 +90,15 @@ class Pipeline:
 
     def load_stars(self):
         if hasattr(self, "stars"):
-            print("stars already processed; skipping...")
+            self.logger.info("stars already processed; skipping...")
         else:
-            # if type(self.star_config) == list:
-            #     loader = MultiLoader(self.star_config)
-            # else:
-            #     loader = Loader(self.star_config)
+            self.logger.info("loading stars...")
             if self.star_config is not None:
-                loader = Loader(self.star_config)
+                loader = Loader(
+                    self.star_config,
+                    log_name="star_loader",
+                    log_level=self.logger.level,
+                )
                 loader.process()
             else:
                 loader = None
@@ -101,7 +109,7 @@ class Pipeline:
 
     def get_psf(self):
         galsim_config = self.galsim_config
-        psf, _ = galsim.config.BuildGSObject(galsim_config, "psf", logger=None)
+        psf, _ = galsim.config.BuildGSObject(galsim_config, "psf", logger=self.logger)
 
         return psf
 

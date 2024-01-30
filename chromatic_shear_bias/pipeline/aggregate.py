@@ -212,7 +212,7 @@ if __name__ == "__main__":
     pa.set_cpu_count(n_jobs)
     pa.set_io_thread_count(n_jobs)
 
-    pipeline = Pipeline(config)
+    pipeline = Pipeline(config, log_level=3)
     print("pipeline:", pipeline.name)
     print("seed:", seed)
     pipeline.load()

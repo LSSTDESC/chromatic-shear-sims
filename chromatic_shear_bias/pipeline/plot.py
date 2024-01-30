@@ -372,7 +372,7 @@ if __name__ == "__main__":
     # n_jobs = args.n_jobs
     detect = args.detect
 
-    pipeline = Pipeline(config)
+    pipeline = Pipeline(config, log_level=3)
     print("pipeline:", pipeline.name)
     print("seed:", seed)
 

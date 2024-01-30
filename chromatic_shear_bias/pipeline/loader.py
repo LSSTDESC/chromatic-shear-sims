@@ -10,6 +10,9 @@ from pyarrow import acero
 import yaml
 
 
+from chromatic_shear_bias.pipeline import logging_config
+
+
 def parse_expression(predicate):
     """Parse a predicate tree intro a pyarrow compute expression
     """
@@ -58,7 +61,10 @@ def parse_options(options):
 
 
 class Loader:
-    def __init__(self, config):
+    def __init__(self, config, log_name=__name__, log_level=2):
+        self.logger = logging_config.get_logger(log_name=log_name, log_level=log_level)
+        self.logger.info(f"Initializing loader...")
+
         self.config = copy.copy(config)
 
     def do_aggregate(self, dataset, projection, predicate, aggregate):
@@ -115,7 +121,7 @@ class Loader:
                 aggregate_node,
             ]
         plan = acero.Declaration.from_sequence(seq)
-        print(plan)
+        self.logger.debug(plan)
 
         res = plan.to_table(use_threads=True)
 

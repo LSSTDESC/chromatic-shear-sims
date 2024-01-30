@@ -27,8 +27,9 @@ def get_args():
 if __name__ == "__main__":
     args = get_args()
 
-    pipeline = Pipeline(args.config)
-    print("pipeline:", pipeline.name)
+    config = args.config
+
+    pipeline = Pipeline(config, log_level=3)
 
     pipeline.load_galaxies()
     pipeline.load_stars()
