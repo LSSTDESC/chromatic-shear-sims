@@ -214,34 +214,6 @@ class Loader:
         return obj
 
 
-# class MultiLoader:
-#     # FIXME probably should remove this...
-#     def __init__(self, configs):
-#         self.configs = copy.copy(configs)
-# 
-#         loaders = []
-#         for config in self.configs:
-#             loaders.append(Loader(config))
-# 
-#         self.loaders = loaders
-# 
-#     def process(self):
-#         for loader in self.loaders:
-#             loader.process()
-# 
-#     @property
-#     def aggregate(self):
-#         aggregates = []
-#         for loader in self.loaders:
-#             aggregates.append(loader.aggregate)
-#         return aggregates
-# 
-#     def sample(self, *args, **kwargs):
-#         samples = []
-#         for loader in self.loaders:
-#             samples.append(loader.sample(*args, **kwargs))
-#         return samples
-
 if __name__ == "__main__":
 
     from pipeline import Pipeline
