@@ -1,4 +1,5 @@
 import argparse
+import logging
 import copy
 import os
 
@@ -15,6 +16,7 @@ import yaml
 
 from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
+from chromatic_shear_bias.pipeline import logging_config
 
 
 CHROMATIC_MEASURES = {
@@ -357,11 +359,22 @@ def get_args():
         default=False,
         help="Whether to make detections [bool; False]",
     )
+    parser.add_argument(
+        "--log_level",
+        type=int,
+        required=False,
+        default=2,
+        help="logging level [int; 2]",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = get_args()
+
+    logger_config = logging_config.defaults
+    log_level = logging_config.get_level(args.log_level)
+    logging.basicConfig(level=log_level, **logging_config.defaults)
 
     pa.set_cpu_count(8)
     pa.set_io_thread_count(8)
@@ -372,7 +385,8 @@ if __name__ == "__main__":
     # n_jobs = args.n_jobs
     detect = args.detect
 
-    pipeline = Pipeline(config, log_level=3)
+
+    pipeline = Pipeline(config)
     print("pipeline:", pipeline.name)
     print("seed:", seed)
 

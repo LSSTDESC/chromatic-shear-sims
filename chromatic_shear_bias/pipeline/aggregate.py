@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 
 import ngmix
@@ -14,6 +15,7 @@ from pyarrow import acero
 import tqdm
 
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
+from chromatic_shear_bias.pipeline import logging_config
 
 
 CHROMATIC_MEASURES = {
@@ -198,11 +200,22 @@ def get_args():
         default=1,
         help="Number of jobs to run [int; 1]",
     )
+    parser.add_argument(
+        "--log_level",
+        type=int,
+        required=False,
+        default=2,
+        help="logging level [int; 2]",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = get_args()
+
+    logger_config = logging_config.defaults
+    log_level = logging_config.get_level(args.log_level)
+    logging.basicConfig(level=log_level, **logging_config.defaults)
 
     config = args.config
     seed = args.seed

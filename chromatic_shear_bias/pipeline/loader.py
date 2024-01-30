@@ -1,4 +1,5 @@
 import copy
+import logging
 import os
 import pickle
 
@@ -10,7 +11,7 @@ from pyarrow import acero
 import yaml
 
 
-from chromatic_shear_bias.pipeline import logging_config
+logger = logging.getLogger(__name__)
 
 
 def parse_expression(predicate):
@@ -61,10 +62,7 @@ def parse_options(options):
 
 
 class Loader:
-    def __init__(self, config, log_name=__name__, log_level=2):
-        self.logger = logging_config.get_logger(log_name=log_name, log_level=log_level)
-        self.logger.info(f"Initializing loader...")
-
+    def __init__(self, config):
         self.config = copy.copy(config)
 
     def do_aggregate(self, dataset, projection, predicate, aggregate):
@@ -121,7 +119,7 @@ class Loader:
                 aggregate_node,
             ]
         plan = acero.Declaration.from_sequence(seq)
-        self.logger.debug(plan)
+        logger.debug(plan)
 
         res = plan.to_table(use_threads=True)
 
