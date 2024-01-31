@@ -13,10 +13,12 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
-
 from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
 from chromatic_shear_bias.pipeline import logging_config
+
+
+logger = logging.getLogger(__name__)
 
 
 CHROMATIC_MEASURES = {
@@ -369,12 +371,14 @@ def get_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
 
     logger_config = logging_config.defaults
     log_level = logging_config.get_level(args.log_level)
     logging.basicConfig(level=log_level, **logging_config.defaults)
+
+    logger.info(f"{vars(args)}")
 
     pa.set_cpu_count(8)
     pa.set_io_thread_count(8)
@@ -385,22 +389,11 @@ if __name__ == "__main__":
     # n_jobs = args.n_jobs
     detect = args.detect
 
-
     pipeline = Pipeline(config)
-    print("pipeline:", pipeline.name)
-    print("seed:", seed)
-
-    print("measure:", pipeline.config["measure"]["type"])
-
-    print("image:", pipeline.config.get("image"))
-    print("scene:", pipeline.config.get("scene"))
 
     pipeline.load()
     pipeline.load_galaxies()
     pipeline.load_stars()
-
-    print("galxies:", pipeline.galaxies.aggregate)
-    print("stars:", pipeline.stars.aggregate)
 
     rng = np.random.default_rng(seed)
 
@@ -409,5 +402,6 @@ if __name__ == "__main__":
             config, seed=seed, detect=detect
         )
 
-    print("done!")
 
+if __name__ == "__main__":
+    main()

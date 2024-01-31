@@ -18,6 +18,9 @@ from chromatic_shear_bias.pipeline.pipeline import Pipeline
 from chromatic_shear_bias.pipeline import logging_config
 
 
+logger = logging.getLogger(__name__)
+
+
 CHROMATIC_MEASURES = {
     "chromatic_metadetect",
     "drdc",
@@ -147,7 +150,7 @@ def pre_aggregate(dataset, predicate, color):
         post_filter_node,
     ]
     plan = acero.Declaration.from_sequence(seq)
-    print(plan)
+    logging.debug(plan)
     res = plan.to_table(use_threads=True)
 
     return res
@@ -210,12 +213,14 @@ def get_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
 
     logger_config = logging_config.defaults
     log_level = logging_config.get_level(args.log_level)
     logging.basicConfig(level=log_level, **logging_config.defaults)
+
+    logger.info(f"{vars(args)}")
 
     config = args.config
     seed = args.seed
@@ -226,15 +231,14 @@ if __name__ == "__main__":
     pa.set_io_thread_count(n_jobs)
 
     pipeline = Pipeline(config)
-    print("pipeline:", pipeline.name)
-    print("seed:", seed)
     pipeline.load()
+
+    logger.info(f"seed: {seed}")
 
     rng = np.random.default_rng(seed)
 
     measure_config = pipeline.config.get("measure")
     measure_type = measure_config.get("type")
-    print("measure:", measure_type)
 
     if measure_type in CHROMATIC_MEASURES:
         colors_type = measure_config.get("colors")
@@ -258,6 +262,7 @@ if __name__ == "__main__":
         output,
         pipeline.name,
     )
+    logger.info(f"aggregating data in {aggregate_path}")
     dataset = ds.dataset(dataset_path, format="arrow")
 
     predicate = \
@@ -272,9 +277,13 @@ if __name__ == "__main__":
         output,
         f"{pipeline.name}_aggregates.feather",
     )
-    print("aggregate:", aggregate_path)
+    logger.info(f"writing aggregates to {aggregate_path}")
 
     ft.write_feather(
         aggregates,
         aggregate_path,
     )
+
+
+if __name__ == "__main__":
+    main()

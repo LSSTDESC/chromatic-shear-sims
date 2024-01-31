@@ -181,7 +181,7 @@ class Loader:
         indices = self.select(n, seed=seed)
         scanner = self.get_scanner(columns)
 
-        logger.info(f"loader sampling {n} records")
+        logger.info(f"sampling {n} records from {self.path}")
 
         obj = scanner.take(indices).to_pydict()
 
@@ -206,7 +206,7 @@ class Loader:
             shuffle=True,
         )
 
-        logger.info(f"loader sampling {n} records")
+        logger.info(f"sampling {n} records from {self.path}")
 
         obj = scanner.take(indices).to_pydict()
 

@@ -17,6 +17,10 @@ from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
 from chromatic_shear_bias.pipeline import logging_config
 
+
+logger = logging.getLogger(__name__)
+
+
 # import time
 # from psutil import Process
 # from threading import Thread
@@ -323,12 +327,14 @@ def get_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
 
     logger_config = logging_config.defaults
     log_level = logging_config.get_level(args.log_level)
     logging.basicConfig(level=log_level, **logging_config.defaults)
+
+    logger.info(f"{vars(args)}")
 
     config = args.config
     seed = args.seed
@@ -337,20 +343,13 @@ if __name__ == "__main__":
     output = args.output
 
     pipeline = Pipeline(config)
-    print("pipeline:", pipeline.name)
-    print("seed:", seed)
-
-    print("measure:", pipeline.config["measure"]["type"])
-
-    print("image:", pipeline.config.get("image"))
-    print("scene:", pipeline.config.get("scene"))
 
     pipeline.load()
     pipeline.load_galaxies()
     pipeline.load_stars()
 
-    print("galxies:", pipeline.galaxies.aggregate)
-    print("stars:", pipeline.stars.aggregate)
+    logger.info(f"galxies: {pipeline.galaxies.aggregate}")
+    logger.info(f"stars: {pipeline.stars.aggregate}")
 
     # TODO use command line arguments, rather than config here
     output_config = pipeline.output_config
@@ -359,12 +358,12 @@ if __name__ == "__main__":
         pipeline.name,
     )
     output_format = output_config.get("format", "parquet")
-    print("output:", output_path)
 
     schema = pipeline.get_schema()
 
     rng = np.random.default_rng(seed)
 
+    logger.info(f"running simulations and writing data to {output_path}")
     jobs = []
     for _seed in rng.integers(1, 2**32, n_sims):
         jobs.append(
@@ -374,7 +373,7 @@ if __name__ == "__main__":
         )
     # with joblib.Parallel(n_jobs=n_jobs, verbose=100, return_as="generator") as parallel:
     #     res_generator = parallel(jobs)
-    batches = joblib.Parallel(n_jobs=n_jobs, verbose=100, return_as="generator")(jobs)
+    batches = joblib.Parallel(n_jobs=n_jobs, verbose=10, return_as="generator")(jobs)
     # with joblib.Parallel(n_jobs=n_jobs, verbose=100, return_as="list") as parallel:
     #     _batches = parallel(jobs)
     # batches = iter(_batches)
@@ -391,7 +390,6 @@ if __name__ == "__main__":
         existing_data_behavior="overwrite_or_ignore",
         max_rows_per_file=1024**2 * 100,
     )
-    print("done!")
 
     # del chained
     # del batches
@@ -407,3 +405,6 @@ if __name__ == "__main__":
     # plt.yticks([1e7, 1e8, 1e9], ['10MB', '100MB', '1GB'])
     # plt.show()
 
+
+if __name__ == "__main__":
+    main()

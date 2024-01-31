@@ -18,6 +18,8 @@ from chromatic_shear_bias.pipeline.pipeline import Pipeline
 from chromatic_shear_bias.pipeline import logging_config
 
 
+logger = logging.getLogger(__name__)
+
 CHROMATIC_MEASURES = {
     "chromatic_metadetect",
     "drdc",
@@ -813,12 +815,14 @@ def get_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
 
     logger_config = logging_config.defaults
     log_level = logging_config.get_level(args.log_level)
     logging.basicConfig(level=log_level, **logging_config.defaults)
+
+    logger.info(f"{vars(args)}")
 
     config = args.config
     seed = args.seed
@@ -830,15 +834,12 @@ if __name__ == "__main__":
     pa.set_io_thread_count(1)
 
     pipeline = Pipeline(config)
-    print("pipeline:", pipeline.name)
-    print("seed:", seed)
     pipeline.load()
 
     rng = np.random.default_rng(seed)
 
     measure_config = pipeline.config.get("measure")
     measure_type = measure_config.get("type")
-    print("measure:", measure_type)
 
     if measure_type in CHROMATIC_MEASURES:
         colors_type = measure_config.get("colors")
@@ -864,7 +865,7 @@ if __name__ == "__main__":
         output,
         f"{pipeline.name}_aggregates.feather",
     )
-    print("dataset:", aggregate_path)
+    logger.info(f"reading aggregates from {aggregate_path}")
     aggregates = ft.read_table(
         aggregate_path,
     )
@@ -935,3 +936,7 @@ if __name__ == "__main__":
     plt.savefig("out.pdf")
 
     plt.show()
+
+
+if __name__ == "__main__":
+    main()

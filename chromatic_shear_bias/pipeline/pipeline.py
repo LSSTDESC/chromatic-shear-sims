@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 class Pipeline:
     def __init__(self, fname):
-        logger.info(f"Initializing pipeline for {fname}")
-
         self.fname = fname
         self.name = os.path.splitext(os.path.basename(fname))[0]
         self.config = self.get_config(self.fname)
@@ -32,7 +30,18 @@ class Pipeline:
         self.metadetect_config = self.config.get("metadetect", None)
         self.output_config = self.config.get("output", None)
 
+        logger.info(f"initializing pipeline for {self.name}")
+
+        for k, v in self.config.items():
+            if type(v) == dict:
+                for _k, _v in v.items():
+                    logger.info(f"{k}: {_k}: {_v}")
+            else:
+                logger.info(f"{k}: {v}")
+
+
     def get_config(self, fname):
+        logger.debug(f"reading pipeline config from {fname}")
         with open(fname, "r") as fobj:
             config_dict = yaml.safe_load(fobj)
 
@@ -69,9 +78,7 @@ class Pipeline:
         return
 
     def load_galaxies(self):
-        if hasattr(self, "galaxies"):
-            logger.info("galaxies already processed; skipping...")
-        else:
+        if not hasattr(self, "galaxies"):
             logger.info("loading galaxies...")
             if self.galaxy_config is not None:
                 loader = Loader(self.galaxy_config)
@@ -81,12 +88,12 @@ class Pipeline:
 
             self.galaxies = loader
 
+        logger.info(f"galaxies: {self.galaxies.aggregate}")
+
         return
 
     def load_stars(self):
-        if hasattr(self, "stars"):
-            logger.info("stars already processed; skipping...")
-        else:
+        if not hasattr(self, "stars"):
             logger.info("loading stars...")
             if self.star_config is not None:
                 loader = Loader(self.star_config)
@@ -95,6 +102,8 @@ class Pipeline:
                 loader = None
 
             self.stars = loader
+
+        logger.info(f"stars: {self.stars.aggregate}")
 
         return
 
