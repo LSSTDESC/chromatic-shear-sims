@@ -52,25 +52,10 @@ def run_pipeline(config, seed=None, detect=False):
         sed_dir=pipeline.config.get("sed_dir"),
     )
 
-    # if using a chromatic measure, generate stars at the appropriate colors
-    if measure_type in CHROMATIC_MEASURES:
-        colors_type = measure_config.get("colors")
-        match colors_type:
-            case "quantiles":
-                chroma_colors = pipeline.galaxies.aggregate.get("quantiles")
-            case "uniform":
-                colors_min = pipeline.galaxies.aggregate.get("min_color")[0]
-                colors_max = pipeline.galaxies.aggregate.get("max_color")[0]
-                # TODO add config for number of colors here...
-                chroma_colors = np.linspace(colors_min, colors_max, 3)
-            case "centered":
-                median = pipeline.galaxies.aggregate.get("median_color")[0]
-                chroma_colors = [median - 0.1, median, median + 0.1]
-            case _:
-                raise ValueError(f"Colors type {colors_type} not valid!")
-
+    colors = pipeline.get_colors()
+    if colors:
         chroma_stars = []
-        for color in chroma_colors:
+        for color in colors:
             predicate = (pc.abs_checked(pc.field("gmag") - pc.field("imag") - color) < TOL)
             star_params = pipeline.stars.sample_with(
                 1,
@@ -89,58 +74,8 @@ def run_pipeline(config, seed=None, detect=False):
 
     # scene & image
     image_config = pipeline.config.get("image")
-    scene_config = pipeline.config.get("scene")
-    match (scene_type := scene_config.get("type")):
-        case "single":
-            n_gals = 1
-            xs = [0]
-            ys = [0]
-        case "random":
-            n_gals = scene_config["n"]
-            xs = rng.uniform(
-                -image_config["xsize"] // 2 + scene_config["border"],
-                image_config["xsize"] // 2 - scene_config["border"],
-                n_gals,
-             )
-            ys = rng.uniform(
-                -image_config["ysize"] // 2 + scene_config["border"],
-                image_config["ysize"] // 2 - scene_config["border"],
-                n_gals,
-             )
-        case "hex":
-            v1 = np.asarray([1, 0], dtype=float)
-            v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
-            xs, ys = run_utils.build_lattice(
-                lsst,
-                image_config["xsize"],
-                image_config["ysize"],
-                scene_config["separation"],
-                v1,
-                v2,
-                rng.uniform(0, 360),
-                scene_config["border"],
-            )  # pixels
-            if len(xs) < 1:
-                raise ValueError(f"Scene containts no objects!")
-            n_gals = len(xs)
-        case _:
-            raise ValueError(f"Scene type {scene_type} not valid!")
-
-    scene_pos = [
-        galsim.PositionD(
-            x=x * lsst.scale,
-            y=y * lsst.scale,
-        )
-        for (x, y) in zip(xs, ys)
-    ]
-    if (dither := scene_config.get("dither", False)):
-        scene_pos = [
-            pos + galsim.PositionD(
-                rng.uniform(-dither, dither) * lsst.scale,
-                rng.uniform(-dither, dither) * lsst.scale,
-            )
-            for pos in scene_pos
-        ]
+    scene_pos = pipeline.get_scene(lsst, seed=seed)
+    n_gals = len(scene_pos)
 
     # galaxies
     romanrubinbuilder = roman_rubin.RomanRubinBuilder(

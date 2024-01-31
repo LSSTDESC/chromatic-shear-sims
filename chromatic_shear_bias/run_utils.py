@@ -734,10 +734,6 @@ def measure_pair_color(
             color = mag0 - mag1
             # color += np.random.default_rng().uniform(-0.5, 0.5)  # perturb color to induce noisiness?
             color_key = int(np.argmin(np.abs(color - colors)))
-            # print(f"mag_g: {mag0} [mdet]")
-            # print(f"mag_i: {mag1} [mdet]")
-            # print(f"color: {color} [mdet]")
-            # print(f"index: {color_key}\v")
 
             return color_key
 

@@ -233,36 +233,16 @@ def main():
     pipeline = Pipeline(config)
     pipeline.load()
 
-    logger.info(f"seed: {seed}")
-
     rng = np.random.default_rng(seed)
 
-    measure_config = pipeline.config.get("measure")
-    measure_type = measure_config.get("type")
-
-    if measure_type in CHROMATIC_MEASURES:
-        colors_type = measure_config.get("colors")
-        match colors_type:
-            case "quantiles":
-                chroma_colors = pipeline.galaxies.aggregate.get("quantiles")
-            case "uniform":
-                colors_min = pipeline.galaxies.aggregate.get("min_color")[0]
-                colors_max = pipeline.galaxies.aggregate.get("max_color")[0]
-                # TODO add config for number of colors here...
-                chroma_colors = np.linspace(colors_min, colors_max, 3)
-            case "centered":
-                median = pipeline.galaxies.aggregate.get("median_color")[0]
-                chroma_colors = [median - 0.1, median, median + 0.1]
-            case _:
-                raise ValueError(f"Colors type {colors_type} not valid!")
-
-    color = chroma_colors[1]
+    colors = pipeline.get_colors()
+    color = colors[1]
 
     dataset_path = os.path.join(
         output,
         pipeline.name,
     )
-    logger.info(f"aggregating data in {aggregate_path}")
+    logger.info(f"aggregating data in {dataset_path}")
     dataset = ds.dataset(dataset_path, format="arrow")
 
     predicate = \

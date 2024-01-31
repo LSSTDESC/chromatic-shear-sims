@@ -18,6 +18,12 @@ from chromatic_shear_bias.pipeline.loader import Loader
 logger = logging.getLogger(__name__)
 
 
+CHROMATIC_MEASURES = {
+    "chromatic_metadetect",
+    "drdc",
+}
+
+
 class Pipeline:
     def __init__(self, fname):
         self.fname = fname
@@ -35,7 +41,7 @@ class Pipeline:
         for k, v in self.config.items():
             if type(v) == dict:
                 for _k, _v in v.items():
-                    logger.info(f"{k}: {_k}: {_v}")
+                    logger.info(f"{k}.{_k}: {_v}")
             else:
                 logger.info(f"{k}: {v}")
 
@@ -128,6 +134,88 @@ class Pipeline:
                 raise ValueError(f"Measure type {measure_type} has no registered schema!")
 
         return schema
+
+    def get_colors(self):
+        measure_config = self.config.get("measure")
+        measure_type = measure_config.get("type")
+        if measure_type in CHROMATIC_MEASURES:
+            match measure_config.get("colors"):
+                case "quantiles":
+                    colors = self.galaxies.aggregate.get("quantiles")
+                case "uniform":
+                    colors_min = self.galaxies.aggregate.get("min_color")[0]
+                    colors_max = self.galaxies.aggregate.get("max_color")[0]
+                    # TODO add config for number of colors here...
+                    colors = np.linspace(colors_min, colors_max, 3)
+                case "centered":
+                    median = self.galaxies.aggregate.get("median_color")[0]
+                    colors = [median - 0.1, median, median + 0.1]
+                case _:
+                    raise ValueError(f"Colors type {colors_type} not valid!")
+        else:
+            colors = None
+
+        logger.info(f"colors: {colors}")
+
+        return colors
+
+    def get_scene(self, survey, seed=None):
+        rng = np.random.default_rng(seed)
+        image_config = self.config.get("image")
+        scene_config = self.config.get("scene")
+        match (scene_type := scene_config.get("type")):
+            case "single":
+                n_gals = 1
+                xs = [0]
+                ys = [0]
+            case "random":
+                n_gals = scene_config["n"]
+                xs = rng.uniform(
+                    -image_config["xsize"] // 2 + scene_config["border"],
+                    image_config["xsize"] // 2 - scene_config["border"],
+                    n_gals,
+                 )
+                ys = rng.uniform(
+                    -image_config["ysize"] // 2 + scene_config["border"],
+                    image_config["ysize"] // 2 - scene_config["border"],
+                    n_gals,
+                 )
+            case "hex":
+                v1 = np.asarray([1, 0], dtype=float)
+                v2 = np.asarray([np.cos(np.radians(120)), np.sin(np.radians(120))], dtype=float)
+                xs, ys = run_utils.build_lattice(
+                    survey,
+                    image_config["xsize"],
+                    image_config["ysize"],
+                    scene_config["separation"],
+                    v1,
+                    v2,
+                    rng.uniform(0, 360),
+                    scene_config["border"],
+                )  # pixels
+                if len(xs) < 1:
+                    raise ValueError(f"Scene containts no objects!")
+                n_gals = len(xs)
+            case _:
+                raise ValueError(f"Scene type {scene_type} not valid!")
+
+        scene_pos = [
+            galsim.PositionD(
+                x=x * survey.scale,
+                y=y * survey.scale,
+            )
+            for (x, y) in zip(xs, ys)
+        ]
+        if (dither := scene_config.get("dither", False)):
+            scene_pos = [
+                pos + galsim.PositionD(
+                    rng.uniform(-dither, dither) * survey.scale,
+                    rng.uniform(-dither, dither) * survey.scale,
+                )
+                for pos in scene_pos
+            ]
+
+        return scene_pos
 
 
 if __name__ == "__main__":
