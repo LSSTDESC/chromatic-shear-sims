@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 
+import galsim
 import ngmix
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,14 +27,14 @@ CHROMATIC_MEASURES = {
     "drdc",
 }
 
+zp_0 = galsim.Bandpass("LSST_g.dat", wave_type="nm").withZeropoint("AB").zeropoint
+zp_2 = galsim.Bandpass("LSST_i.dat", wave_type="nm").withZeropoint("AB").zeropoint
+
 
 def pre_aggregate(dataset, predicate, color):
     """
     Aggregate measurements at the image level to accelerate bootstrapping
     """
-    import galsim
-    zp_0 = galsim.Bandpass("LSST_g.dat", wave_type="nm").withZeropoint("AB").zeropoint
-    zp_2 = galsim.Bandpass("LSST_i.dat", wave_type="nm").withZeropoint("AB").zeropoint
 
     scan_node = acero.Declaration(
         "scan",
@@ -131,6 +132,11 @@ def pre_aggregate(dataset, predicate, color):
                 ("g1c", "hash_mean", None, "mean_g1c"),
                 ("g2c", "hash_mean", None, "mean_g2c"),
                 ("color", "hash_mean", None, "mean_color"),
+                ("g1", "hash_variance", None, "var_g1"),
+                ("g2", "hash_variance", None, "var_g2"),
+                ("g1c", "hash_variance", None, "var_g1c"),
+                ("g2c", "hash_variance", None, "var_g2c"),
+                ("color", "hash_variance", None, "var_color"),
             ],
             keys=["seed", "shear", "color_step", "mdet_step"],
         )
@@ -245,10 +251,19 @@ def main():
     logger.info(f"aggregating data in {dataset_path}")
     dataset = ds.dataset(dataset_path, format="arrow")
 
-    predicate = \
-        (pc.field("pgauss_flags") == 0) \
-        & (pc.field("pgauss_s2n") > args.s2n_cut) \
+    predicate = (
+        (pc.field("pgauss_flags") == 0)
+        & (pc.field("pgauss_s2n") > args.s2n_cut)
         & (pc.field("pgauss_T_ratio") > 0.5)
+    )
+    # express predicate using DNF
+    # predicate = [
+    #     [
+    #         ("pgauss_flags", "=", 0),
+    #         ("pgauss_s2n", ">", args.s2n_cut),
+    #         ("pgauss_T_ratio", ">", 0.5),
+    #     ],
+    # ]
 
     aggregates = pre_aggregate(dataset, predicate, color)
 
