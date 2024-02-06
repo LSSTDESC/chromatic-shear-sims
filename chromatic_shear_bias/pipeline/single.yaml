@@ -98,8 +98,8 @@ measure:
     # type: metadetect
     # type: chromatic_metadetect
     type: drdc
-    # colors: quantiles
-    colors: centered
+    colors: quantiles
+    # colors: centered
     shear_bands: [[1]]
     det_bands: [[0, 1, 2]]
 
@@ -134,4 +134,3 @@ metadetect:
 
 output:
     format: arrow
-    partitioning: None

@@ -137,4 +137,3 @@ metadetect:
 
 output:
     format: arrow
-    partitioning: None
