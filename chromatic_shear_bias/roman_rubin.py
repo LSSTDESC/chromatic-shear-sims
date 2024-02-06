@@ -1,8 +1,9 @@
+import logging
+
+import galsim
 import numpy as np
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
-
-import galsim
 
 import dsps
 from dsps.data_loaders import load_ssp_templates
@@ -13,6 +14,9 @@ from lsstdesc_diffsky.io_utils import load_diffsky_params
 # from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
 from lsstdesc_diffsky.legacy.roman_rubin_2023.dsps.data_loaders.load_ssp_data import load_ssp_templates_singlemet
 from lsstdesc_diffsky.sed.disk_bulge_sed_kernels_singlemet import calc_rest_sed_disk_bulge_knot_galpop
+
+
+logger = logging.getLogger(__name__)
 
 
 def make_gal(
@@ -165,7 +169,9 @@ def get_gal(
     )
 
     if rotate:
-        gal = gal.rotate(rng.uniform(0, 180) * galsim.degrees)
+        rotation_angle = rng.uniform(0, 180) * galsim.degrees
+        logger.debug(f"rotating galaxy by {rotation_angle}")
+        gal = gal.rotate(rotation_angle)
 
     return gal
 
@@ -190,11 +196,14 @@ class RomanRubinBuilder:
         ]
         self.columns = list(set(morph_columns + ALL_DIFFSKY_PNAMES))
 
+        logger.info(f"initializing roman rubin builder with diffskypop_params: {self.diffskypop_params}, ssp_templates: {self.ssp_templates}")
+
     def build_gals(
         self,
         params,
         n_knots=0,
         morphology="achromatic",
+        rotate=True,
     ):
         diffsky_param_data = load_diffsky_params(params)
         args = (
@@ -211,27 +220,45 @@ class RomanRubinBuilder:
 
         disk_bulge_sed_info = calc_rest_sed_disk_bulge_knot_galpop(*args)
 
-        # FIXME add rotate toggle
+        # # FIXME add rotate toggle
+        # gals = [
+        #     make_gal(
+        #         params["redshift"][igal],
+        #         params["spheroidEllipticity1"][igal],
+        #         params["spheroidEllipticity2"][igal],
+        #         params["spheroidHalfLightRadiusArcsec"][igal],
+        #         params["diskEllipticity1"][igal],
+        #         params["diskEllipticity2"][igal],
+        #         params["diskHalfLightRadiusArcsec"][igal],
+        #         self.ssp_data,
+        #         disk_bulge_sed_info.rest_sed_bulge[igal],
+        #         disk_bulge_sed_info.rest_sed_diffuse_disk[igal],
+        #         disk_bulge_sed_info.rest_sed_knot[igal],
+        #         disk_bulge_sed_info.mstar_total[igal],
+        #         disk_bulge_sed_info.mstar_bulge[igal],
+        #         disk_bulge_sed_info.mstar_diffuse_disk[igal],
+        #         disk_bulge_sed_info.mstar_knot[igal],
+        #         OUTER_RIM_COSMO_PARAMS,
+        #         n_knots=n_knots,
+        #         morphology=morphology,
+        #     )
+        #     for igal in range(len(params["redshift"]))
+        # ]
+
+        # FIXME seed rng
+        logger.info(f"building galaxies with morphology: {morphology}, n_knots: {n_knots}, rotate: {rotate}")
+        rng = np.random.default_rng()
         gals = [
-            make_gal(
-                params["redshift"][igal],
-                params["spheroidEllipticity1"][igal],
-                params["spheroidEllipticity2"][igal],
-                params["spheroidHalfLightRadiusArcsec"][igal],
-                params["diskEllipticity1"][igal],
-                params["diskEllipticity2"][igal],
-                params["diskHalfLightRadiusArcsec"][igal],
+            get_gal(
+                rng,
+                igal,
+                params,
                 self.ssp_data,
-                disk_bulge_sed_info.rest_sed_bulge[igal],
-                disk_bulge_sed_info.rest_sed_diffuse_disk[igal],
-                disk_bulge_sed_info.rest_sed_knot[igal],
-                disk_bulge_sed_info.mstar_total[igal],
-                disk_bulge_sed_info.mstar_bulge[igal],
-                disk_bulge_sed_info.mstar_diffuse_disk[igal],
-                disk_bulge_sed_info.mstar_knot[igal],
+                disk_bulge_sed_info,
                 OUTER_RIM_COSMO_PARAMS,
-                n_knots=n_knots,
-                morphology=morphology,
+                n_knots=0,
+                morphology="achromatic",
+                rotate=rotate,
             )
             for igal in range(len(params["redshift"]))
         ]

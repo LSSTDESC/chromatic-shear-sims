@@ -62,7 +62,7 @@ def run_pipeline(config, seed=None, detect=False):
                 columns=dc2builder.columns,
                 predicate=predicate,
             )
-            chroma_star = dc2builder.build_star(star_params)
+            chroma_star = dc2builder.build_stars(star_params)[0]
             chroma_stars.append(chroma_star)
         star = chroma_stars[1]
     else:
@@ -70,11 +70,11 @@ def run_pipeline(config, seed=None, detect=False):
             1,
             columns=dc2builder.columns,
         )
-        star = dc2builder.build_star(star_params)
+        star = dc2builder.build_stars(star_params)[0]
 
     # scene & image
     image_config = pipeline.config.get("image")
-    scene_pos = pipeline.get_scene(lsst, seed=seed)
+    scene_pos = pipeline.get_scene_pos(lsst, seed=seed)
     n_gals = len(scene_pos)
 
     # galaxies
@@ -291,10 +291,8 @@ def get_args():
     # )
     parser.add_argument(
         "--detect",
-        type=bool,
-        required=False,
-        default=False,
-        help="Whether to make detections [bool; False]",
+        action="store_true",
+        help="Whether to make detections",
     )
     parser.add_argument(
         "--log_level",

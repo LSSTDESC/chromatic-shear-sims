@@ -159,7 +159,7 @@ class Pipeline:
 
         return colors
 
-    def get_scene(self, survey, seed=None):
+    def get_scene_pos(self, survey, seed=None):
         rng = np.random.default_rng(seed)
         image_config = self.config.get("image")
         scene_config = self.config.get("scene")
@@ -216,6 +216,21 @@ class Pipeline:
             ]
 
         return scene_pos
+
+    # def get_galaxies(self, builder, n_gals, seed=None):
+    #     romanrubinbuilder = roman_rubin.RomanRubinBuilder(
+    #         diffskypop_params=self.config.get("diffskypop_params"),
+    #         ssp_templates=self.config.get("ssp_templates"),
+    #     )
+    #     gal_params = self.galaxies.sample(
+    #         n_gals,
+    #         columns=romanrubinbuilder.columns,
+    #     )
+    #     galaxies = romanrubinbuilder.build_gals(gal_params)
+
+    #     return galaxies
+
+    # def get_scene(self, survey, builder
 
 
 if __name__ == "__main__":
