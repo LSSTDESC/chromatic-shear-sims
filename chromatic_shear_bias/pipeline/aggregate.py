@@ -31,7 +31,7 @@ zp_0 = galsim.Bandpass("LSST_g.dat", wave_type="nm").withZeropoint("AB").zeropoi
 zp_2 = galsim.Bandpass("LSST_i.dat", wave_type="nm").withZeropoint("AB").zeropoint
 
 
-def pre_aggregate(dataset, predicate, color):
+def pre_aggregate(dataset, predicate, color=None):
     """
     Aggregate measurements at the image level to accelerate bootstrapping
     """
@@ -72,53 +72,48 @@ def pre_aggregate(dataset, predicate, color):
                     ),
                     pc.subtract(pc.scalar(zp_0), pc.scalar(zp_2))
                 ),
-                pc.multiply(
-                    pc.list_element(pc.field("pgauss_g"), 0),
-                    pc.subtract(
-                        pc.add(
-                            pc.multiply(
-                                pc.scalar(-2.5),
-                                pc.log10(
-                                    pc.divide(
-                                        pc.list_element(pc.field("pgauss_band_flux"), 0),
-                                        pc.list_element(pc.field("pgauss_band_flux"), 2)
-                                    )
-                                )
-                            ),
-                            pc.subtract(pc.scalar(zp_0), pc.scalar(zp_2))
-                        ),
-                        pc.scalar(color),
-                    ),
-                ),
-                pc.multiply(
-                    pc.list_element(pc.field("pgauss_g"), 1),
-                    pc.subtract(
-                        pc.add(
-                            pc.multiply(
-                                pc.scalar(-2.5),
-                                pc.log10(
-                                    pc.divide(
-                                        pc.list_element(pc.field("pgauss_band_flux"), 0),
-                                        pc.list_element(pc.field("pgauss_band_flux"), 2)
-                                    )
-                                )
-                            ),
-                            pc.subtract(pc.scalar(zp_0), pc.scalar(zp_2))
-                        ),
-                        pc.scalar(color),
-                    ),
-                ),
             ],
             names=[
                 "seed",
                 "shear",
                 "color_step",
                 "mdet_step",
-                "g1",
-                "g2",
-                "color",
-                "g1c",
-                "g2c",
+                "e1",
+                "e2",
+                "c",
+            ],
+        )
+    )
+    project_node = acero.Declaration(
+        "project",
+        acero.ProjectNodeOptions(
+            [
+                pc.field("seed"),
+                pc.field("shear"),
+                pc.field("color_step"),
+                pc.field("mdet_step"),
+                pc.field("e1"),
+                pc.field("e2"),
+                pc.field("c"),
+                pc.multiply(pc.field("e1"), pc.field("e2")),
+                pc.multiply(pc.field("e1"), pc.field("c")),
+                pc.multiply(pc.field("e2"), pc.field("c")),
+                pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
+            ],
+            names=[
+                "seed",
+                "shear",
+                "color_step",
+                "mdet_step",
+                "e1",
+                "e2",
+                "c",
+                "e1e2",
+                "e1c",
+                "e2c",
+                "e1dc",
+                "e2dc",
             ],
         )
     )
@@ -127,16 +122,22 @@ def pre_aggregate(dataset, predicate, color):
         acero.AggregateNodeOptions(
             [
                 ("seed", "hash_count", None, "count"),
-                ("g1", "hash_mean", None, "mean_g1"),
-                ("g2", "hash_mean", None, "mean_g2"),
-                ("g1c", "hash_mean", None, "mean_g1c"),
-                ("g2c", "hash_mean", None, "mean_g2c"),
-                ("color", "hash_mean", None, "mean_color"),
-                ("g1", "hash_variance", None, "var_g1"),
-                ("g2", "hash_variance", None, "var_g2"),
-                ("g1c", "hash_variance", None, "var_g1c"),
-                ("g2c", "hash_variance", None, "var_g2c"),
-                ("color", "hash_variance", None, "var_color"),
+                ("e1", "hash_mean", None, "mean_e1"),
+                ("e2", "hash_mean", None, "mean_e2"),
+                ("c", "hash_mean", None, "mean_c"),
+                ("e1e2", "hash_mean", None, "mean_e1e2"),
+                ("e1c", "hash_mean", None, "mean_e1c"),
+                ("e2c", "hash_mean", None, "mean_e2c"),
+                ("e1dc", "hash_mean", None, "mean_e1dc"),
+                ("e2dc", "hash_mean", None, "mean_e2dc"),
+                ("e1", "hash_variance", None, "var_e1"),
+                ("e2", "hash_variance", None, "var_e2"),
+                ("c", "hash_variance", None, "var_c"),
+                ("e1e2", "hash_variance", None, "var_e1e2"),
+                ("e1c", "hash_variance", None, "var_e1c"),
+                ("e2c", "hash_variance", None, "var_e2c"),
+                ("e1dc", "hash_variance", None, "var_e1dc"),
+                ("e2dc", "hash_variance", None, "var_e2dc"),
             ],
             keys=["seed", "shear", "color_step", "mdet_step"],
         )
@@ -145,13 +146,14 @@ def pre_aggregate(dataset, predicate, color):
     post_filter_node = acero.Declaration(
         "filter",
         acero.FilterNodeOptions(
-            pc.is_finite(pc.field("mean_color")),
+            pc.is_finite(pc.field("mean_c")),
         ),
     )
     seq = [
         scan_node,
         filter_node,
         pre_project_node,
+        project_node,
         pre_aggregate_node,
         post_filter_node,
     ]
@@ -241,9 +243,6 @@ def main():
 
     rng = np.random.default_rng(seed)
 
-    colors = pipeline.get_colors()
-    color = colors[1]
-
     dataset_path = os.path.join(
         output,
         pipeline.name,
@@ -265,7 +264,12 @@ def main():
     #     ],
     # ]
 
-    aggregates = pre_aggregate(dataset, predicate, color)
+    colors = pipeline.get_colors()
+    if colors:
+        color = colors[1]
+    else:
+        color = None
+    aggregates = pre_aggregate(dataset, predicate, color=color)
 
     output_config = pipeline.output_config
     aggregate_path = os.path.join(

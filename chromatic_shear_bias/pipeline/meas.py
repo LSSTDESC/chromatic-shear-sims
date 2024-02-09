@@ -265,8 +265,8 @@ def compute_dedc_factored(results, dg, dc, color):
     m_dedc_1 = (m_c2_e1_ns - m_c0_e1_ns) / (2 * dc)
     m_dedc_2 = (m_c2_e2_ns - m_c0_e2_ns) / (2 * dc)
 
-    p_c1 = np.average(results["plus"]["c1"]["noshear"]["color"])
-    m_c1 = np.average(results["minus"]["c1"]["noshear"]["color"])
+    p_c1 = np.average(results["plus"]["c1"]["noshear"]["c"])
+    m_c1 = np.average(results["minus"]["c1"]["noshear"]["c"])
 
     return np.array([p_dedc_1 * (p_c1 - color), p_dedc_2 * (p_c1 - color)]), np.array([m_dedc_1 * (m_c1 - color), m_dedc_2 * (m_c1 - color)])
 
@@ -351,8 +351,8 @@ def compute_dRdc_factored(results, dg, dc, color):
 
     m_c2_R = np.array([[m_c2_R11, m_c2_R12], [m_c2_R21, m_c2_R22]])
 
-    p_c1 = np.average(results["plus"]["c1"]["noshear"]["color"])
-    m_c1 = np.average(results["minus"]["c1"]["noshear"]["color"])
+    p_c1 = np.average(results["plus"]["c1"]["noshear"]["c"])
+    m_c1 = np.average(results["minus"]["c1"]["noshear"]["c"])
 
     p_dRdc = (p_c2_R - p_c0_R) / (2 * dc)
     m_dRdc = (m_c2_R - m_c0_R) / (2 * dc)
@@ -569,24 +569,24 @@ def compute_dRdc(results, dg, dc, alt=False):
             np.array(
                 [
                     [
-                        (p_c2_e1_1p - p_c2_e1_1m - p_c0_e1_1p + p_c0_e1_1m) / (2 * dg * 2 * dc),
-                        (p_c2_e1_2p - p_c2_e1_2m - p_c0_e1_2p + p_c0_e1_2m) / (2 * dg * 2 * dc),
+                        (p_c2_e1dc_1p - p_c2_e1dc_1m - p_c0_e1dc_1p + p_c0_e1dc_1m) / (2 * dg * 2 * dc),
+                        (p_c2_e1dc_2p - p_c2_e1dc_2m - p_c0_e1dc_2p + p_c0_e1dc_2m) / (2 * dg * 2 * dc),
                     ],
                     [
-                        (p_c2_e2_1p - p_c2_e2_1m - p_c0_e2_1p + p_c0_e2_1m) / (2 * dg * 2 * dc),
-                        (p_c2_e2_2p - p_c2_e2_2m - p_c0_e2_2p + p_c0_e2_2m) / (2 * dg * 2 * dc),
+                        (p_c2_e2dc_1p - p_c2_e2dc_1m - p_c0_e2dc_1p + p_c0_e2dc_1m) / (2 * dg * 2 * dc),
+                        (p_c2_e2dc_2p - p_c2_e2dc_2m - p_c0_e2dc_2p + p_c0_e2dc_2m) / (2 * dg * 2 * dc),
                     ],
                 ]
             ),
             np.array(
                 [
                     [
-                        (m_c2_e1_1p - m_c2_e1_1m - m_c0_e1_1p + m_c0_e1_1m) / (2 * dg * 2 * dc),
-                        (m_c2_e1_2p - m_c2_e1_2m - m_c0_e1_2p + m_c0_e1_2m) / (2 * dg * 2 * dc),
+                        (m_c2_e1dc_1p - m_c2_e1dc_1m - m_c0_e1dc_1p + m_c0_e1dc_1m) / (2 * dg * 2 * dc),
+                        (m_c2_e1dc_2p - m_c2_e1dc_2m - m_c0_e1dc_2p + m_c0_e1dc_2m) / (2 * dg * 2 * dc),
                     ],
                     [
-                        (m_c2_e2_1p - m_c2_e2_1m - m_c0_e2_1p + m_c0_e2_1m) / (2 * dg * 2 * dc),
-                        (m_c2_e2_2p - m_c2_e2_2m - m_c0_e2_2p + m_c0_e2_2m) / (2 * dg * 2 * dc),
+                        (m_c2_e2dc_1p - m_c2_e2dc_1m - m_c0_e2dc_1p + m_c0_e2dc_1m) / (2 * dg * 2 * dc),
+                        (m_c2_e2dc_2p - m_c2_e2dc_2m - m_c0_e2dc_2p + m_c0_e2dc_2m) / (2 * dg * 2 * dc),
                     ],
                 ]
             )
@@ -667,45 +667,45 @@ def compute_bias_chromatic_testing(batch, dg, dc, color):
 
     R_p, R_m = compute_R(batch, dg)
 
-    # dedc_p, dedc_m = compute_dedc_factored(batch, dg, dc, color)
-    # dRdc_p, dRdc_m = compute_dRdc_factored(batch, dg, dc, color)
+    dedc_p, dedc_m = compute_dedc_factored(batch, dg, dc, color)
+    dRdc_p, dRdc_m = compute_dRdc_factored(batch, dg, dc, color)
     # dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc, color)
 
-    # FIXME
-    R_p_c0 = compute_R_step(batch, dg, "plus", "c0")
-    R_p_c1 = compute_R_step(batch, dg, "plus", "c1")
-    R_p_c2 = compute_R_step(batch, dg, "plus", "c2")
-    R_m_c0 = compute_R_step(batch, dg, "minus", "c0")
-    R_m_c1 = compute_R_step(batch, dg, "minus", "c1")
-    R_m_c2 = compute_R_step(batch, dg, "minus", "c2")
-    dRdc_p = (R_p_c2 - R_p_c0) / (2 * dc)
-    dRdc_m = (R_p_c2 - R_p_c0) / (2 * dc)
+    # # FIXME
+    # R_p_c0 = compute_R_step(batch, dg, "plus", "c0")
+    # R_p_c1 = compute_R_step(batch, dg, "plus", "c1")
+    # R_p_c2 = compute_R_step(batch, dg, "plus", "c2")
+    # R_m_c0 = compute_R_step(batch, dg, "minus", "c0")
+    # R_m_c1 = compute_R_step(batch, dg, "minus", "c1")
+    # R_m_c2 = compute_R_step(batch, dg, "minus", "c2")
+    # dRdc_p = (R_p_c2 - R_p_c0) / (2 * dc)
+    # dRdc_m = (R_p_c2 - R_p_c0) / (2 * dc)
 
-    e_p_c0 = compute_e_step(batch, "plus", "c0")
-    e_p_c1 = compute_e_step(batch, "plus", "c1")
-    e_p_c2 = compute_e_step(batch, "plus", "c2")
-    e_m_c0 = compute_e_step(batch, "minus", "c0")
-    e_m_c1 = compute_e_step(batch, "minus", "c1")
-    e_m_c2 = compute_e_step(batch, "minus", "c2")
-    dedc_p = (e_p_c2 - e_p_c0) / (2 * dc)
-    dedc_m = (e_m_c2 - e_m_c0) / (2 * dc)
-    # dedc_p = 0.5 * ( (e_p_c2 - e_p_c1) / dc + (e_p_c1 - e_p_c0) / dc )
-    # dedc_m = 0.5 * ( (e_p_c2 - e_p_c1) / dc + (e_p_c1 - e_p_c0) / dc )
-    # FIXME
+    # e_p_c0 = compute_e_step(batch, "plus", "c0")
+    # e_p_c1 = compute_e_step(batch, "plus", "c1")
+    # e_p_c2 = compute_e_step(batch, "plus", "c2")
+    # e_m_c0 = compute_e_step(batch, "minus", "c0")
+    # e_m_c1 = compute_e_step(batch, "minus", "c1")
+    # e_m_c2 = compute_e_step(batch, "minus", "c2")
+    # dedc_p = (e_p_c2 - e_p_c0) / (2 * dc)
+    # dedc_m = (e_m_c2 - e_m_c0) / (2 * dc)
+    # # dedc_p = 0.5 * ( (e_p_c2 - e_p_c1) / dc + (e_p_c1 - e_p_c0) / dc )
+    # # dedc_m = 0.5 * ( (e_p_c2 - e_p_c1) / dc + (e_p_c1 - e_p_c0) / dc )
+    # # FIXME
 
-    R11_p = compute_R_corr(batch, "plus", 1, 1, dg, dc, color)
-    R11_m = compute_R_corr(batch, "minus", 1, 1, dg, dc, color)
-    R12_p = compute_R_corr(batch, "plus", 1, 2, dg, dc, color)
-    R12_m = compute_R_corr(batch, "minus", 1, 2, dg, dc, color)
-    R21_p = compute_R_corr(batch, "plus", 2, 1, dg, dc, color)
-    R21_m = compute_R_corr(batch, "minus", 2, 1, dg, dc, color)
-    R22_p = compute_R_corr(batch, "plus", 2, 2, dg, dc, color)
-    R22_m = compute_R_corr(batch, "minus", 2, 2, dg, dc, color)
-    R_p = np.array([[R11_p, R12_p], [R21_p, R22_p]])
-    R_m = np.array([[R11_m, R12_m], [R21_m, R22_m]])
+    # R11_p = compute_R_corr(batch, "plus", 1, 1, dg, dc, color)
+    # R11_m = compute_R_corr(batch, "minus", 1, 1, dg, dc, color)
+    # R12_p = compute_R_corr(batch, "plus", 1, 2, dg, dc, color)
+    # R12_m = compute_R_corr(batch, "minus", 1, 2, dg, dc, color)
+    # R21_p = compute_R_corr(batch, "plus", 2, 1, dg, dc, color)
+    # R21_m = compute_R_corr(batch, "minus", 2, 1, dg, dc, color)
+    # R22_p = compute_R_corr(batch, "plus", 2, 2, dg, dc, color)
+    # R22_m = compute_R_corr(batch, "minus", 2, 2, dg, dc, color)
+    # R_p = np.array([[R11_p, R12_p], [R21_p, R22_p]])
+    # R_m = np.array([[R11_m, R12_m], [R21_m, R22_m]])
 
-    g_p = np.linalg.inv(R_p) @ e_p
-    g_m = np.linalg.inv(R_m) @ e_m
+    # g_p = np.linalg.inv(R_p) @ e_p
+    # g_m = np.linalg.inv(R_m) @ e_m
     # g_p = np.linalg.inv(R_p + dRdc_p * dc_p_c1) @ (e_p - dedc_p)
     # g_m = np.linalg.inv(R_m + dRdc_m * dc_m_c1) @ (e_m - dedc_m)
     # g_p = np.linalg.inv(R_p) @ e_p - np.linalg.inv(R_p) @ dRdc_p @ np.linalg.inv(R_p) @ e_p * dc_p_c1
@@ -716,6 +716,8 @@ def compute_bias_chromatic_testing(batch, dg, dc, color):
     # g_m = np.linalg.inv(R_m) @ e_m - np.linalg.inv(R_m) @ dRdc_m @ np.linalg.inv(R_m) @ edc_m_c1 + np.linalg.inv(R_m) @ (edc_m_c2 - edc_m_c0) / (2 * dc)
     # g_p = np.linalg.inv(R_p + dRdc_p * dc_p_c1) @ (e_p - edc_p)
     # g_m = np.linalg.inv(R_m + dRdc_m * dc_m_c1) @ (e_m - edc_m)
+    g_p = np.linalg.inv(R_p + dRdc_p) @ (e_p - dedc_p)
+    g_m = np.linalg.inv(R_m + dRdc_m) @ (e_m - dedc_m)
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
@@ -734,6 +736,9 @@ def compute_bias_chromatic(batch, dg, dc, alt=False):
 
     g_p = np.linalg.inv(R_p + dRdc_p) @ (e_p - dedc_p)
     g_m = np.linalg.inv(R_m + dRdc_m) @ (e_m - dedc_m)
+
+    print("p:", R_p[0, 0], dRdc_p[0, 0], e_p[0], dedc_p[0])
+    print("m:", R_m[0, 0], dRdc_m[0, 0], e_m[0], dedc_m[0])
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
@@ -780,31 +785,39 @@ def pivot_aggregates(res, seeds=None):
                             pc.field("count"),
                             pc.multiply(pc.field("mean_e1"), pc.field("count")),
                             pc.multiply(pc.field("mean_e2"), pc.field("count")),
-                            pc.multiply(pc.field("mean_color"), pc.field("count")),
+                            pc.multiply(pc.field("mean_c"), pc.field("count")),
                             pc.multiply(pc.field("mean_e1e2"), pc.field("count")),
                             pc.multiply(pc.field("mean_e1c"), pc.field("count")),
                             pc.multiply(pc.field("mean_e2c"), pc.field("count")),
+                            pc.multiply(pc.field("mean_e1dc"), pc.field("count")),
+                            pc.multiply(pc.field("mean_e2dc"), pc.field("count")),
                             pc.multiply(pc.field("var_e1"), pc.field("count")),
                             pc.multiply(pc.field("var_e2"), pc.field("count")),
-                            pc.multiply(pc.field("var_color"), pc.field("count")),
+                            pc.multiply(pc.field("var_c"), pc.field("count")),
                             pc.multiply(pc.field("var_e1e2"), pc.field("count")),
                             pc.multiply(pc.field("var_e1c"), pc.field("count")),
                             pc.multiply(pc.field("var_e2c"), pc.field("count")),
+                            pc.multiply(pc.field("var_e1dc"), pc.field("count")),
+                            pc.multiply(pc.field("var_e2dc"), pc.field("count")),
                         ],
                         names=[
                             "count",
                             "weighted_mean_e1",
                             "weighted_mean_e2",
-                            "weighted_mean_color",
+                            "weighted_mean_c",
                             "weighted_mean_e1e2",
                             "weighted_mean_e1c",
                             "weighted_mean_e2c",
+                            "weighted_mean_e1dc",
+                            "weighted_mean_e2dc",
                             "weighted_var_e1",
                             "weighted_var_e2",
-                            "weighted_var_color",
+                            "weighted_var_c",
                             "weighted_var_e1e2",
                             "weighted_var_e1c",
                             "weighted_var_e2c",
+                            "weighted_var_e1dc",
+                            "weighted_var_e2dc",
                         ],
                     ),
                 )
@@ -815,16 +828,20 @@ def pivot_aggregates(res, seeds=None):
                             ("count", "sum", None, "sum_count"),
                             ("weighted_mean_e1", "sum", None, "sum_mean_e1"),
                             ("weighted_mean_e2", "sum", None, "sum_mean_e2"),
-                            ("weighted_mean_color", "sum", None, "sum_mean_color"),
+                            ("weighted_mean_c", "sum", None, "sum_mean_c"),
                             ("weighted_mean_e1e2", "sum", None, "sum_mean_e1e2"),
                             ("weighted_mean_e1c", "sum", None, "sum_mean_e1c"),
                             ("weighted_mean_e2c", "sum", None, "sum_mean_e2c"),
+                            ("weighted_mean_e1dc", "sum", None, "sum_mean_e1dc"),
+                            ("weighted_mean_e2dc", "sum", None, "sum_mean_e2dc"),
                             ("weighted_var_e1", "sum", None, "sum_var_e1"),
                             ("weighted_var_e2", "sum", None, "sum_var_e2"),
-                            ("weighted_var_color", "sum", None, "sum_var_color"),
+                            ("weighted_var_c", "sum", None, "sum_var_c"),
                             ("weighted_var_e1e2", "sum", None, "sum_var_e1e2"),
                             ("weighted_var_e1c", "sum", None, "sum_var_e1c"),
                             ("weighted_var_e2c", "sum", None, "sum_var_e2c"),
+                            ("weighted_var_e1dc", "sum", None, "sum_var_e1dc"),
+                            ("weighted_var_e2dc", "sum", None, "sum_var_e2dc"),
                         ],
                     ),
                 )
@@ -834,91 +851,113 @@ def pivot_aggregates(res, seeds=None):
                         [
                             pc.divide(pc.field("sum_mean_e1"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e2"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_mean_color"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_c"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e1e2"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e1c"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e2c"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_e1dc"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_e2dc"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_var_e1"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_var_e2"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_color"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_var_c"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_var_e1e2"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_var_e1c"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_var_e2c"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_var_e1dc"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_var_e2dc"), pc.field("sum_count")),
                         ],
                         names=[
                             "e1",
                             "e2",
-                            "color",
+                            "c",
                             "e1e2",
                             "e1c",
                             "e2c",
+                            "e1dc",
+                            "e2dc",
                             "var_e1",
                             "var_e2",
-                            "var_color",
+                            "var_c",
                             "var_e1e2",
                             "var_e1c",
                             "var_e2c",
+                            "var_e1dc",
+                            "var_e2dc",
                         ],
                     ),
                 )
-                # reproject_node = acero.Declaration(
-                #     "project",
-                #     acero.ProjectNodeOptions(
-                #         [
-                #             pc.field("e1"),
-                #             pc.field("e2"),
-                #             pc.field("color"),
-                #             pc.subtract(
-                #                 pc.field("e1e2"),
-                #                 pc.multiply(
-                #                     pc.field("e1"),
-                #                     pc.field("e2"),
-                #                 ),
-                #             ),
-                #             pc.subtract(
-                #                 pc.field("e1c"),
-                #                 pc.multiply(
-                #                     pc.field("e1"),
-                #                     pc.field("color"),
-                #                 ),
-                #             ),
-                #             pc.subtract(
-                #                 pc.field("e2c"),
-                #                 pc.multiply(
-                #                     pc.field("e2"),
-                #                     pc.field("color"),
-                #                 ),
-                #             ),
-                #             pc.field("var_e1"),
-                #             pc.field("var_e2"),
-                #             pc.field("var_color"),
-                #             pc.field("var_e1e2"),
-                #             pc.field("var_e1c"),
-                #             pc.field("var_e2c"),
-                #         ],
-                #         names=[
-                #             "e1",
-                #             "e2",
-                #             "color",
-                #             "cov_e1e2",
-                #             "cov_e1c",
-                #             "cov_e2c",
-                #             "var_e1",
-                #             "var_e2",
-                #             "var_color",
-                #             "var_e1e2",
-                #             "var_e1c",
-                #             "var_e2c",
-                #         ],
-                #     ),
-                # )
+                reproject_node = acero.Declaration(
+                    "project",
+                    acero.ProjectNodeOptions(
+                        [
+                            pc.field("e1"),
+                            pc.field("e2"),
+                            pc.field("c"),
+                            pc.field("e1e2"),
+                            pc.field("e1c"),
+                            pc.field("e2c"),
+                            pc.field("e1dc"),
+                            pc.field("e2dc"),
+                            pc.field("var_e1"),
+                            pc.field("var_e2"),
+                            pc.field("var_c"),
+                            pc.field("var_e1e2"),
+                            pc.field("var_e1c"),
+                            pc.field("var_e2c"),
+                            pc.field("var_e1dc"),
+                            pc.field("var_e2dc"),
+                            pc.subtract(
+                                pc.field("e1e2"),
+                                pc.multiply(
+                                    pc.field("e1"),
+                                    pc.field("e2"),
+                                ),
+                            ),
+                            pc.subtract(
+                                pc.field("e1c"),
+                                pc.multiply(
+                                    pc.field("e1"),
+                                    pc.field("c"),
+                                ),
+                            ),
+                            pc.subtract(
+                                pc.field("e2c"),
+                                pc.multiply(
+                                    pc.field("e2"),
+                                    pc.field("c"),
+                                ),
+                            ),
+                        ],
+                        names=[
+                            "e1",
+                            "e2",
+                            "c",
+                            "e1e2",
+                            "e1c",
+                            "e2c",
+                            "e1dc",
+                            "e2dc",
+                            "var_e1",
+                            "var_e2",
+                            "var_c",
+                            "var_e1e2",
+                            "var_e1c",
+                            "var_e2c",
+                            "var_e1dc",
+                            "var_e2dc",
+                            "cov_e1e2",
+                            "cov_e1c",
+                            "cov_e2c",
+                        ],
+                    ),
+                )
                 seq = [
                     table_source_node,
                     post_filter_node,
                     weight_project_node,
                     post_aggregate_node,
                     post_project_node,
-                    # reproject_node,
+                    reproject_node,
                 ]
                 plan = acero.Declaration.from_sequence(seq)
                 pivot = plan.to_table(use_threads=True)
@@ -998,8 +1037,12 @@ def main():
     dg = ngmix.metacal.DEFAULT_STEP
 
     colors = pipeline.get_colors()
-    color = colors[1]
-    dc = (colors[2] - colors[0]) / 2.
+    if colors:
+        color = colors[1]
+        dc = -(colors[2] - colors[0]) / 2.
+    else:
+        color = None
+        dc = None
 
     aggregate_path = os.path.join(
         output,
@@ -1016,8 +1059,8 @@ def main():
     results = pivot_aggregates(aggregates)
 
     g_p, g_m, m_mean, c_mean = compute_bias(results, dg, dc)
-    # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
-    g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic_testing(results, dg, dc, color)
+    g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
+    # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic_testing(results, dg, dc, color)
 
     jobs = []
     for i in tqdm.trange(args.n_resample, ncols=80):
@@ -1036,8 +1079,8 @@ def main():
     c_bootstrap_chroma = []
     for _res in _results:
         _g_p_bootstrap, _g_m_bootstrap, _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
-        # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
-        _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_testing(_res, dg, dc, color)
+        _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
+        # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_testing(_res, dg, dc, color)
 
         g_p_bootstrap.append(_g_p_bootstrap)
         g_m_bootstrap.append(_g_m_bootstrap)
