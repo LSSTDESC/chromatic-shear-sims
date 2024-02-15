@@ -1,6 +1,12 @@
 # chromatic-shear-bias
 Simulations to validate calibration of shear bias
 
+## environment
+
+```
+conda create --prefix /path/to/prefix --file requirements.txt
+```
+
 ## bin
 
 - `viz-chromatic-shear-bias`: visualize a simulation
