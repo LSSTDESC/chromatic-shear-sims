@@ -93,7 +93,7 @@ def run_pipeline(config, seed=None):
     if colors:
         chroma_stars = []
         for color in colors:
-            predicate = (pc.abs_checked(pc.field("gmag") - pc.field("imag") - color) < TOL)
+            predicate = (pc.abs_checked(pc.field("gmag_obs") - pc.field("imag_obs") - color) < TOL)
             star_params = pipeline.stars.sample_with(
                 1,
                 columns=dc2builder.columns,
@@ -118,6 +118,7 @@ def run_pipeline(config, seed=None):
     romanrubinbuilder = roman_rubin.RomanRubinBuilder(
         diffskypop_params=pipeline.config.get("diffskypop_params"),
         ssp_templates=pipeline.config.get("ssp_templates"),
+        survey=lsst,
     )
     gal_params = pipeline.galaxies.sample(
         n_gals,

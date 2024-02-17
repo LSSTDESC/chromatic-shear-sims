@@ -564,7 +564,7 @@ def compute_dRdc(results, dg, dc, alt=False):
 
     #---------------------------------------------------------------------------
 
-    if not alt:
+    if alt == False:
         return (
             np.array(
                 [
@@ -659,92 +659,64 @@ def compute_bias(results, dg, dc):
 
     c = (g_p + g_m)[1] / 2
 
-    return g_p, g_m, m, c
+    # return g_p, g_m, m, c
+    return m, c
+
+    # AE = (e_p + e_m) / 2
+    # DE = e_p - e_m
+    # AR = (R_p + R_m) / 2
+
+    # m = (np.linalg.inv(AR) @ DE / 2 / 0.02 - 1)[0]
+    # c = (np.linalg.inv(AR) @ AE)[1]
+
+    # return m, c
 
 
-def compute_bias_chromatic_testing(batch, dg, dc, color):
-    e_p, e_m = compute_e(batch)
-
-    R_p, R_m = compute_R(batch, dg)
-
-    dedc_p, dedc_m = compute_dedc_factored(batch, dg, dc, color)
-    dRdc_p, dRdc_m = compute_dRdc_factored(batch, dg, dc, color)
-    # dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc, color)
-
-    # # FIXME
-    # R_p_c0 = compute_R_step(batch, dg, "plus", "c0")
-    # R_p_c1 = compute_R_step(batch, dg, "plus", "c1")
-    # R_p_c2 = compute_R_step(batch, dg, "plus", "c2")
-    # R_m_c0 = compute_R_step(batch, dg, "minus", "c0")
-    # R_m_c1 = compute_R_step(batch, dg, "minus", "c1")
-    # R_m_c2 = compute_R_step(batch, dg, "minus", "c2")
-    # dRdc_p = (R_p_c2 - R_p_c0) / (2 * dc)
-    # dRdc_m = (R_p_c2 - R_p_c0) / (2 * dc)
-
-    # e_p_c0 = compute_e_step(batch, "plus", "c0")
-    # e_p_c1 = compute_e_step(batch, "plus", "c1")
-    # e_p_c2 = compute_e_step(batch, "plus", "c2")
-    # e_m_c0 = compute_e_step(batch, "minus", "c0")
-    # e_m_c1 = compute_e_step(batch, "minus", "c1")
-    # e_m_c2 = compute_e_step(batch, "minus", "c2")
-    # dedc_p = (e_p_c2 - e_p_c0) / (2 * dc)
-    # dedc_m = (e_m_c2 - e_m_c0) / (2 * dc)
-    # # dedc_p = 0.5 * ( (e_p_c2 - e_p_c1) / dc + (e_p_c1 - e_p_c0) / dc )
-    # # dedc_m = 0.5 * ( (e_p_c2 - e_p_c1) / dc + (e_p_c1 - e_p_c0) / dc )
-    # # FIXME
-
-    # R11_p = compute_R_corr(batch, "plus", 1, 1, dg, dc, color)
-    # R11_m = compute_R_corr(batch, "minus", 1, 1, dg, dc, color)
-    # R12_p = compute_R_corr(batch, "plus", 1, 2, dg, dc, color)
-    # R12_m = compute_R_corr(batch, "minus", 1, 2, dg, dc, color)
-    # R21_p = compute_R_corr(batch, "plus", 2, 1, dg, dc, color)
-    # R21_m = compute_R_corr(batch, "minus", 2, 1, dg, dc, color)
-    # R22_p = compute_R_corr(batch, "plus", 2, 2, dg, dc, color)
-    # R22_m = compute_R_corr(batch, "minus", 2, 2, dg, dc, color)
-    # R_p = np.array([[R11_p, R12_p], [R21_p, R22_p]])
-    # R_m = np.array([[R11_m, R12_m], [R21_m, R22_m]])
-
-    # g_p = np.linalg.inv(R_p) @ e_p
-    # g_m = np.linalg.inv(R_m) @ e_m
-    # g_p = np.linalg.inv(R_p + dRdc_p * dc_p_c1) @ (e_p - dedc_p)
-    # g_m = np.linalg.inv(R_m + dRdc_m * dc_m_c1) @ (e_m - dedc_m)
-    # g_p = np.linalg.inv(R_p) @ e_p - np.linalg.inv(R_p) @ dRdc_p @ np.linalg.inv(R_p) @ e_p * dc_p_c1
-    # g_m = np.linalg.inv(R_m) @ e_m - np.linalg.inv(R_m) @ dRdc_m @ np.linalg.inv(R_m) @ e_m * dc_m_c1
-    # g_p = np.linalg.inv(R_p) @ e_p - np.linalg.inv(R_p) @ dRdc_p @ np.linalg.inv(R_p) @ edc_p_c1 + np.linalg.inv(R_p) @ dedc_p * dc_p_c1
-    # g_m = np.linalg.inv(R_m) @ e_m - np.linalg.inv(R_m) @ dRdc_m @ np.linalg.inv(R_m) @ edc_m_c1 + np.linalg.inv(R_m) @ dedc_m * dc_m_c1
-    # g_p = np.linalg.inv(R_p) @ e_p - np.linalg.inv(R_p) @ dRdc_p @ np.linalg.inv(R_p) @ edc_p_c1 + np.linalg.inv(R_p) @ (edc_p_c2 - edc_p_c0) / (2 * dc)
-    # g_m = np.linalg.inv(R_m) @ e_m - np.linalg.inv(R_m) @ dRdc_m @ np.linalg.inv(R_m) @ edc_m_c1 + np.linalg.inv(R_m) @ (edc_m_c2 - edc_m_c0) / (2 * dc)
-    # g_p = np.linalg.inv(R_p + dRdc_p * dc_p_c1) @ (e_p - edc_p)
-    # g_m = np.linalg.inv(R_m + dRdc_m * dc_m_c1) @ (e_m - edc_m)
-    g_p = np.linalg.inv(R_p + dRdc_p) @ (e_p - dedc_p)
-    g_m = np.linalg.inv(R_m + dRdc_m) @ (e_m - dedc_m)
-
-    m = (g_p - g_m)[0] / 2 / 0.02 - 1
-
-    c = (g_p + g_m)[1] / 2
-
-    return g_p, g_m, m, c
-
-
-def compute_bias_chromatic(batch, dg, dc, alt=False):
+def compute_bias_chromatic_testing(batch, dg, dc):
     e_p, e_m = compute_e(batch)
 
     R_p, R_m = compute_R(batch, dg)
 
     dedc_p, dedc_m = compute_dedc(batch, dg, dc)
-    dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc, alt=alt)
+    dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc)
 
-    g_p = np.linalg.inv(R_p + dRdc_p) @ (e_p - dedc_p)
-    g_m = np.linalg.inv(R_m + dRdc_m) @ (e_m - dedc_m)
-
-    print("p:", R_p[0, 0], dRdc_p[0, 0], e_p[0], dedc_p[0])
-    print("m:", R_m[0, 0], dRdc_m[0, 0], e_m[0], dedc_m[0])
+    g_p = np.linalg.inv(R_p) @ e_p + (-np.linalg.inv(R_p) @ dRdc_p @ np.linalg.inv(R_p) @ e_p + np.linalg.inv(R_p) @ dedc_p)
+    g_m = np.linalg.inv(R_m) @ e_m + (-np.linalg.inv(R_p) @ dRdc_p @ np.linalg.inv(R_p) @ e_p + np.linalg.inv(R_p) @ dedc_p)
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
     c = (g_p + g_m)[1] / 2
 
-    return g_p, g_m, m, c
+    # return g_p, g_m, m, c
+    return m, c
+
+
+def compute_bias_chromatic(batch, dg, dc):
+    e_p, e_m = compute_e(batch)
+
+    R_p, R_m = compute_R(batch, dg)
+
+    dedc_p, dedc_m = compute_dedc(batch, dg, dc)
+    dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc)
+
+    g_p = np.linalg.inv(R_p + dRdc_p) @ (e_p - dedc_p)
+    g_m = np.linalg.inv(R_m + dRdc_m) @ (e_m - dedc_m)
+
+    m = (g_p - g_m)[0] / 2 / 0.02 - 1
+
+    c = (g_p + g_m)[1] / 2
+
+    # return g_p, g_m, m, c
+    return m, c
+
+    # AE = ((e_p - dedc_p) + (e_m - dedc_m)) / 2
+    # DE = (e_p - dedc_p) - (e_m - dedc_m)
+    # AR = ((R_p + dRdc_p) + (R_m + dRdc_m)) / 2
+
+    # m = (np.linalg.inv(AR) @ DE / 2 / 0.02 - 1)[0]
+    # c = (np.linalg.inv(AR) @ AE)[1]
+
+    # return m, c
 
 
 def pivot_aggregates(res, seeds=None):
@@ -1058,9 +1030,11 @@ def main():
 
     results = pivot_aggregates(aggregates)
 
-    g_p, g_m, m_mean, c_mean = compute_bias(results, dg, dc)
-    g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
-    # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic_testing(results, dg, dc, color)
+    # g_p, g_m, m_mean, c_mean = compute_bias(results, dg, dc)
+    # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
+    # # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic_testing(results, dg, dc, color)
+    m_mean, c_mean = compute_bias(results, dg, dc)
+    m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc)
 
     jobs = []
     for i in tqdm.trange(args.n_resample, ncols=80):
@@ -1069,32 +1043,34 @@ def main():
 
     _results = joblib.Parallel(n_jobs=n_jobs, verbose=10, return_as="generator")(jobs)
 
-    g_p_bootstrap = []
-    g_m_bootstrap = []
-    g_p_bootstrap_chroma = []
-    g_m_bootstrap_chroma = []
+    # g_p_bootstrap = []
+    # g_m_bootstrap = []
+    # g_p_bootstrap_chroma = []
+    # g_m_bootstrap_chroma = []
     m_bootstrap = []
     m_bootstrap_chroma = []
     c_bootstrap = []
     c_bootstrap_chroma = []
     for _res in _results:
-        _g_p_bootstrap, _g_m_bootstrap, _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
-        _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
-        # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_testing(_res, dg, dc, color)
+        # _g_p_bootstrap, _g_m_bootstrap, _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
+        # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
+        # # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_testing(_res, dg, dc, color)
+        _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
+        _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc)
 
-        g_p_bootstrap.append(_g_p_bootstrap)
-        g_m_bootstrap.append(_g_m_bootstrap)
-        g_p_bootstrap_chroma.append(_g_p_bootstrap_chroma)
-        g_m_bootstrap_chroma.append(_g_m_bootstrap_chroma)
+        # g_p_bootstrap.append(_g_p_bootstrap)
+        # g_m_bootstrap.append(_g_m_bootstrap)
+        # g_p_bootstrap_chroma.append(_g_p_bootstrap_chroma)
+        # g_m_bootstrap_chroma.append(_g_m_bootstrap_chroma)
         m_bootstrap.append(_m_bootstrap)
         m_bootstrap_chroma.append(_m_bootstrap_chroma)
         c_bootstrap.append(_c_bootstrap)
         c_bootstrap_chroma.append(_c_bootstrap_chroma)
 
-    g_p_bootstrap = np.array(g_p_bootstrap)
-    g_m_bootstrap = np.array(g_m_bootstrap)
-    g_p_bootstrap_chroma = np.array(g_p_bootstrap_chroma)
-    g_m_bootstrap_chroma = np.array(g_m_bootstrap_chroma)
+    # g_p_bootstrap = np.array(g_p_bootstrap)
+    # g_m_bootstrap = np.array(g_m_bootstrap)
+    # g_p_bootstrap_chroma = np.array(g_p_bootstrap_chroma)
+    # g_m_bootstrap_chroma = np.array(g_m_bootstrap_chroma)
     m_bootstrap = np.array(m_bootstrap)
     m_bootstrap_chroma = np.array(m_bootstrap_chroma)
     c_bootstrap = np.array(c_bootstrap)
@@ -1106,30 +1082,30 @@ def main():
     c_error = np.nanstd(c_bootstrap) * 3
     c_error_chroma = np.nanstd(c_bootstrap_chroma) * 3
 
-    print(f"mdet -- plus: {g_p} -- minus: {g_m}")
+    # print(f"mdet -- plus: {g_p} -- minus: {g_m}")
     print(f"mdet: m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
-    print(f"drdc -- plus: {g_p_chroma} -- minus: {g_m_chroma}")
+    # print(f"drdc -- plus: {g_p_chroma} -- minus: {g_m_chroma}")
     print(f"drdc: m = {m_mean_chroma:0.3e} +/- {m_error_chroma:0.3e} [3-sigma], c = {c_mean_chroma:0.3e} +/- {c_error_chroma:0.3e} [3-sigma]")
 
     m_req = 2e-3
 
     fig, axs = plt.subplots(2, 2)
 
-    axs[0, 0].axvline(0.02, c="k", alpha=0.1, ls="--")
-    axs[0, 0].hist(g_p_bootstrap[:, 0], histtype="step", label=r"$R$", ec="k")
-    axs[0, 0].axvline(g_p[0], c="k")
-    axs[0, 0].hist(g_p_bootstrap_chroma[:, 0], histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    axs[0, 0].axvline(g_p_chroma[0], c="b")
-    # axs[0, 0].legend()
-    axs[0, 0].set_xlabel("$g_1^+$")
+    # axs[0, 0].axvline(0.02, c="k", alpha=0.1, ls="--")
+    # axs[0, 0].hist(g_p_bootstrap[:, 0], histtype="step", label=r"$R$", ec="k")
+    # axs[0, 0].axvline(g_p[0], c="k")
+    # axs[0, 0].hist(g_p_bootstrap_chroma[:, 0], histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
+    # axs[0, 0].axvline(g_p_chroma[0], c="b")
+    # # axs[0, 0].legend()
+    # axs[0, 0].set_xlabel("$g_1^+$")
 
-    axs[0, 1].axvline(-0.02, c="k", alpha=0.1, ls="--")
-    axs[0, 1].hist(g_m_bootstrap[:, 0], histtype="step", label=r"$R$", ec="k")
-    axs[0, 1].axvline(g_m[0], c="k")
-    axs[0, 1].hist(g_m_bootstrap_chroma[:, 0], histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    axs[0, 1].axvline(g_m_chroma[0], c="b")
-    # axs[0, 1].legend()
-    axs[0, 1].set_xlabel("$g_1^-$")
+    # axs[0, 1].axvline(-0.02, c="k", alpha=0.1, ls="--")
+    # axs[0, 1].hist(g_m_bootstrap[:, 0], histtype="step", label=r"$R$", ec="k")
+    # axs[0, 1].axvline(g_m[0], c="k")
+    # axs[0, 1].hist(g_m_bootstrap_chroma[:, 0], histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
+    # axs[0, 1].axvline(g_m_chroma[0], c="b")
+    # # axs[0, 1].legend()
+    # axs[0, 1].set_xlabel("$g_1^-$")
 
 
     axs[1, 0].axvspan(-m_req, m_req, fc="k", alpha=0.1)

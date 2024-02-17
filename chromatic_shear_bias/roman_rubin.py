@@ -1,4 +1,6 @@
+import functools
 import logging
+import time
 
 import galsim
 import numpy as np
@@ -13,10 +15,21 @@ from lsstdesc_diffsky.io_utils.load_diffsky_healpixel import ALL_DIFFSKY_PNAMES
 from lsstdesc_diffsky.io_utils import load_diffsky_params
 # from lsstdesc_diffsky.sed import calc_rest_sed_disk_bulge_knot_galpop
 from lsstdesc_diffsky.legacy.roman_rubin_2023.dsps.data_loaders.load_ssp_data import load_ssp_templates_singlemet
+from lsstdesc_diffsky.legacy.roman_rubin_2023.dsps.data_loaders.defaults import SSPDataSingleMet
 from lsstdesc_diffsky.sed.disk_bulge_sed_kernels_singlemet import calc_rest_sed_disk_bulge_knot_galpop
 
 
 logger = logging.getLogger(__name__)
+
+
+@functools.cache
+def cached_read_diffskypop_params(mock_name):
+    return read_diffskypop_params(mock_name)
+
+
+@functools.cache
+def cached_load_ssp_templates_singlemet(fn):
+    return load_ssp_templates_singlemet(fn=fn)
 
 
 def make_gal(
@@ -42,6 +55,7 @@ def make_gal(
     """
     Create a galaxy from a diffsky catalog
     """
+    _start_time = time.time()
     bulge_ellipticity = galsim.Shear(
         g1=spheroidEllipticity1,
         g2=spheroidEllipticity2,
@@ -130,6 +144,10 @@ def make_gal(
 
     gal = gal.atRedshift(redshift)
 
+    _end_time = time.time()
+    _elapsed_time = _end_time - _start_time
+    logger.debug(f"built galaxy in {_elapsed_time:0.2f} seconds")
+
     return gal
 
 
@@ -177,13 +195,29 @@ def get_gal(
 
 
 class RomanRubinBuilder:
-    def __init__(self, diffskypop_params=None, ssp_templates=None):
+    def __init__(self, diffskypop_params=None, ssp_templates=None, survey=None):
         self.diffskypop_params=diffskypop_params
         self.ssp_templates=ssp_templates
 
-        self.all_diffskypop_params = read_diffskypop_params(self.diffskypop_params)
+        logger.info(f"initializing roman rubin builder with diffskypop_params: {self.diffskypop_params}, ssp_templates: {self.ssp_templates}")
+
+        # self.all_diffskypop_params = read_diffskypop_params(self.diffskypop_params)
+        self.all_diffskypop_params = cached_read_diffskypop_params(self.diffskypop_params)
         # self.ssp_data = load_ssp_templates(fn=ssp_templates)
-        self.ssp_data = load_ssp_templates_singlemet(fn=ssp_templates)
+        # _ssp_data = load_ssp_templates_singlemet(fn=ssp_templates)
+        _ssp_data = cached_load_ssp_templates_singlemet(fn=ssp_templates)
+        if survey is not None:
+            # remove porition of SED redder than redmost limit of all bandpasses;
+            # note that we can't impose a lower limit due to redshifting
+            _max = np.max([bandpass.red_limit for bandpass in survey.bandpasses.values()]) * 10
+            _keep = (_ssp_data.ssp_wave < _max)
+            logger.info(f"discarding {(~_keep).sum()} of {len(_keep)} wavelengths from templates")
+            _ssp_wave = _ssp_data.ssp_wave[_keep]
+            _ssp_flux = _ssp_data.ssp_flux[:, _keep]
+            ssp_data = SSPDataSingleMet(_ssp_data.ssp_lg_age_gyr, _ssp_wave, _ssp_flux)
+        else:
+            ssp_data = _ssp_data
+        self.ssp_data = ssp_data
 
         morph_columns = [
            "redshift",
@@ -195,8 +229,6 @@ class RomanRubinBuilder:
            "diskHalfLightRadiusArcsec",
         ]
         self.columns = list(set(morph_columns + ALL_DIFFSKY_PNAMES))
-
-        logger.info(f"initializing roman rubin builder with diffskypop_params: {self.diffskypop_params}, ssp_templates: {self.ssp_templates}")
 
     def build_gals(
         self,
@@ -267,7 +299,11 @@ class RomanRubinBuilder:
 
 
 if __name__ == "__main__":
+    from chromatic_shear_bias import surveys
 
+    logging.basicConfig(level=logging.INFO)
+
+    lsst = surveys.lsst
 
     seed = 42
     rng = np.random.default_rng(seed)
@@ -280,57 +316,51 @@ if __name__ == "__main__":
         & (pc.field("LSST_obs_i") < pc.scalar(26))
         & (pc.field("LSST_obs_z") < pc.scalar(26))
     )
-    scanner = get_scanner("/pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet", predicate=predicate)
-    num_rows = scanner.count_rows()
-    gal_indices = rng.choice(num_rows, n_gals, replace=True)
-    mock = scanner.take(gal_indices).to_pydict()
+    romanrubinbuilder = RomanRubinBuilder(
+        diffskypop_params="roman_rubin_2023",
+        ssp_templates="/pscratch/sd/s/smau/dsps_ssp_data_singlemet.h5",
+        survey=lsst,
+    )
+    columns = romanrubinbuilder.columns
+    columns.append("LSST_obs_g")
+    columns.append("LSST_obs_r")
+    columns.append("LSST_obs_i")
 
-    diffsky_param_data = load_diffsky_params(mock)
-    all_diffskypop_params = read_diffskypop_params("roman_rubin_2023")
-    ssp_data = load_ssp_templates(fn='/pscratch/sd/s/smau/dsps_ssp_data.h5')
-
-    args = (
-        np.array(mock['redshift']),
-        diffsky_param_data.mah_params,
-        diffsky_param_data.ms_params,
-        diffsky_param_data.q_params,
-        diffsky_param_data.fbulge_params,
-        diffsky_param_data.fknot,
-        ssp_data,
-        all_diffskypop_params,
-        OUTER_RIM_COSMO_PARAMS
+    dataset = ds.dataset("/pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet")
+    # count = dataset.count_rows(filter=predicate)
+    scanner = dataset.scanner(columns=columns, filter=predicate)
+    rng = np.random.default_rng(seed)
+    indices = rng.choice(
+        # count,
+        100,
+        size=10,
+        replace=True,
+        shuffle=True,
     )
 
-    disk_bulge_sed_info = calc_rest_sed_disk_bulge_knot_galpop(*args)
+    gal_params = scanner.take(indices).to_pydict()
 
-    igals = rng.choice(n_gals, size=n_gals, replace=False, shuffle=True)
-    gals = [
-        get_gal(
-            rng,
-            igal,
-            mock,
-            ssp_data,
-            disk_bulge_sed_info,
-            OUTER_RIM_COSMO_PARAMS,
-            n_knots=0,
-            morphology="achromatic",
-            rotate=True,
-        ) for igal in igals
-    ]
+    gals = romanrubinbuilder.build_gals(gal_params)
 
-    filters = {"u", "g", "r", "i", "z", "y"}
-    bps = {
-        f: galsim.Bandpass(f"LSST_{f}.dat", "nm").withZeropoint("AB")
-        for f in filters
-    }
 
-    print(f"|     u |     g |     r |     i |     z |     y |")
-    for gal in gals:
-        mag_u = gal.calculateMagnitude(bps["u"])
+    bps = lsst.bandpasses
+
+    print(f"|-----------------|---------------|-------------------|-------------|")
+    print(f"|        r        |      g-i      |        g-i        |     g-i     |")
+    print(f"|-----------------|---------------|-------------------|-------------|")
+    print(f"|    cat |    obs |   cat |   obs | (obs - cat) / cat | |obs - cat| |")
+    print(f"|-----------------|---------------|-------------------|-------------|")
+    for i, gal in enumerate(gals):
         mag_g = gal.calculateMagnitude(bps["g"])
         mag_r = gal.calculateMagnitude(bps["r"])
         mag_i = gal.calculateMagnitude(bps["i"])
-        mag_z = gal.calculateMagnitude(bps["z"])
-        mag_y = gal.calculateMagnitude(bps["y"])
-        print(f"| {mag_u:2.2f} | {mag_g:2.2f} | {mag_r:2.2f} | {mag_i:2.2f} | {mag_z:2.2f} | {mag_y:2.2f} |")
+        obs_color = mag_g - mag_i
 
+        mag_g_cat = gal_params["LSST_obs_g"][i]
+        mag_r_cat = gal_params["LSST_obs_r"][i]
+        mag_i_cat = gal_params["LSST_obs_i"][i]
+        color = mag_g_cat - mag_i_cat
+
+        print(f"| {mag_r_cat:2.3f} | {mag_r:2.3f} | {color:2.3f} | {obs_color:2.3f} | {(obs_color - color) / color:2.14f} | {np.abs(obs_color - color)} |")
+
+    print(f"|-----------------|---------------|-------------------|-------------|")

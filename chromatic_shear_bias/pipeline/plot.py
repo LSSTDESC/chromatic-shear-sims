@@ -56,7 +56,7 @@ def run_pipeline(config, seed=None, detect=False):
     if colors:
         chroma_stars = []
         for color in colors:
-            predicate = (pc.abs_checked(pc.field("gmag") - pc.field("imag") - color) < TOL)
+            predicate = (pc.abs_checked(pc.field("gmag_obs") - pc.field("imag_obs") - color) < TOL)
             star_params = pipeline.stars.sample_with(
                 1,
                 columns=dc2builder.columns,
@@ -81,6 +81,7 @@ def run_pipeline(config, seed=None, detect=False):
     romanrubinbuilder = roman_rubin.RomanRubinBuilder(
         diffskypop_params=pipeline.config.get("diffskypop_params"),
         ssp_templates=pipeline.config.get("ssp_templates"),
+        survey=lsst,
     )
 
     gal_params = pipeline.galaxies.sample(
@@ -104,6 +105,7 @@ def run_pipeline(config, seed=None, detect=False):
     bands = image_config["bands"]
     shear = image_config["shear"]
 
+    logger.info(f"building simulation pair")
     pair = run_utils.build_pair(
         lsst,
         scene,
@@ -118,6 +120,7 @@ def run_pipeline(config, seed=None, detect=False):
     )
 
     if detect:
+        logger.info(f"running detection")
         import metadetect
         mdet_rng_p = np.random.default_rng(42)
         mdet_rng_m = np.random.default_rng(42)
@@ -172,6 +175,7 @@ def run_pipeline(config, seed=None, detect=False):
         p_ns = o_p[q_p]
         m_ns = o_m[q_m]
 
+    logger.info(f"making plot")
     fig = plt.figure(figsize=(8.5, 5.5))
     h = [
         Size.Fixed(1),

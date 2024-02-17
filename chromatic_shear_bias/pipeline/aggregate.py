@@ -15,6 +15,7 @@ import pyarrow.parquet as pq
 from pyarrow import acero
 import tqdm
 
+from chromatic_shear_bias import surveys
 from chromatic_shear_bias.pipeline.pipeline import Pipeline
 from chromatic_shear_bias.pipeline import logging_config
 
@@ -27,8 +28,9 @@ CHROMATIC_MEASURES = {
     "drdc",
 }
 
-zp_0 = galsim.Bandpass("LSST_g.dat", wave_type="nm").withZeropoint("AB").zeropoint
-zp_2 = galsim.Bandpass("LSST_i.dat", wave_type="nm").withZeropoint("AB").zeropoint
+lsst = surveys.lsst
+zp_0 = lsst.bandpasses["g"].zeropoint
+zp_2 = lsst.bandpasses["i"].zeropoint
 
 
 def pre_aggregate(dataset, predicate, color=None):

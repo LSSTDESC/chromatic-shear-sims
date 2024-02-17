@@ -75,7 +75,11 @@ lsst = Survey(
         "y": 18.61,
     },
     bandpasses={
-        band: galsim.Bandpass(f"LSST_{band}.dat", "nm").withZeropoint("AB")
+        # band: galsim.Bandpass(f"LSST_{band}.dat", "nm").withZeropoint("AB")
+        band: galsim.Bandpass(
+            f"/pscratch/sd/s/smau/baseline/total_{band}.dat",
+            "nm",
+        ).withZeropoint("AB").thin(1e-3)
         for band in {"u", "g", "r", "i", "z", "y"}
     },
 )

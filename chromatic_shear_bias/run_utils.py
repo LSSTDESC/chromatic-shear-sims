@@ -1413,8 +1413,12 @@ def run_pair_color_response(
     mbobs_p = pair["plus"]
     mbobs_m = pair["minus"]
 
+    # bps = {
+    #     band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB")
+    #     for band in bands
+    # }
     bps = {
-        band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB")
+        band.lower(): survey.bandpasses[band.lower()]
         for band in bands
     }
 
