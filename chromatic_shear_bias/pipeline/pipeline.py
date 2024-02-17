@@ -149,7 +149,8 @@ class Pipeline:
                     colors = np.linspace(colors_min, colors_max, 3)
                 case "centered":
                     median = self.galaxies.aggregate.get("median_color")[0]
-                    colors = [median - 0.1, median, median + 0.1]
+                    dc = measure_config.get("dc", 0.1)
+                    colors = [median - dc, median, median + dc]
                 case _:
                     raise ValueError(f"Colors type {colors_type} not valid!")
         else:
