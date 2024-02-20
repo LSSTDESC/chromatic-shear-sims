@@ -53,28 +53,30 @@ galaxies:
           output: "quantiles"
 
 stars:
-    path: /pscratch/sd/s/smau/dc2_stellar_healpixel.arrow
-    format: arrow
+    # path: /pscratch/sd/s/smau/dc2_stellar_healpixel.arrow
+    # format: arrow
+    path: /pscratch/sd/s/smau/dc2_stellar_healpixel_parquet
+    format: parquet
     predicate:
        and_kleene:
            - and_kleene:
                - less:
-                   - field: imag
+                   - field: imag_obs
                    - scalar: 21.0
                - greater:
-                   - field: imag
+                   - field: imag_obs
                    - scalar: 19.0
            - match_substring_regex:
                - field: "sedFilename"
                - "^k[mp]*"
     projection:
         - "sedFilename"
-        - "gmag"
-        - "imag"
+        - "gmag_obs"
+        - "imag_obs"
         - color:
             subtract_checked:
-                - field: "gmag"
-                - field: "imag"
+                - field: "gmag_obs"
+                - field: "imag_obs"
     aggregate:
         - function: count
           input: "color"
@@ -82,18 +84,14 @@ stars:
           output: "count"
 
 scene:
-    type: hex
-    separation: 10
-    # type: random
-    # n: 1000
-    border: 100
+    type: single
     dither: 0.5
 
 image:
     # xsize: 320
     # ysize: 320
-    xsize: 500
-    ysize: 500
+    xsize: 100
+    ysize: 100
     psf_size: 53
     bands: ["g", "r", "i"]
     shear: 0.02
@@ -102,7 +100,8 @@ measure:
     # type: metadetect
     # type: chromatic_metadetect
     type: drdc
-    colors: centered
+    colors: quantiles
+    # colors: centered
     shear_bands: [[1]]
     det_bands: [[0, 1, 2]]
 

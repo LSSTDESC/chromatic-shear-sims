@@ -12,7 +12,7 @@ from pyarrow import acero
 import yaml
 
 from chromatic_shear_bias import run_utils
-from chromatic_shear_bias.pipeline.loader import Loader
+from chromatic_shear_bias.loader import Loader
 
 
 logger = logging.getLogger(__name__)
