@@ -8,7 +8,7 @@ import pyarrow.compute as pc
 import pyarrow.dataset as ds
 
 import dsps
-from dsps.data_loaders import load_ssp_templates
+# from dsps.data_loaders import load_ssp_templates
 from lsstdesc_diffsky import read_diffskypop_params
 from lsstdesc_diffsky.defaults import OUTER_RIM_COSMO_PARAMS
 from lsstdesc_diffsky.io_utils.load_diffsky_healpixel import ALL_DIFFSKY_PNAMES
