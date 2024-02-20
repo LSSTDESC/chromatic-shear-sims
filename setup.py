@@ -2,18 +2,14 @@ import os
 from setuptools import setup, find_packages
 
 scripts = [
-    "bin/meas-chromatic-shear-bias",
-    "bin/plot-grid",
-    "bin/run-chromatic-shear-bias",
-    "bin/run-baseline",
-    "bin/run-chromatic",
-    "bin/run-monochromatic",
-    "bin/run-achromatic",
-    "bin/run-grid",
-    "bin/run-viz",
-    "bin/validate-seds",
-    "bin/viz-chromatic-shear-bias",
+    "bin/aggregate-chromatic-shear-sims",
+    "bin/meas-chromatic-shear-sims",
+    "bin/plot-chromatic-shear-sims",
+    "bin/plot-drdc-chromatic-shear-sims",
+    "bin/prepare-chromatic-shear-sims",
+    "bin/run-chromatic-shear-sims",
 ]
+
 
 setup(
     name="chromatic-shear-bias",
