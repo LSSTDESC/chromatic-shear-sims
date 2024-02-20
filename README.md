@@ -9,7 +9,10 @@ conda create --prefix /path/to/prefix --file requirements.txt
 
 ## bin
 
-- `viz-chromatic-shear-bias`: visualize a simulation
-- `run-chromatic-shear-bias`: run simulation and shear measurement
-- `meas-chromatic-shear-bias`: measure multiplicative and additive bias of shear
+- `prepare-chromatic-shear-sims`: prepare a config for analysis
+- `plot-chromatic-shear-sims`: make an example plot of a config
+- `run-chromatic-shear-sims`: run simulations
+- `aggregate-chromatic-shear-sims`: aggregate measurement results
+- `meas-chromatic-shear-sims`: make final measurements
+- `plot-drdc-chromatic-shear-sims`: make a plot of the chromatic response
 
