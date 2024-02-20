@@ -24,7 +24,7 @@ prepare-chromatic-shear-sims --config config.yaml
 ```
 
 ```
-plot-chromatic-shear-sims --config config.yaml --seed $RANDOM --detect True
+plot-chromatic-shear-sims --config config.yaml --seed $RANDOM --detect
  ```
 
 
