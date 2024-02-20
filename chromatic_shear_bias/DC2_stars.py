@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @functools.cache
 def read_sed_file(file_name, wave_type, flux_type):
-    return galsim.sed.SED(file_name, wave_type, flux_type)
+    return galsim.SED(file_name, wave_type, flux_type)
 
 
 def build_star(sed_filename, imag, sed_dir=None, i_bandpass=None):
