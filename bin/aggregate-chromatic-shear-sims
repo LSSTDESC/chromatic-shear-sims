@@ -17,9 +17,9 @@ import pyarrow.parquet as pq
 from pyarrow import acero
 import tqdm
 
-from chromatic_shear_bias import surveys
-from chromatic_shear_bias import logging_config
-from chromatic_shear_bias.pipeline import Pipeline
+from chromatic_shear_sims import surveys
+from chromatic_shear_sims import logging_config
+from chromatic_shear_sims.pipeline import Pipeline
 
 
 logger = logging.getLogger(__name__)

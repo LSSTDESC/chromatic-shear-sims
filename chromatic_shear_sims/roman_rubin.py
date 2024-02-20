@@ -299,7 +299,7 @@ class RomanRubinBuilder:
 
 
 if __name__ == "__main__":
-    from chromatic_shear_bias import surveys
+    from chromatic_shear_sims import surveys
 
     logging.basicConfig(level=logging.INFO)
 

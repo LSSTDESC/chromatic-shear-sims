@@ -12,8 +12,8 @@ scripts = [
 
 
 setup(
-    name="chromatic-shear-bias",
-    version=0.2,
+    name="chromatic-shear-sims",
+    version=0.3,
     description="Studies of the contribution to shear calibration bias from chromatic effects ",
     author="smau",
     packages=find_packages(),

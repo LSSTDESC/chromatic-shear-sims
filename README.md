@@ -1,4 +1,4 @@
-# chromatic-shear-bias
+# chromatic-shear-sims
 
 Chromatic image simulations for shear testing
 

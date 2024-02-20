@@ -15,9 +15,9 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
-from chromatic_shear_bias import run_utils, roman_rubin, DC2_stars, surveys
-from chromatic_shear_bias import logging_config
-from chromatic_shear_bias.pipeline import Pipeline
+from chromatic_shear_sims import run_utils, roman_rubin, DC2_stars, surveys
+from chromatic_shear_sims import logging_config
+from chromatic_shear_sims.pipeline import Pipeline
 
 
 logger = logging.getLogger(__name__)

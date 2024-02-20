@@ -3,9 +3,7 @@
 module load conda
 module load texlive
 
-# conda activate chromatic-shear-bias
-# conda activate /pscratch/sd/s/smau/conda/chromatic-shear-bias
-conda activate /pscratch/sd/s/smau/conda/chromatic-shear-bias-cpu
+conda activate /pscratch/sd/s/smau/conda/chromatic-shear-sims
 
 # https://joblib.readthedocs.io/en/latest/parallel.html#avoiding-over-subscription-of-cpu-resources
 export OMP_NUM_THREADS=1

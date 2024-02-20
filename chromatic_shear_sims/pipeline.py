@@ -11,8 +11,8 @@ import pyarrow.dataset as ds
 from pyarrow import acero
 import yaml
 
-from chromatic_shear_bias import run_utils
-from chromatic_shear_bias.loader import Loader
+from chromatic_shear_sims import run_utils
+from chromatic_shear_sims.loader import Loader
 
 
 logger = logging.getLogger(__name__)

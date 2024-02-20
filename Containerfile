@@ -1,6 +1,6 @@
 FROM quay.io/fedora/fedora-minimal
 
-COPY . /src/chromatic_shear_bias
+COPY . /src/chromatic_shear_sims
 
 WORKDIR /opt
 
@@ -13,11 +13,11 @@ ENV CONDA_PREFIX=/opt/miniforge
 
 RUN \
 	conda config --set solver libmamba &&\
-	conda install --yes --file=/src/chromatic_shear_bias/requirements.txt &&\
+	conda install --yes --file=/src/chromatic_shear_sims/requirements.txt &&\
 	conda clean --yes --all
 
 RUN \
-	pip install /src/chromatic_shear_bias
+	pip install /src/chromatic_shear_sims
 
 WORKDIR /home
 
