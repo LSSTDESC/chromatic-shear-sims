@@ -20,9 +20,9 @@ S2N_CUTS = [7, 8, 9, 10, 15, 20]
 MFRAC_CUTS = [0, 1, 2, 5, 8, 10, 20, 50, 80, 100]
 
 gsparams = galsim.GSParams(
-    maximum_fft_size=16384,
-    kvalue_accuracy=1e-8,
-    maxk_threshold=1e-5,
+    maximum_fft_size=8192 * 4,
+    # kvalue_accuracy=1e-8,
+    # maxk_threshold=1e-5,
 )
 
 
