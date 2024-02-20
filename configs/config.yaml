@@ -1,0 +1,142 @@
+throughput_dir: "/pscratch/sd/s/smau/baseline/"  # FIXME not used yet
+diffskypop_params: "roman_rubin_2023"
+ssp_templates: "/pscratch/sd/s/smau/dsps_ssp_data_singlemet.h5"
+sed_dir: "/pscratch/sd/s/smau/starSED/"
+
+galaxies:
+    path: /pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet
+    format: parquet
+    predicate:
+        and_kleene:
+           - less:
+               - field: LSST_obs_r
+               - scalar: 26.0
+           - less:
+               - field: LSST_obs_i
+               - scalar: 26.0
+    projection:
+        - "LSST_obs_g"
+        - "LSST_obs_r"
+        - "LSST_obs_i"
+        - "LSST_obs_z"
+        - "redshift"
+        - color:
+            subtract_checked:
+                - field: "LSST_obs_g"
+                - field: "LSST_obs_i"
+    aggregate:
+        - function: count
+          input: "color"
+          options: null
+          output: "count"
+        - function: min
+          input: "color"
+          options: null
+          output: "min_color"
+        - function: max
+          input: "color"
+          options: null
+          output: "max_color"
+        - function: mean
+          input: "color"
+          options: null
+          output: "mean_color"
+        - function: approximate_median
+          input: "color"
+          options: null
+          output: "median_color"
+        - function: tdigest
+          input: "color"
+          options:
+              TDigestOptions:
+                  q: [0.25, 0.50, 0.75]
+          output: "quantiles"
+
+stars:
+    # path: /pscratch/sd/s/smau/dc2_stellar_healpixel.arrow
+    # format: arrow
+    path: /pscratch/sd/s/smau/dc2_stellar_healpixel_parquet
+    format: parquet
+    predicate:
+       and_kleene:
+           - and_kleene:
+               - less:
+                   - field: imag_obs
+                   - scalar: 21.0
+               - greater:
+                   - field: imag_obs
+                   - scalar: 19.0
+           - match_substring_regex:
+               - field: "sedFilename"
+               - "^k[mp]*"
+    projection:
+        - "sedFilename"
+        - "gmag_obs"
+        - "imag_obs"
+        - color:
+            subtract_checked:
+                - field: "gmag_obs"
+                - field: "imag_obs"
+    aggregate:
+        - function: count
+          input: "color"
+          options: null
+          output: "count"
+
+scene:
+    type: hex
+    separation: 10
+    # type: random
+    # n: 1000
+    border: 100
+    dither: 0.5
+
+image:
+    # xsize: 320
+    # ysize: 320
+    xsize: 500
+    ysize: 500
+    psf_size: 53
+    bands: ["g", "r", "i"]
+    shear: 0.02
+
+measure:
+    # type: metadetect
+    # type: chromatic_metadetect
+    type: drdc
+    colors: centered
+    dc: 0.35
+    shear_bands: [[1]]
+    det_bands: [[0, 1, 2]]
+
+galsim:
+    psf:
+        type: ChromaticAtmosphere
+        base_profile:
+            type: Gaussian
+            fwhm: 0.9
+        base_wavelength: 500
+        alpha: -0.3  # recommended by J. Meyers
+        zenith_angle: 0 deg  # set to 0 to disable DCR
+        parallactic_angle: 0 deg  # set to 0 to disable DCR
+
+
+metadetect:
+    model: pgauss
+    weight:
+        fwhm: 2.0
+    symmetrize: False
+    metacal:
+        psf: fitgauss
+        types: [noshear, 1p, 1m, 2p, 2m]
+        use_noise_image: true
+    meds:
+        box_padding: 2
+        box_type: iso_radius
+        max_box_size: 48
+        min_box_size: 48
+        rad_fac: 2
+        rad_min: 4
+
+output:
+    format: arrow

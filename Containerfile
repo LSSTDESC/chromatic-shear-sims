@@ -13,7 +13,6 @@ ENV CONDA_PREFIX=/opt/miniforge
 
 RUN \
 	conda config --set solver libmamba &&\
-	# conda env create --file=/src/chromatic_shear_bias/environment.yaml &&\
 	conda install --yes --file=/src/chromatic_shear_bias/requirements.txt &&\
 	conda clean --yes --all
 
