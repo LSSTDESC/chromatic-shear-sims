@@ -45,14 +45,16 @@ def run_pipeline(config, seed=None, detect=False):
     measure_type = measure_config.get("type")
 
     lsst = surveys.lsst
-    lsst.load_bandpasses(pipeline.config.get("throughput_dir"))
+    lsst.load_bandpasses(
+        pipeline.config.get("throughput_dir", os.environ["THROUGHPUT_DIR"])
+    )
 
     # psf
     psf = pipeline.get_psf()
 
     # star
     dc2builder = DC2_stars.DC2Builder(
-        sed_dir=pipeline.config.get("sed_dir"),
+        sed_dir=pipeline.config.get("sed_dir", os.environ["SED_DIR"]),
         survey=lsst,
     )
 
@@ -84,7 +86,7 @@ def run_pipeline(config, seed=None, detect=False):
     # galaxies
     romanrubinbuilder = roman_rubin.RomanRubinBuilder(
         diffskypop_params=pipeline.config.get("diffskypop_params"),
-        ssp_templates=pipeline.config.get("ssp_templates"),
+        ssp_templates=pipeline.config.get("ssp_templates", os.environ["SSP_TEMPLATES"]),
         survey=lsst,
     )
 

@@ -242,7 +242,9 @@ def main():
     pipeline.load()
 
     lsst = surveys.lsst
-    lsst.load_bandpasses(pipeline.config.get("throughput_dir"))
+    lsst.load_bandpasses(
+        pipeline.config.get("throughput_dir", os.environ["THROUGHPUT_DIR"])
+    )
 
     zps = [
         lsst.bandpasses["g"].zeropoint,
