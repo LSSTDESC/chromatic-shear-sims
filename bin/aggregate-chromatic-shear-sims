@@ -30,12 +30,8 @@ CHROMATIC_MEASURES = {
     "drdc",
 }
 
-lsst = surveys.lsst
-zp_0 = lsst.bandpasses["g"].zeropoint
-zp_2 = lsst.bandpasses["i"].zeropoint
 
-
-def pre_aggregate(dataset, predicate, color=None):
+def pre_aggregate(dataset, predicate, color=None, zps=None):
     """
     Aggregate measurements at the image level to accelerate bootstrapping
     """
@@ -74,7 +70,7 @@ def pre_aggregate(dataset, predicate, color=None):
                             )
                         )
                     ),
-                    pc.subtract(pc.scalar(zp_0), pc.scalar(zp_2))
+                    pc.subtract(pc.scalar(zps[0]), pc.scalar(zps[1]))
                 ),
             ],
             names=[
@@ -245,6 +241,14 @@ def main():
     pipeline = Pipeline(config)
     pipeline.load()
 
+    lsst = surveys.lsst
+    lsst.load_bandpasses(pipeline.config.get("throughput_dir"))
+
+    zps = [
+        lsst.bandpasses["g"].zeropoint,
+        lsst.bandpasses["i"].zeropoint
+    ]
+
     rng = np.random.default_rng(seed)
 
     dataset_path = os.path.join(
@@ -273,7 +277,7 @@ def main():
         color = colors[1]
     else:
         color = None
-    aggregates = pre_aggregate(dataset, predicate, color=color)
+    aggregates = pre_aggregate(dataset, predicate, color=color, zps=zps)
 
     output_config = pipeline.output_config
     aggregate_path = os.path.join(
