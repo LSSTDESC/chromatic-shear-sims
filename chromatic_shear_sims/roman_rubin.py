@@ -304,6 +304,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     lsst = surveys.lsst
+    lsst.load_bandpasses("/pscratch/sd/s/smau/baseline")
 
     seed = 42
     rng = np.random.default_rng(seed)
@@ -342,19 +343,15 @@ if __name__ == "__main__":
 
     gals = romanrubinbuilder.build_gals(gal_params)
 
-
-    lsst.load_bandpasses("/pscratch/sd/s/smau/baseline")
-    bps = lsst.bandpasses
-
     print(f"|-----------------|---------------|-------------------|-------------|")
     print(f"|        r        |      g-i      |        g-i        |     g-i     |")
     print(f"|-----------------|---------------|-------------------|-------------|")
     print(f"|    cat |    obs |   cat |   obs | (obs - cat) / cat | |obs - cat| |")
     print(f"|-----------------|---------------|-------------------|-------------|")
     for i, gal in enumerate(gals):
-        mag_g = gal.calculateMagnitude(bps["g"])
-        mag_r = gal.calculateMagnitude(bps["r"])
-        mag_i = gal.calculateMagnitude(bps["i"])
+        mag_g = gal.calculateMagnitude(lsst.bandpasses["g"])
+        mag_r = gal.calculateMagnitude(lsst.bandpasses["r"])
+        mag_i = gal.calculateMagnitude(lsst.bandpasses["i"])
         obs_color = mag_g - mag_i
 
         mag_g_cat = gal_params["LSST_obs_g"][i]

@@ -93,8 +93,12 @@ class DC2Builder:
 if __name__ == "__main__":
     import numpy as np
     import pyarrow.compute as pc
+    from chromatic_shear_sims import surveys
 
     logging.basicConfig(level=logging.DEBUG)
+
+    lsst = surveys.lsst
+    lsst.load_bandpasses("/pscratch/sd/s/smau/baseline")
 
     # SED_DIR = "/cvmfs/sw.lsst.eu/linux-x86_64/lsst_sims/sims_w_2020_15/stack/current/Linux64/sims_sed_library/2017.01.24/starSED/"
     SED_DIR = "/pscratch/sd/s/smau/starSED/"
@@ -111,6 +115,7 @@ if __name__ == "__main__":
     )
     dc2builder = DC2Builder(
         SED_DIR,
+        survey=lsst,
     )
 
     # dataset = ds.dataset("/pscratch/sd/s/smau/dc2_stellar_healpixel.arrow", format="arrow")
@@ -130,22 +135,15 @@ if __name__ == "__main__":
 
     stars = dc2builder.build_stars(star_params)
 
-    filters = {"u", "g", "r", "i", "z", "y"}
-    bps = {
-        # f: galsim.Bandpass(f"LSST_{f}.dat", "nm").withZeropoint("AB")
-        f: galsim.Bandpass(f"/pscratch/sd/s/smau/baseline/total_{f}.dat", "nm").withZeropoint("AB").thin(1e-3)
-        for f in filters
-    }
-
     print(f"|-----------------|---------------|-------------------|-------------|")
     print(f"|        r        |      g-i      |        g-i        |     g-i     |")
     print(f"|-----------------|---------------|-------------------|-------------|")
     print(f"|    cat |    obs |   cat |   obs | (obs - cat) / cat | |obs - cat| |")
     print(f"|-----------------|---------------|-------------------|-------------|")
     for i, star in enumerate(stars):
-        mag_g = star.calculateMagnitude(bps["g"])
-        mag_r = star.calculateMagnitude(bps["r"])
-        mag_i = star.calculateMagnitude(bps["i"])
+        mag_g = star.calculateMagnitude(lsst.bandpasses["g"])
+        mag_r = star.calculateMagnitude(lsst.bandpasses["r"])
+        mag_i = star.calculateMagnitude(lsst.bandpasses["i"])
         obs_color = mag_g - mag_i
 
         mag_g_cat = star_params["gmag_obs"][i]
