@@ -23,3 +23,7 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=false
 
 # https://github.com/google/jax/issues/743
 export XLA_FLAGS="--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1"
+
+export THROUGHPUT_DIR=/pscratch/sd/s/smau/baseline/
+export SED_DIR=/pscratch/sd/s/smau/starSED/
+export SSP_TEMPLATES=/pscratch/sd/s/smau/dsps_ssp_data_singlemet.h5
