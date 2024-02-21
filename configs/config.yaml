@@ -1,4 +1,4 @@
-throughput_dir: "/pscratch/sd/s/smau/baseline/"  # FIXME not used yet
+throughput_dir: "/pscratch/sd/s/smau/baseline/"
 diffskypop_params: "roman_rubin_2023"
 ssp_templates: "/pscratch/sd/s/smau/dsps_ssp_data_singlemet.h5"
 sed_dir: "/pscratch/sd/s/smau/starSED/"

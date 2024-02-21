@@ -65,13 +65,10 @@ def build_star(sed_filename, imag, sed_dir=None, i_bandpass=None):
     return star
 
 class DC2Builder:
-    def __init__(self, sed_dir=None):
+    def __init__(self, sed_dir=None, survey=None):
         self.sed_dir = sed_dir
         # self.lsst_i = galsim.Bandpass("LSST_i.dat", "nm").withZeropoint("AB")
-        self.lsst_i = galsim.Bandpass(
-            f"/pscratch/sd/s/smau/baseline/total_i.dat", "nm"
-        ).withZeropoint("AB").thin(1e-3)
-
+        self.lsst_i = survey.bandpasses["i"]
         self.columns = ["sedFilename", "imag_obs"]
 
         logger.info(f"initializing DC2 builder with sed_dir: {self.sed_dir}")

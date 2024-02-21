@@ -82,6 +82,7 @@ def run_pipeline(config, seed=None):
     measure_type = measure_config.get("type")
 
     lsst = surveys.lsst
+    lsst.load_bandpasses(pipeline.config.get("throughput_dir"))
 
     # psf
     psf = pipeline.get_psf()
@@ -89,6 +90,7 @@ def run_pipeline(config, seed=None):
     # star
     dc2builder = DC2_stars.DC2Builder(
         sed_dir=pipeline.config.get("sed_dir"),
+        survey=lsst,
     )
 
     colors = pipeline.get_colors()

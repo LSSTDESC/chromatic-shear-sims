@@ -343,6 +343,7 @@ if __name__ == "__main__":
     gals = romanrubinbuilder.build_gals(gal_params)
 
 
+    lsst.load_bandpasses("/pscratch/sd/s/smau/baseline")
     bps = lsst.bandpasses
 
     print(f"|-----------------|---------------|-------------------|-------------|")

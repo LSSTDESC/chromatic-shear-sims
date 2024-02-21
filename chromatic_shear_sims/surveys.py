@@ -1,7 +1,11 @@
 # from dataclasses import dataclass
+import logging
 
 import numpy as np
 import galsim
+
+
+logger = logging.getLogger(__name__)
 
 
 class Survey:
@@ -15,7 +19,7 @@ class Survey:
         ncoadd,
         zeropoints,
         sky,
-        bandpasses,
+        bands,
     ):
         self.scale = scale
         self.exptime = exptime
@@ -24,8 +28,11 @@ class Survey:
         self.ncoadd = ncoadd
         self.zeropoints = zeropoints
         self.sky = sky
-        self.bandpasses = bandpasses
+        # self.bandpasses = bandpasses
+        # self.bandpasses = self.get_bandpasses(bandpass_dir, bands)
+        self.bands = bands
         self.sky_rms = self.get_sky_rms()
+        self._bandpasses = None
 
     def get_sky_rms(self):
         # return {
@@ -37,9 +44,24 @@ class Survey:
         #     for f in self.sky.keys()
         # }
         return {
-            f: 1e-9
-            for f in self.sky.keys()
+            band: 1e-9
+            for band in self.bands
         }
+
+    @property
+    def bandpasses(self):
+        return self._bandpasses
+
+    def load_bandpasses(self, throughput_dir):
+        logger.info(f"loading bandpasses from {throughput_dir}")
+        bandpasses = {
+            band: galsim.Bandpass(
+                f"{throughput_dir}/total_{band}.dat",
+                "nm",
+            ).withZeropoint("AB").thin(1e-3)
+            for band in self.bands
+        }
+        self._bandpasses = bandpasses
 
 # cf.
 # 	https://lsst.org/scientists/keynumbers
@@ -74,12 +96,5 @@ lsst = Survey(
         "z": 19.60,
         "y": 18.61,
     },
-    bandpasses={
-        # band: galsim.Bandpass(f"LSST_{band}.dat", "nm").withZeropoint("AB")
-        band: galsim.Bandpass(
-            f"/pscratch/sd/s/smau/baseline/total_{band}.dat",
-            "nm",
-        ).withZeropoint("AB").thin(1e-3)
-        for band in {"u", "g", "r", "i", "z", "y"}
-    },
+    bands=["u", "g", "r", "i", "z", "y"],
 )
