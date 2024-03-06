@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
-import concurrent.futures
+import functools
 import logging
+from logging import handlers
 import multiprocessing
+import threading
 import os
 
 import ngmix
@@ -24,17 +26,37 @@ from chromatic_shear_sims.pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
 
-CHROMATIC_MEASURES = {
-    "chromatic_metadetect",
-    "drdc",
-}
+
+# https://docs.python.org/3/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
+def logger_thread(queue):
+    while True:
+        record = queue.get()
+        if record is None:
+            break
+        logger = logging.getLogger(record.name)
+        logger.handle(record)
 
 
-def callback(future):
-    logger.info(f"finished future {future}")
+def initializer(queue, log_level):
+    queue_handler = handlers.QueueHandler(queue)
+    logger = logging.getLogger()
+    logger.setLevel(log_level)
+    logger.addHandler(queue_handler)
+    logger.debug(f"spawning worker process")
 
 
 def compute_e(results):
+    # NOSHEAR
+    p_e1_ns = np.average(results["plus"]["noshear"]["e1"])
+    p_e2_ns = np.average(results["plus"]["noshear"]["e2"])
+
+    m_e1_ns = np.average(results["minus"]["noshear"]["e1"])
+    m_e2_ns = np.average(results["minus"]["noshear"]["e2"])
+
+    return np.array([p_e1_ns, p_e2_ns]), np.array([m_e1_ns, m_e2_ns])
+
+
+def compute_e_chromatic(results):
     # NOSHEAR
     p_c1_e1_ns = np.average(results["plus"]["c1"]["noshear"]["e1"])
     p_c1_e2_ns = np.average(results["plus"]["c1"]["noshear"]["e2"])
@@ -53,6 +75,45 @@ def compute_e_step(results, shear_step, color_step):
 
 
 def compute_R(results, dg):
+
+    p_R11 = np.average(pc.divide(pc.subtract(
+        results["plus"]["1p"]["e1"],
+        results["plus"]["1m"]["e1"]
+    ), 2 * dg))
+    p_R12 = np.average(pc.divide(pc.subtract(
+        results["plus"]["2p"]["e1"],
+        results["plus"]["2m"]["e1"]
+    ), 2 * dg))
+    p_R21 = np.average(pc.divide(pc.subtract(
+        results["plus"]["1p"]["e2"],
+        results["plus"]["1m"]["e2"]
+    ), 2 * dg))
+    p_R22 = np.average(pc.divide(pc.subtract(
+        results["plus"]["2p"]["e2"],
+        results["plus"]["2m"]["e2"]
+    ), 2 * dg))
+
+    m_R11 = np.average(pc.divide(pc.subtract(
+        results["minus"]["1p"]["e1"],
+        results["minus"]["1m"]["e1"]
+    ), 2 * dg))
+    m_R12 = np.average(pc.divide(pc.subtract(
+        results["minus"]["2p"]["e1"],
+        results["minus"]["2m"]["e1"]
+    ), 2 * dg))
+    m_R21 = np.average(pc.divide(pc.subtract(
+        results["minus"]["1p"]["e2"],
+        results["minus"]["1m"]["e2"]
+    ), 2 * dg))
+    m_R22 = np.average(pc.divide(pc.subtract(
+        results["minus"]["2p"]["e2"],
+        results["minus"]["2m"]["e2"]
+    ), 2 * dg))
+
+    return np.array([[p_R11, p_R12], [p_R21, p_R22]]), np.array([[m_R11, m_R12], [m_R21, m_R22]])
+
+
+def compute_R_chromatic(results, dg):
 
     p_c1_R11 = np.average(pc.divide(pc.subtract(
         results["plus"]["c1"]["1p"]["e1"],
@@ -681,7 +742,7 @@ def compute_bias(results, dg, dc):
 
 
 def compute_bias_chromatic_testing(batch, dg, dc):
-    e_p, e_m = compute_e(batch)
+    e_p, e_m = compute_e_step(batch)
 
     R_p, R_m = compute_R(batch, dg)
 
@@ -700,21 +761,58 @@ def compute_bias_chromatic_testing(batch, dg, dc):
 
 
 def compute_bias_chromatic(batch, dg, dc):
-    e_p, e_m = compute_e(batch)
+    e_p, e_m = compute_e_chromatic(batch)
 
-    R_p, R_m = compute_R(batch, dg)
+    R_p, R_m = compute_R_chromatic(batch, dg)
+
+    # avg_c_p = np.average(batch["plus"]["c1"]["1p"]["c"])
+    # var_c_p = np.average(batch["plus"]["c1"]["1p"]["var_c"])
+    # cov_cR_p = np.array([
+    #     [
+    #         np.average(pc.divide(pc.subtract(batch["plus"]["c1"]["1p"]["cov_e1c"], batch["plus"]["c1"]["1m"]["cov_e1c"]), 2 * dg)),
+    #         np.average(pc.divide(pc.subtract(batch["plus"]["c1"]["2p"]["cov_e1c"], batch["plus"]["c1"]["2m"]["cov_e1c"]), 2 * dg)),
+    #     ],
+    #     [
+    #         np.average(pc.divide(pc.subtract(batch["plus"]["c1"]["1p"]["cov_e2c"], batch["plus"]["c1"]["1m"]["cov_e2c"]), 2 * dg)),
+    #         np.average(pc.divide(pc.subtract(batch["plus"]["c1"]["2p"]["cov_e2c"], batch["plus"]["c1"]["2m"]["cov_e2c"]), 2 * dg)),
+    #     ],
+    # ])
+
+    # avg_c_m = np.average(batch["minus"]["c1"]["1p"]["c"])
+    # var_c_m = np.average(batch["minus"]["c1"]["1p"]["var_c"])
+    # cov_cR_m = np.array([
+    #     [
+    #         np.average(pc.divide(pc.subtract(batch["minus"]["c1"]["1p"]["cov_e1c"], batch["minus"]["c1"]["1m"]["cov_e1c"]), 2 * dg)),
+    #         np.average(pc.divide(pc.subtract(batch["minus"]["c1"]["2p"]["cov_e1c"], batch["minus"]["c1"]["2m"]["cov_e1c"]), 2 * dg)),
+    #     ],
+    #     [
+    #         np.average(pc.divide(pc.subtract(batch["minus"]["c1"]["1p"]["cov_e2c"], batch["minus"]["c1"]["1m"]["cov_e2c"]), 2 * dg)),
+    #         np.average(pc.divide(pc.subtract(batch["minus"]["c1"]["2p"]["cov_e2c"], batch["minus"]["c1"]["2m"]["cov_e2c"]), 2 * dg)),
+    #     ],
+    # ])
+
+    # R_p -= cov_cR_p / var_c_p * avg_c_p
+    # R_m -= cov_cR_m / var_c_m * avg_c_m
+
+    # g_p = np.linalg.inv(R_p) @ e_p
+    # g_m = np.linalg.inv(R_m) @ e_m
 
     dedc_p, dedc_m = compute_dedc(batch, dg, dc)
     dRdc_p, dRdc_m = compute_dRdc(batch, dg, dc)
 
+    # g_p = np.linalg.inv(R_p) @ (e_p - dedc_p)
+    # g_m = np.linalg.inv(R_m) @ (e_m - dedc_m)
+    # g_p = np.linalg.inv(R_p + dRdc_p) @ e_p
+    # g_m = np.linalg.inv(R_m + dRdc_m) @ e_m
     g_p = np.linalg.inv(R_p + dRdc_p) @ (e_p - dedc_p)
     g_m = np.linalg.inv(R_m + dRdc_m) @ (e_m - dedc_m)
+    # g_p = np.linalg.inv(R_p - dRdc_p) @ (e_p + dedc_p)
+    # g_m = np.linalg.inv(R_m - dRdc_m) @ (e_m + dedc_m)
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
     c = (g_p + g_m)[1] / 2
 
-    # return g_p, g_m, m, c
     return m, c
 
     # AE = ((e_p - dedc_p) + (e_m - dedc_m)) / 2
@@ -742,9 +840,227 @@ def pivot_aggregates(res, seeds=None):
     aggregates = {}
     for shear_step in ["plus", "minus"]:
         aggregates[shear_step] = {}
+        for mdet_step in ["noshear", "1p", "1m", "2p", "2m"]:
+            logger.debug(f"aggregating {shear_step}:{mdet_step}")
+            predicate = (
+                (pc.field("shear") == shear_step)
+                & (pc.field("mdet_step") == mdet_step)
+            )
+            if seeds is not None:
+                predicate &= pc.is_in(pc.field("seed"), seeds)
+            post_filter_node = acero.Declaration(
+                "filter",
+                acero.FilterNodeOptions(
+                    predicate,
+                ),
+            )
+            weight_project_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.field("count"),
+                        pc.multiply(pc.field("mean_e1"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e2"), pc.field("count")),
+                        pc.multiply(pc.field("mean_c"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e1e2"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e1c"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e2c"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e1dc"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e2dc"), pc.field("count")),
+                        pc.multiply(pc.field("var_e1"), pc.field("count")),
+                        pc.multiply(pc.field("var_e2"), pc.field("count")),
+                        pc.multiply(pc.field("var_c"), pc.field("count")),
+                        pc.multiply(pc.field("var_e1e2"), pc.field("count")),
+                        pc.multiply(pc.field("var_e1c"), pc.field("count")),
+                        pc.multiply(pc.field("var_e2c"), pc.field("count")),
+                        pc.multiply(pc.field("var_e1dc"), pc.field("count")),
+                        pc.multiply(pc.field("var_e2dc"), pc.field("count")),
+                    ],
+                    names=[
+                        "count",
+                        "weighted_mean_e1",
+                        "weighted_mean_e2",
+                        "weighted_mean_c",
+                        "weighted_mean_e1e2",
+                        "weighted_mean_e1c",
+                        "weighted_mean_e2c",
+                        "weighted_mean_e1dc",
+                        "weighted_mean_e2dc",
+                        "weighted_var_e1",
+                        "weighted_var_e2",
+                        "weighted_var_c",
+                        "weighted_var_e1e2",
+                        "weighted_var_e1c",
+                        "weighted_var_e2c",
+                        "weighted_var_e1dc",
+                        "weighted_var_e2dc",
+                    ],
+                ),
+            )
+            post_aggregate_node = acero.Declaration(
+                "aggregate",
+                acero.AggregateNodeOptions(
+                    [
+                        ("count", "sum", None, "sum_count"),
+                        ("weighted_mean_e1", "sum", None, "sum_mean_e1"),
+                        ("weighted_mean_e2", "sum", None, "sum_mean_e2"),
+                        ("weighted_mean_c", "sum", None, "sum_mean_c"),
+                        ("weighted_mean_e1e2", "sum", None, "sum_mean_e1e2"),
+                        ("weighted_mean_e1c", "sum", None, "sum_mean_e1c"),
+                        ("weighted_mean_e2c", "sum", None, "sum_mean_e2c"),
+                        ("weighted_mean_e1dc", "sum", None, "sum_mean_e1dc"),
+                        ("weighted_mean_e2dc", "sum", None, "sum_mean_e2dc"),
+                        ("weighted_var_e1", "sum", None, "sum_var_e1"),
+                        ("weighted_var_e2", "sum", None, "sum_var_e2"),
+                        ("weighted_var_c", "sum", None, "sum_var_c"),
+                        ("weighted_var_e1e2", "sum", None, "sum_var_e1e2"),
+                        ("weighted_var_e1c", "sum", None, "sum_var_e1c"),
+                        ("weighted_var_e2c", "sum", None, "sum_var_e2c"),
+                        ("weighted_var_e1dc", "sum", None, "sum_var_e1dc"),
+                        ("weighted_var_e2dc", "sum", None, "sum_var_e2dc"),
+                    ],
+                ),
+            )
+            post_project_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.divide(pc.field("sum_mean_e1"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e2"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e1e2"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e1c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e2c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e1dc"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e2dc"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e1"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e2"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e1e2"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e1c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e2c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e1dc"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_var_e2dc"), pc.field("sum_count")),
+                    ],
+                    names=[
+                        "e1",
+                        "e2",
+                        "c",
+                        "e1e2",
+                        "e1c",
+                        "e2c",
+                        "e1dc",
+                        "e2dc",
+                        "var_e1",
+                        "var_e2",
+                        "var_c",
+                        "var_e1e2",
+                        "var_e1c",
+                        "var_e2c",
+                        "var_e1dc",
+                        "var_e2dc",
+                    ],
+                ),
+            )
+            reproject_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.field("e1"),
+                        pc.field("e2"),
+                        pc.field("c"),
+                        pc.field("e1e2"),
+                        pc.field("e1c"),
+                        pc.field("e2c"),
+                        pc.field("e1dc"),
+                        pc.field("e2dc"),
+                        pc.field("var_e1"),
+                        pc.field("var_e2"),
+                        pc.field("var_c"),
+                        pc.field("var_e1e2"),
+                        pc.field("var_e1c"),
+                        pc.field("var_e2c"),
+                        pc.field("var_e1dc"),
+                        pc.field("var_e2dc"),
+                        pc.subtract(
+                            pc.field("e1e2"),
+                            pc.multiply(
+                                pc.field("e1"),
+                                pc.field("e2"),
+                            ),
+                        ),
+                        pc.subtract(
+                            pc.field("e1c"),
+                            pc.multiply(
+                                pc.field("e1"),
+                                pc.field("c"),
+                            ),
+                        ),
+                        pc.subtract(
+                            pc.field("e2c"),
+                            pc.multiply(
+                                pc.field("e2"),
+                                pc.field("c"),
+                            ),
+                        ),
+                    ],
+                    names=[
+                        "e1",
+                        "e2",
+                        "c",
+                        "e1e2",
+                        "e1c",
+                        "e2c",
+                        "e1dc",
+                        "e2dc",
+                        "var_e1",
+                        "var_e2",
+                        "var_c",
+                        "var_e1e2",
+                        "var_e1c",
+                        "var_e2c",
+                        "var_e1dc",
+                        "var_e2dc",
+                        "cov_e1e2",
+                        "cov_e1c",
+                        "cov_e2c",
+                    ],
+                ),
+            )
+            seq = [
+                table_source_node,
+                post_filter_node,
+                weight_project_node,
+                post_aggregate_node,
+                post_project_node,
+                reproject_node,
+            ]
+            plan = acero.Declaration.from_sequence(seq)
+            pivot = plan.to_table(use_threads=True)
+            aggregates[shear_step][mdet_step] = pivot
+
+    return aggregates
+
+
+def pivot_aggregates_chromatic(res, seeds=None):
+    """
+    This more or less implements a pivot wider operation via successive
+    application of filters
+    """
+    table_source_node = acero.Declaration(
+        "table_source",
+        acero.TableSourceNodeOptions(
+            res
+        ),
+    )
+
+    aggregates = {}
+    for shear_step in ["plus", "minus"]:
+        aggregates[shear_step] = {}
         for color_step in ["c0", "c1", "c2"]:
             aggregates[shear_step][color_step] = {}
             for mdet_step in ["noshear", "1p", "1m", "2p", "2m"]:
+                logger.debug(f"aggregating {shear_step}:{color_step}:{mdet_step}")
                 predicate = (
                     (pc.field("shear") == shear_step)
                     & (pc.field("color_step") == color_step)
@@ -1003,6 +1319,7 @@ def main():
     config = args.config
     seed = args.seed
     n_jobs = args.n_jobs
+    n_resample = args.n_resample
     output = args.output
 
     pa.set_cpu_count(n_jobs)
@@ -1016,12 +1333,10 @@ def main():
 
     dg = ngmix.metacal.DEFAULT_STEP
 
-    colors = pipeline.get_colors()
+    color, colors = pipeline.get_colors()
     if colors:
-        color = colors[1]
         dc = -(colors[2] - colors[0]) / 2.
     else:
-        color = None
         dc = None
 
     aggregate_path = os.path.join(
@@ -1036,12 +1351,10 @@ def main():
 
     seeds = np.sort(np.unique(aggregates["seed"]))
 
-    results = pivot_aggregates(aggregates)
+    logger.info(f"aggregating results for {pipeline.name}...")
+    results = pivot_aggregates_chromatic(aggregates)
 
-    # g_p, g_m, m_mean, c_mean = compute_bias(results, dg, dc)
-    # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
-    # # g_p_chroma, g_m_chroma, m_mean_chroma, c_mean_chroma = compute_bias_chromatic_testing(results, dg, dc, color)
-    m_mean, c_mean = compute_bias(results, dg, dc)
+    # m_mean, c_mean = compute_bias(results, dg, dc)
     m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc)
 
     # jobs = []
@@ -1050,103 +1363,98 @@ def main():
     #     jobs.append(joblib.delayed(pivot_aggregates)(aggregates, seeds=_seeds))
 
     # _results = joblib.Parallel(n_jobs=n_jobs, verbose=10, return_as="generator")(jobs)
-    futures = []
-    ctx = multiprocessing.get_context("forkserver")
-    with concurrent.futures.ProcessPoolExecutor(
-        max_workers=n_jobs,
-        mp_context=ctx,
-        max_tasks_per_child=1,
-    ) as executor:
-        for i in tqdm.trange(args.n_resample, ncols=80):
-            _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
-            future = executor.submit(pivot_aggregates, aggregates, seeds=_seeds)
-            future.add_done_callback(callback)
-            futures.append(future)
+    # futures = []
+    # ctx = multiprocessing.get_context("spawn")
+    # with concurrent.futures.ProcessPoolExecutor(
+    #     max_workers=n_jobs,
+    #     mp_context=ctx,
+    #     max_tasks_per_child=1,
+    # ) as executor:
+    #     for i in tqdm.trange(args.n_resample, ncols=80):
+    #         _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
+    #         future = executor.submit(pivot_aggregates, aggregates, seeds=_seeds)
+    #         future.add_done_callback(callback)
+    #         futures.append(future)
 
-    completed_futures = concurrent.futures.as_completed(futures)
-    # g_p_bootstrap = []
-    # g_m_bootstrap = []
-    # g_p_bootstrap_chroma = []
-    # g_m_bootstrap_chroma = []
-    m_bootstrap = []
+    # completed_futures = concurrent.futures.as_completed(futures)
+
+    multiprocessing.set_start_method("spawn")
+    # ctx = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
+    # queue = ctx.Queue(-1)
+    queue = multiprocessing.Queue(-1)
+
+    lp = threading.Thread(target=logger_thread, args=(queue,))
+    lp.start()
+
+    logger.info(f"aggregating results from {n_resample} bootstrap resamples for {pipeline.name}...")
+    with multiprocessing.Pool(
+        n_jobs,
+        initializer=initializer,
+        initargs=(queue, log_level),
+        maxtasksperchild=max(1, n_resample // n_jobs),
+        # context=ctx,
+    ) as pool:
+        # for i in tqdm.trange(n_resample, ncols=80):
+        #     _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
+        results = pool.map(
+            functools.partial(pivot_aggregates_chromatic, aggregates),
+            (
+                pa.array(rng.choice(seeds, size=len(seeds), replace=True))
+                for _ in range(n_resample)
+            ),
+        )
+
+    queue.put(None)
+    lp.join()
+
+    # m_bootstrap = []
+    # c_bootstrap = []
     m_bootstrap_chroma = []
-    c_bootstrap = []
     c_bootstrap_chroma = []
-    for future in completed_futures:
-        res = future.result()
-        # _g_p_bootstrap, _g_m_bootstrap, _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
-        # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
-        # # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_testing(_res, dg, dc, color)
-        _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc)
+    for res in results:
+        # res = future.result()
+        # _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc)
         _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(res, dg, dc)
 
-        # g_p_bootstrap.append(_g_p_bootstrap)
-        # g_m_bootstrap.append(_g_m_bootstrap)
-        # g_p_bootstrap_chroma.append(_g_p_bootstrap_chroma)
-        # g_m_bootstrap_chroma.append(_g_m_bootstrap_chroma)
-        m_bootstrap.append(_m_bootstrap)
+        # m_bootstrap.append(_m_bootstrap)
+        # c_bootstrap.append(_c_bootstrap)
         m_bootstrap_chroma.append(_m_bootstrap_chroma)
-        c_bootstrap.append(_c_bootstrap)
         c_bootstrap_chroma.append(_c_bootstrap_chroma)
 
-    # g_p_bootstrap = np.array(g_p_bootstrap)
-    # g_m_bootstrap = np.array(g_m_bootstrap)
-    # g_p_bootstrap_chroma = np.array(g_p_bootstrap_chroma)
-    # g_m_bootstrap_chroma = np.array(g_m_bootstrap_chroma)
-    m_bootstrap = np.array(m_bootstrap)
+    # m_bootstrap = np.array(m_bootstrap)
+    # c_bootstrap = np.array(c_bootstrap)
     m_bootstrap_chroma = np.array(m_bootstrap_chroma)
-    c_bootstrap = np.array(c_bootstrap)
     c_bootstrap_chroma = np.array(c_bootstrap_chroma)
 
     # report 3 standard deviations as error
-    m_error = np.nanstd(m_bootstrap) * 3
+    # m_error = np.nanstd(m_bootstrap) * 3
+    # c_error = np.nanstd(c_bootstrap) * 3
     m_error_chroma = np.nanstd(m_bootstrap_chroma) * 3
-    c_error = np.nanstd(c_bootstrap) * 3
     c_error_chroma = np.nanstd(c_bootstrap_chroma) * 3
 
-    # print(f"mdet -- plus: {g_p} -- minus: {g_m}")
-    print(f"mdet: m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
-    # print(f"drdc -- plus: {g_p_chroma} -- minus: {g_m_chroma}")
+    # print(f"mdet: m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
     print(f"drdc: m = {m_mean_chroma:0.3e} +/- {m_error_chroma:0.3e} [3-sigma], c = {c_mean_chroma:0.3e} +/- {c_error_chroma:0.3e} [3-sigma]")
 
     m_req = 2e-3
 
-    fig, axs = plt.subplots(2, 2)
+    fig, axs = plt.subplots(1, 2)
 
-    # axs[0, 0].axvline(0.02, c="k", alpha=0.1, ls="--")
-    # axs[0, 0].hist(g_p_bootstrap[:, 0], histtype="step", label=r"$R$", ec="k")
-    # axs[0, 0].axvline(g_p[0], c="k")
-    # axs[0, 0].hist(g_p_bootstrap_chroma[:, 0], histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    # axs[0, 0].axvline(g_p_chroma[0], c="b")
-    # # axs[0, 0].legend()
-    # axs[0, 0].set_xlabel("$g_1^+$")
+    axs[0].axvspan(-m_req, m_req, fc="k", alpha=0.1)
+    axs[0].axvline(4e-4, c="k", alpha=0.1, ls="--")
+    # axs[0].hist(m_bootstrap, histtype="step", label=r"$R$", ec="k")
+    # axs[0].axvline(m_mean, c="k")
+    axs[0].hist(m_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
+    axs[0].axvline(m_mean_chroma, c="b")
+    axs[0].set_xlabel("$m$")
 
-    # axs[0, 1].axvline(-0.02, c="k", alpha=0.1, ls="--")
-    # axs[0, 1].hist(g_m_bootstrap[:, 0], histtype="step", label=r"$R$", ec="k")
-    # axs[0, 1].axvline(g_m[0], c="k")
-    # axs[0, 1].hist(g_m_bootstrap_chroma[:, 0], histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    # axs[0, 1].axvline(g_m_chroma[0], c="b")
-    # # axs[0, 1].legend()
-    # axs[0, 1].set_xlabel("$g_1^-$")
+    # axs[1].hist(c_bootstrap, histtype="step", label=r"$R$", ec="k")
+    # axs[1].axvline(c_mean, c="k")
+    axs[1].hist(c_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
+    axs[1].axvline(c_mean_chroma, c="b")
+    axs[1].legend()
+    axs[1].set_xlabel("$c$")
 
-
-    axs[1, 0].axvspan(-m_req, m_req, fc="k", alpha=0.1)
-    axs[1, 0].axvline(4e-4, c="k", alpha=0.1, ls="--")
-    axs[1, 0].hist(m_bootstrap, histtype="step", label=r"$R$", ec="k")
-    axs[1, 0].axvline(m_mean, c="k")
-    axs[1, 0].hist(m_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    axs[1, 0].axvline(m_mean_chroma, c="b")
-    # axs[1, 0].legend()
-    axs[1, 0].set_xlabel("$m$")
-
-    axs[1, 1].hist(c_bootstrap, histtype="step", label=r"$R$", ec="k")
-    axs[1, 1].axvline(c_mean, c="k")
-    axs[1, 1].hist(c_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    axs[1, 1].axvline(c_mean_chroma, c="b")
-    axs[1, 1].legend()
-    axs[1, 1].set_xlabel("$c$")
-
-    plt.savefig("out.pdf")
+    # plt.savefig("out.pdf")
 
     plt.show()
 

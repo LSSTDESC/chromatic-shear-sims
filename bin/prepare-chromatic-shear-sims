@@ -12,7 +12,6 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
-from chromatic_shear_sims import run_utils, roman_rubin, DC2_stars, surveys
 from chromatic_shear_sims import logging_config
 from chromatic_shear_sims.pipeline import Pipeline
 
@@ -51,13 +50,14 @@ def main():
 
     pipeline = Pipeline(config)
 
+    pipeline.load_survey()
     pipeline.load_galaxies()
     pipeline.load_stars()
 
-    pipeline.save(overwrite=True)
+    for aggregate_k, aggregate_v in pipeline.aggregates.items():
+        logger.info(f"{aggregate_k}: {aggregate_v}")
 
-    logger.info(f"galxies: {pipeline.galaxies.aggregate}")
-    logger.info(f"stars: {pipeline.stars.aggregate}")
+    pipeline.save(overwrite=True)
 
 
 if __name__ == "__main__":

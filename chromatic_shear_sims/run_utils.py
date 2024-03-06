@@ -4,6 +4,7 @@ Some functions from https://github.com/beckermr/pizza-cutter-sims
 """
 
 import copy
+import logging
 import re
 
 import numpy as np
@@ -13,6 +14,9 @@ import yaml
 import galsim
 import ngmix
 import metadetect
+
+
+logger = logging.getLogger(__name__)
 
 
 ORMASK_CUTS = [True, False]
@@ -1388,9 +1392,57 @@ def measure_pair_color_response(
     return measurement
 
 
+def run_pair(
+    pipeline,
+    pair,
+    psf,
+    bands,
+    shear_bands,
+    det_bands,
+    config,
+    seed,
+):
+    rng = np.random.default_rng(seed)
+
+    # given a pair of mbobs with a psf drawn at the median g-i color,
+    # create color_dep_mbobs at each of the provided stars
+    # and run color_dep metadetect
+    mdet_seed = rng.integers(1, 2**64 // 2 - 1)
+    mdet_rng = np.random.default_rng(mdet_seed)
+
+    mbobs_p = pair["plus"]
+    mbobs_m = pair["minus"]
+
+    schema = pipeline.get_schema()
+    batches = []
+    for (shear, mbobs) in [("plus", mbobs_p), ("minus", mbobs_m)]:
+        logger.info(f"Running metadetect for {shear} sim")
+        res = metadetect.do_metadetect(
+            config,
+            mbobs,
+            mdet_rng,
+            shear_band_combs=shear_bands,
+            det_band_combs=det_bands,
+            color_key_func=None,
+            color_dep_mbobs=None,
+        )
+
+        for mdet_step in res.keys():
+            mdet_cat = res[mdet_step]
+            data_dict = {name: mdet_cat[name].tolist() for name in mdet_cat.dtype.names}
+            data_dict["mdet_step"] = [mdet_step for _ in range(len(mdet_cat))]
+            data_dict["shear"] = [shear for _ in range(len(mdet_cat))]
+            # data_dict["color_step"] = [color_step for _ in range(len(mdet_cat))]
+            data_dict["seed"] = [seed for _ in range(len(mdet_cat))]
+
+            batch = pa.RecordBatch.from_pydict(data_dict, schema=schema)
+            batches.append(batch)
+
+    return batches
+
+
 def run_pair_color_response(
     pipeline,
-    survey,
     pair,
     psf,
     colors,
@@ -1413,15 +1465,6 @@ def run_pair_color_response(
     mbobs_p = pair["plus"]
     mbobs_m = pair["minus"]
 
-    # bps = {
-    #     band.lower(): galsim.Bandpass(f"LSST_{band.lower()}.dat", wave_type="nm").withZeropoint("AB")
-    #     for band in bands
-    # }
-    bps = {
-        band.lower(): survey.bandpasses[band.lower()]
-        for band in bands
-    }
-
     color_dep_mbobs_p = {}
     color_dep_mbobs_m = {}
     for c, star in enumerate(stars):
@@ -1432,12 +1475,12 @@ def run_pair_color_response(
         psf_image = galsim.Image(
             psf_size,
             psf_size,
-            scale=survey.scale,
+            scale=pipeline.survey.scale,
         )
 
         for i, (_obslist_p, _obslist_m) in enumerate(zip(_mbobs_p, _mbobs_m)):
             band = bands[i]
-            observed_psf.drawImage(image=psf_image, bandpass=bps[band])
+            observed_psf.drawImage(image=psf_image, bandpass=pipeline.survey.bandpasses[band])
             # renormalize the psf image to unity
             psf_norm = psf_image.array.sum()
             psf_image.array[:] /= psf_norm
@@ -1453,6 +1496,7 @@ def run_pair_color_response(
     for (shear, color_dep_mbobs) in [("plus", color_dep_mbobs_p), ("minus", color_dep_mbobs_m)]:
         for i, color in enumerate(colors):
             color_step = f"c{i}"
+            logger.info(f"Running metadetect for {shear} sim at color {color}")
             res = metadetect.do_metadetect(
                 config,
                 color_dep_mbobs[i],

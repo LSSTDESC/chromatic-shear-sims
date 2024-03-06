@@ -16,7 +16,6 @@ import pyarrow.parquet as pq
 from pyarrow import acero
 import tqdm
 
-from chromatic_shear_sims import surveys
 from chromatic_shear_sims import logging_config
 from chromatic_shear_sims.pipeline import Pipeline
 
@@ -24,123 +23,222 @@ from chromatic_shear_sims.pipeline import Pipeline
 logger = logging.getLogger(__name__)
 
 
-CHROMATIC_MEASURES = {
-    "chromatic_metadetect",
-    "drdc",
-}
-
-
-def pre_aggregate(dataset, predicate, color=None, zps=None):
+def pre_aggregate(dataset, predicate, color=None, colors=None, zps=None):
     """
     Aggregate measurements at the image level to accelerate bootstrapping
     """
-
-    scan_node = acero.Declaration(
-        "scan",
-        acero.ScanNodeOptions(
-            dataset,
-            # columns=projection,
-            filter=predicate,
-        ),
-    )
-    filter_node = acero.Declaration(
-        "filter",
-        acero.FilterNodeOptions(
-            predicate,
-        ),
-    )
-    pre_project_node = acero.Declaration(
-        "project",
-        acero.ProjectNodeOptions(
-            [
-                pc.field("seed"),
-                pc.field("shear"),
-                pc.field("color_step"),
-                pc.field("mdet_step"),
-                pc.list_element(pc.field("pgauss_g"), 0),
-                pc.list_element(pc.field("pgauss_g"), 1),
-                pc.add(
-                    pc.multiply(
-                        pc.scalar(-2.5),
-                        pc.log10(
-                            pc.divide(
-                                pc.list_element(pc.field("pgauss_band_flux"), 0),
-                                pc.list_element(pc.field("pgauss_band_flux"), 2)
-                            )
-                        )
-                    ),
-                    pc.subtract(pc.scalar(zps[0]), pc.scalar(zps[1]))
+    match colors:
+        case None:
+            scan_node = acero.Declaration(
+                "scan",
+                acero.ScanNodeOptions(
+                    dataset,
+                    # columns=projection,
+                    filter=predicate,
                 ),
-            ],
-            names=[
-                "seed",
-                "shear",
-                "color_step",
-                "mdet_step",
-                "e1",
-                "e2",
-                "c",
-            ],
-        )
-    )
-    project_node = acero.Declaration(
-        "project",
-        acero.ProjectNodeOptions(
-            [
-                pc.field("seed"),
-                pc.field("shear"),
-                pc.field("color_step"),
-                pc.field("mdet_step"),
-                pc.field("e1"),
-                pc.field("e2"),
-                pc.field("c"),
-                pc.multiply(pc.field("e1"), pc.field("e2")),
-                pc.multiply(pc.field("e1"), pc.field("c")),
-                pc.multiply(pc.field("e2"), pc.field("c")),
-                pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
-                pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
-            ],
-            names=[
-                "seed",
-                "shear",
-                "color_step",
-                "mdet_step",
-                "e1",
-                "e2",
-                "c",
-                "e1e2",
-                "e1c",
-                "e2c",
-                "e1dc",
-                "e2dc",
-            ],
-        )
-    )
-    pre_aggregate_node = acero.Declaration(
-        "aggregate",
-        acero.AggregateNodeOptions(
-            [
-                ("seed", "hash_count", None, "count"),
-                ("e1", "hash_mean", None, "mean_e1"),
-                ("e2", "hash_mean", None, "mean_e2"),
-                ("c", "hash_mean", None, "mean_c"),
-                ("e1e2", "hash_mean", None, "mean_e1e2"),
-                ("e1c", "hash_mean", None, "mean_e1c"),
-                ("e2c", "hash_mean", None, "mean_e2c"),
-                ("e1dc", "hash_mean", None, "mean_e1dc"),
-                ("e2dc", "hash_mean", None, "mean_e2dc"),
-                ("e1", "hash_variance", None, "var_e1"),
-                ("e2", "hash_variance", None, "var_e2"),
-                ("c", "hash_variance", None, "var_c"),
-                ("e1e2", "hash_variance", None, "var_e1e2"),
-                ("e1c", "hash_variance", None, "var_e1c"),
-                ("e2c", "hash_variance", None, "var_e2c"),
-                ("e1dc", "hash_variance", None, "var_e1dc"),
-                ("e2dc", "hash_variance", None, "var_e2dc"),
-            ],
-            keys=["seed", "shear", "color_step", "mdet_step"],
-        )
-    )
+            )
+            filter_node = acero.Declaration(
+                "filter",
+                acero.FilterNodeOptions(
+                    predicate,
+                ),
+            )
+            pre_project_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.field("seed"),
+                        pc.field("shear"),
+                        pc.field("mdet_step"),
+                        pc.list_element(pc.field("pgauss_g"), 0),
+                        pc.list_element(pc.field("pgauss_g"), 1),
+                        pc.add(
+                            pc.multiply(
+                                pc.scalar(-2.5),
+                                pc.log10(
+                                    pc.divide(
+                                        pc.list_element(pc.field("pgauss_band_flux"), 0),
+                                        pc.list_element(pc.field("pgauss_band_flux"), 2)
+                                    )
+                                )
+                            ),
+                            pc.subtract(pc.scalar(zps[0]), pc.scalar(zps[1]))
+                        ),
+                    ],
+                    names=[
+                        "seed",
+                        "shear",
+                        "mdet_step",
+                        "e1",
+                        "e2",
+                        "c",
+                    ],
+                )
+            )
+            project_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.field("seed"),
+                        pc.field("shear"),
+                        pc.field("mdet_step"),
+                        pc.field("e1"),
+                        pc.field("e2"),
+                        pc.field("c"),
+                        pc.multiply(pc.field("e1"), pc.field("e2")),
+                        pc.multiply(pc.field("e1"), pc.field("c")),
+                        pc.multiply(pc.field("e2"), pc.field("c")),
+                        pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                        pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                    ],
+                    names=[
+                        "seed",
+                        "shear",
+                        "mdet_step",
+                        "e1",
+                        "e2",
+                        "c",
+                        "e1e2",
+                        "e1c",
+                        "e2c",
+                        "e1dc",
+                        "e2dc",
+                    ],
+                )
+            )
+            pre_aggregate_node = acero.Declaration(
+                "aggregate",
+                acero.AggregateNodeOptions(
+                    [
+                        ("seed", "hash_count", None, "count"),
+                        ("e1", "hash_mean", None, "mean_e1"),
+                        ("e2", "hash_mean", None, "mean_e2"),
+                        ("c", "hash_mean", None, "mean_c"),
+                        ("e1e2", "hash_mean", None, "mean_e1e2"),
+                        ("e1c", "hash_mean", None, "mean_e1c"),
+                        ("e2c", "hash_mean", None, "mean_e2c"),
+                        ("e1dc", "hash_mean", None, "mean_e1dc"),
+                        ("e2dc", "hash_mean", None, "mean_e2dc"),
+                        ("e1", "hash_variance", None, "var_e1"),
+                        ("e2", "hash_variance", None, "var_e2"),
+                        ("c", "hash_variance", None, "var_c"),
+                        ("e1e2", "hash_variance", None, "var_e1e2"),
+                        ("e1c", "hash_variance", None, "var_e1c"),
+                        ("e2c", "hash_variance", None, "var_e2c"),
+                        ("e1dc", "hash_variance", None, "var_e1dc"),
+                        ("e2dc", "hash_variance", None, "var_e2dc"),
+                    ],
+                    keys=["seed", "shear", "mdet_step"],
+                )
+            )
+        case list():
+            scan_node = acero.Declaration(
+                "scan",
+                acero.ScanNodeOptions(
+                    dataset,
+                    # columns=projection,
+                    filter=predicate,
+                ),
+            )
+            filter_node = acero.Declaration(
+                "filter",
+                acero.FilterNodeOptions(
+                    predicate,
+                ),
+            )
+            pre_project_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.field("seed"),
+                        pc.field("shear"),
+                        pc.field("color_step"),
+                        pc.field("mdet_step"),
+                        pc.list_element(pc.field("pgauss_g"), 0),
+                        pc.list_element(pc.field("pgauss_g"), 1),
+                        pc.add(
+                            pc.multiply(
+                                pc.scalar(-2.5),
+                                pc.log10(
+                                    pc.divide(
+                                        pc.list_element(pc.field("pgauss_band_flux"), 0),
+                                        pc.list_element(pc.field("pgauss_band_flux"), 2)
+                                    )
+                                )
+                            ),
+                            pc.subtract(pc.scalar(zps[0]), pc.scalar(zps[1]))
+                        ),
+                    ],
+                    names=[
+                        "seed",
+                        "shear",
+                        "color_step",
+                        "mdet_step",
+                        "e1",
+                        "e2",
+                        "c",
+                    ],
+                )
+            )
+            project_node = acero.Declaration(
+                "project",
+                acero.ProjectNodeOptions(
+                    [
+                        pc.field("seed"),
+                        pc.field("shear"),
+                        pc.field("color_step"),
+                        pc.field("mdet_step"),
+                        pc.field("e1"),
+                        pc.field("e2"),
+                        pc.field("c"),
+                        pc.multiply(pc.field("e1"), pc.field("e2")),
+                        pc.multiply(pc.field("e1"), pc.field("c")),
+                        pc.multiply(pc.field("e2"), pc.field("c")),
+                        pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                        pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                    ],
+                    names=[
+                        "seed",
+                        "shear",
+                        "color_step",
+                        "mdet_step",
+                        "e1",
+                        "e2",
+                        "c",
+                        "e1e2",
+                        "e1c",
+                        "e2c",
+                        "e1dc",
+                        "e2dc",
+                    ],
+                )
+            )
+            pre_aggregate_node = acero.Declaration(
+                "aggregate",
+                acero.AggregateNodeOptions(
+                    [
+                        ("seed", "hash_count", None, "count"),
+                        ("e1", "hash_mean", None, "mean_e1"),
+                        ("e2", "hash_mean", None, "mean_e2"),
+                        ("c", "hash_mean", None, "mean_c"),
+                        ("e1e2", "hash_mean", None, "mean_e1e2"),
+                        ("e1c", "hash_mean", None, "mean_e1c"),
+                        ("e2c", "hash_mean", None, "mean_e2c"),
+                        ("e1dc", "hash_mean", None, "mean_e1dc"),
+                        ("e2dc", "hash_mean", None, "mean_e2dc"),
+                        ("e1", "hash_variance", None, "var_e1"),
+                        ("e2", "hash_variance", None, "var_e2"),
+                        ("c", "hash_variance", None, "var_c"),
+                        ("e1e2", "hash_variance", None, "var_e1e2"),
+                        ("e1c", "hash_variance", None, "var_e1c"),
+                        ("e2c", "hash_variance", None, "var_e2c"),
+                        ("e1dc", "hash_variance", None, "var_e1dc"),
+                        ("e2dc", "hash_variance", None, "var_e2dc"),
+                    ],
+                    keys=["seed", "shear", "color_step", "mdet_step"],
+                )
+            )
+
     # FIXME is there a cleaner way to address null colors?
     post_filter_node = acero.Declaration(
         "filter",
@@ -172,13 +270,6 @@ def get_args():
         help="configuration file [yaml]",
     )
     parser.add_argument(
-        "--seed",
-        type=int,
-        required=False,
-        default=None,
-        help="RNG seed [int]",
-    )
-    parser.add_argument(
         "--s2n-cut", type=int, default=10,
         help="Signal/noise cut [int; 10]",
     )
@@ -195,13 +286,6 @@ def get_args():
         type=str,
         required=True,
         help="Output directory"
-    )
-    parser.add_argument(
-        "--n_resample",
-        type=int,
-        required=False,
-        default=1000,
-        help="Number of resample iterations"
     )
     parser.add_argument(
         "--n_jobs",
@@ -230,7 +314,6 @@ def main():
     logger.info(f"{vars(args)}")
 
     config = args.config
-    seed = args.seed
     n_jobs = args.n_jobs
     output = args.output
 
@@ -240,24 +323,17 @@ def main():
     pipeline = Pipeline(config)
     pipeline.load()
 
-    lsst = surveys.lsst
-    lsst.load_bandpasses(
-        pipeline.config.get("throughput_dir", os.environ["THROUGHPUT_DIR"])
-    )
-
     zps = [
-        lsst.bandpasses["g"].zeropoint,
-        lsst.bandpasses["i"].zeropoint
+        pipeline.survey.bandpasses["g"].zeropoint,
+        pipeline.survey.bandpasses["i"].zeropoint
     ]
-
-    rng = np.random.default_rng(seed)
 
     dataset_path = os.path.join(
         output,
         pipeline.name,
     )
     logger.info(f"aggregating data in {dataset_path}")
-    dataset = ds.dataset(dataset_path, format="arrow")
+    dataset = ds.dataset(dataset_path, format="parquet")
 
     predicate = (
         (pc.field("pgauss_flags") == 0)
@@ -273,14 +349,9 @@ def main():
     #     ],
     # ]
 
-    colors = pipeline.get_colors()
-    if colors:
-        color = colors[1]
-    else:
-        color = None
-    aggregates = pre_aggregate(dataset, predicate, color=color, zps=zps)
+    color, colors = pipeline.get_colors()
+    aggregates = pre_aggregate(dataset, predicate, color=color, colors=colors, zps=zps)
 
-    output_config = pipeline.output_config
     aggregate_path = os.path.join(
         output,
         f"{pipeline.name}_aggregates.feather",
