@@ -24,12 +24,6 @@ from chromatic_shear_sims.pipeline import Pipeline
 logger = logging.getLogger(__name__)
 
 
-CHROMATIC_MEASURES = {
-    "chromatic_metadetect",
-    "drdc",
-}
-
-
 def compute_e_step(results, shear_step, color_step):
     e1 = np.average(results[shear_step][color_step]["noshear"]["g1"])
     e2 = np.average(results[shear_step][color_step]["noshear"]["g2"])
@@ -169,9 +163,11 @@ def main():
 
     dg = ngmix.metacal.DEFAULT_STEP
 
-    colors = pipeline.get_colors()
-    color = colors[1]
-    dc = (colors[2] - colors[0]) / 2.
+    color, colors = pipeline.get_colors()
+    if colors:
+        dc = -(colors[2] - colors[0]) / 2.
+    else:
+        dc = None
 
     aggregate_path = os.path.join(
         output,
