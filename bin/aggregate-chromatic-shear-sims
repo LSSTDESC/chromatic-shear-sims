@@ -8,7 +8,6 @@ import galsim
 import ngmix
 import numpy as np
 import matplotlib.pyplot as plt
-import joblib
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
@@ -236,7 +235,7 @@ def main():
     output = args.output
 
     pa.set_cpu_count(n_jobs)
-    pa.set_io_thread_count(n_jobs)
+    pa.set_io_thread_count(2 * n_jobs)
 
     pipeline = Pipeline(config)
     pipeline.load()
@@ -292,6 +291,8 @@ def main():
         aggregates,
         aggregate_path,
     )
+
+    logger.info(f"aggregation completed")
 
 
 if __name__ == "__main__":

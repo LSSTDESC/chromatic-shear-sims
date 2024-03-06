@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
+import concurrent.futures
 import logging
+import multiprocessing
 import os
 
 import ngmix
 import numpy as np
 import matplotlib.pyplot as plt
-import joblib
+# import joblib
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
@@ -26,6 +28,10 @@ CHROMATIC_MEASURES = {
     "chromatic_metadetect",
     "drdc",
 }
+
+
+def callback(future):
+    logger.info(f"finished future {future}")
 
 
 def compute_e(results):
@@ -1038,13 +1044,26 @@ def main():
     m_mean, c_mean = compute_bias(results, dg, dc)
     m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc)
 
-    jobs = []
-    for i in tqdm.trange(args.n_resample, ncols=80):
-        _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
-        jobs.append(joblib.delayed(pivot_aggregates)(aggregates, seeds=_seeds))
+    # jobs = []
+    # for i in tqdm.trange(args.n_resample, ncols=80):
+    #     _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
+    #     jobs.append(joblib.delayed(pivot_aggregates)(aggregates, seeds=_seeds))
 
-    _results = joblib.Parallel(n_jobs=n_jobs, verbose=10, return_as="generator")(jobs)
+    # _results = joblib.Parallel(n_jobs=n_jobs, verbose=10, return_as="generator")(jobs)
+    futures = []
+    ctx = multiprocessing.get_context("forkserver")
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=n_jobs,
+        mp_context=ctx,
+        max_tasks_per_child=1,
+    ) as executor:
+        for i in tqdm.trange(args.n_resample, ncols=80):
+            _seeds = pa.array(rng.choice(seeds, size=len(seeds), replace=True))
+            future = executor.submit(pivot_aggregates, aggregates, seeds=_seeds)
+            future.add_done_callback(callback)
+            futures.append(future)
 
+    completed_futures = concurrent.futures.as_completed(futures)
     # g_p_bootstrap = []
     # g_m_bootstrap = []
     # g_p_bootstrap_chroma = []
@@ -1053,12 +1072,13 @@ def main():
     m_bootstrap_chroma = []
     c_bootstrap = []
     c_bootstrap_chroma = []
-    for _res in _results:
+    for future in completed_futures:
+        res = future.result()
         # _g_p_bootstrap, _g_m_bootstrap, _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
         # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc, color)
         # # _g_p_bootstrap_chroma, _g_m_bootstrap_chroma, _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic_testing(_res, dg, dc, color)
-        _m_bootstrap, _c_bootstrap = compute_bias(_res, dg, dc)
-        _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(_res, dg, dc)
+        _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc)
+        _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(res, dg, dc)
 
         # g_p_bootstrap.append(_g_p_bootstrap)
         # g_m_bootstrap.append(_g_m_bootstrap)

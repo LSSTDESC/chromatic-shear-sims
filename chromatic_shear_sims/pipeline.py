@@ -11,8 +11,12 @@ import pyarrow.dataset as ds
 from pyarrow import acero
 import yaml
 
-from chromatic_shear_sims import run_utils
+from chromatic_shear_sims import run_utils, surveys
 from chromatic_shear_sims.loader import Loader
+from chromatic_shear_sims.DC2_stars import DC2Stars
+from chromatic_shear_sims.roman_rubin import RomanRubinGalaxies, RomanRubinBlackBodyGalaxies
+from chromatic_shear_sims.exponential import ExponentialBlackBodyGalaxies
+from chromatic_shear_sims.blackbody import BlackBodyStars
 
 
 logger = logging.getLogger(__name__)
@@ -24,17 +28,31 @@ CHROMATIC_MEASURES = {
 }
 
 
+def match_color(color_expression, kwargs):
+    match color_expression:
+        case str():
+            color = eval(color_expression, kwargs)
+        case float() | int():
+            color = color_expression
+        case None:
+            color = None
+        case _:
+            raise ValueError(f"Color type not valid!")
+    return color
+
+
 class Pipeline:
     def __init__(self, fname):
         self.fname = fname
         self.name = os.path.splitext(os.path.basename(fname))[0]
         self.config = self.get_config(self.fname)
         self.stash = f"{self.name}.pickle"
+        self.survey_config = self.config.get("survey", None)
         self.galaxy_config = self.config.get("galaxies", None)
         self.star_config = self.config.get("stars", None)
         self.galsim_config = self.config.get("galsim", None)
         self.metadetect_config = self.config.get("metadetect", None)
-        self.output_config = self.config.get("output", None)
+        self.aggregates = {}
 
         logger.info(f"initializing pipeline for {self.name}")
 
@@ -83,33 +101,120 @@ class Pipeline:
 
         return
 
+    def load_survey(self):
+        if not hasattr(self, "survey"):
+            logger.info("loading survey...")
+            if self.survey_config is not None:
+                survey = getattr(surveys, self.survey_config)
+                survey.load_bandpasses(
+                    self.config.get(
+                        "throughput_dir",
+                        os.environ.get("THROUGHPUT_DIR"),
+                    )
+                )
+            else:
+                survey = None
+
+            self.survey = survey
+
+        logger.info(f"survey: {self.survey}")
+
+        return
+
     def load_galaxies(self):
+        if not hasattr(self, "survey"):
+            self.load_survey()
         if not hasattr(self, "galaxies"):
             logger.info("loading galaxies...")
-            if self.galaxy_config is not None:
-                loader = Loader(self.galaxy_config)
-                loader.process()
-            else:
-                loader = None
+            galaxy_config = self.galaxy_config
 
-            self.galaxies = loader
+            if galaxy_config is not None:
+                galaxy_type = galaxy_config.get("type")
 
-        logger.info(f"galaxies: {self.galaxies.aggregate}")
+                match galaxy_type:
+                    case "ExponentialBlackBody":
+                        loader = Loader(self.galaxy_config)
+                        loader.process()
+                        if loader.aggregates is not None:
+                            self.aggregates["galaxies"] = loader.aggregates
+                        galaxies = ExponentialBlackBodyGalaxies(
+                            galaxy_config,
+                            loader,
+                            survey=self.survey,
+                        )
+                    case "RomanRubin":
+                        ssp_templates = self.config.get(
+                            "ssp_templates",
+                            os.environ.get("SSP_TEMPLATES"),
+                        )
+                        loader = Loader(self.galaxy_config)
+                        loader.process()
+                        if loader.aggregates is not None:
+                            self.aggregates["galaxies"] = loader.aggregates
+                        galaxies = RomanRubinGalaxies(
+                            galaxy_config,
+                            loader,
+                            ssp_templates=ssp_templates,
+                            survey=self.survey,
+                        )
+                    case "RomanRubinBlackBody":
+                        ssp_templates = self.config.get(
+                            "ssp_templates",
+                            os.environ.get("SSP_TEMPLATES"),
+                        )
+                        loader = Loader(self.galaxy_config)
+                        loader.process()
+                        if loader.aggregates is not None:
+                            self.aggregates["galaxies"] = loader.aggregates
+                        galaxies = RomanRubinBlackBodyGalaxies(
+                            galaxy_config,
+                            loader,
+                            survey=self.survey,
+                        )
+                    case _:
+                        raise ValueError(f"Galaxy type not valid!")
+
+            self.galaxies = galaxies
+
+        logger.info(f"galaxies: {self.galaxies}")
 
         return
 
     def load_stars(self):
+        if not hasattr(self, "survey"):
+            self.load_survey()
         if not hasattr(self, "stars"):
             logger.info("loading stars...")
-            if self.star_config is not None:
-                loader = Loader(self.star_config)
-                loader.process()
-            else:
-                loader = None
+            star_config = self.star_config
 
-            self.stars = loader
+            if star_config is not None:
+                star_type = star_config.get("type")
 
-        logger.info(f"stars: {self.stars.aggregate}")
+                match star_type:
+                    case "DC2":
+                        sed_dir = self.config.get(
+                            "sed_dir",
+                            os.environ.get("SED_DIR")
+                        )
+                        loader = Loader(star_config)
+                        loader.process()
+                        if loader.aggregates is not None:
+                            self.aggregates["stars"] = loader.aggregates
+                        # self.stars = loader
+                        stars = DC2Stars(
+                            star_config,
+                            loader,
+                            sed_dir=sed_dir,
+                            survey=self.survey,
+                        )
+                    case "BlackBody":
+                        stars = BlackBodyStars(star_config, self.survey)
+                    case _:
+                        raise ValueError(f"Star type not valid!")
+
+            self.stars = stars
+
+        logger.info(f"stars: {self.stars}")
 
         return
 
@@ -137,33 +242,58 @@ class Pipeline:
 
     def get_colors(self):
         measure_config = self.config.get("measure")
-        measure_type = measure_config.get("type")
-        if measure_type in CHROMATIC_MEASURES:
-            match measure_config.get("colors"):
-                case "quantiles":
-                    colors = self.galaxies.aggregate.get("quantiles")
-                case "uniform":
-                    colors_min = self.galaxies.aggregate.get("min_color")[0]
-                    colors_max = self.galaxies.aggregate.get("max_color")[0]
-                    # TODO add config for number of colors here...
-                    colors = np.linspace(colors_min, colors_max, 3)
-                case "centered":
-                    median = self.galaxies.aggregate.get("median_color")[0]
-                    dc = measure_config.get("dc", 0.1)
-                    colors = [median - dc, median, median + dc]
-                case _:
-                    raise ValueError(f"Colors type {colors_type} not valid!")
-        else:
-            colors = None
 
+        _color = measure_config.get("color")
+        logger.info(f"Matching color: {_color}")
+        # match _color:
+        #     case str():
+        #         color = eval(_color, self.aggregates.get("galaxies"))
+        #     # case "median":
+        #     #     color = self.galaxies.aggregate.get("median_color")
+        #     # case "mean":
+        #     #     color = self.galaxies.aggregate.get("mean_color")
+        #     case float() | int():
+        #         color = _color
+        #     case None:
+        #         color = None
+        #     case _:
+        #         raise ValueError(f"Color type not valid!")
+        color = match_color(_color, self.aggregates.get("galaxies"))
+
+        _colors = measure_config.get("colors")
+        logger.info(f"Matching colors: {_colors}")
+        match _colors:
+            case list():
+                colors = [match_color(_color, self.aggregates.get("galaxies")) for _color in _colors]
+            case "quantiles":
+                colors = self.aggregates.get("galaxies").get("quantiles")
+            case "uniform":
+                color_min = self.aggregates.get("galaxies").get("min_color")
+                color_max = self.aggregates.get("galaxies").get("max_color")
+                # TODO add config for number of colors here...
+                colors = np.linspace(color_min, color_max, 3)
+            case "centered":
+                median = self.aggregates.get("galaxies").get("median_color")
+                dc = measure_config.get("dc", 0.1)
+                colors = [median - dc, median, median + dc]
+            case None:
+                colors = None
+            case _:
+                raise ValueError(f"Colors type not valid!")
+
+        if (colors is not None) and (color is None):
+            color = colors[1]
+
+        logger.info(f"color: {color}")
         logger.info(f"colors: {colors}")
 
-        return colors
+        return color, colors
 
-    def get_scene_pos(self, survey, seed=None):
+    def get_scene_pos(self, seed=None):
         rng = np.random.default_rng(seed)
         image_config = self.config.get("image")
         scene_config = self.config.get("scene")
+        survey = self.survey
         match (scene_type := scene_config.get("type")):
             case "single":
                 n_gals = 1

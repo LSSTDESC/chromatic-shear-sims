@@ -1,5 +1,6 @@
 import functools
 import logging
+import os
 import time
 
 import galsim
@@ -146,7 +147,7 @@ def make_gal(
 
     _end_time = time.time()
     _elapsed_time = _end_time - _start_time
-    logger.debug(f"built galaxy in {_elapsed_time:0.2f} seconds")
+    logger.debug(f"built galaxy in {_elapsed_time} seconds")
 
     return gal
 
@@ -195,11 +196,11 @@ def get_gal(
 
 
 class RomanRubinBuilder:
-    def __init__(self, diffskypop_params=None, ssp_templates=None, survey=None):
-        self.diffskypop_params=diffskypop_params
-        self.ssp_templates=ssp_templates
+    def __init__(self, ssp_templates=None, survey=None):
+        self.diffskypop_params = "roman_rubin_2023"
+        self.ssp_templates = ssp_templates
 
-        logger.info(f"initializing roman rubin builder with diffskypop_params: {self.diffskypop_params}, ssp_templates: {self.ssp_templates}")
+        logger.info(f"initializing {self.diffskypop_params} builder with ssp templates: {self.ssp_templates}")
 
         # self.all_diffskypop_params = read_diffskypop_params(self.diffskypop_params)
         self.all_diffskypop_params = cached_read_diffskypop_params(self.diffskypop_params)
@@ -280,6 +281,7 @@ class RomanRubinBuilder:
         # FIXME seed rng
         logger.info(f"building galaxies with morphology: {morphology}, n_knots: {n_knots}, rotate: {rotate}")
         rng = np.random.default_rng()
+        _start_time = time.time()
         gals = [
             get_gal(
                 rng,
@@ -294,7 +296,161 @@ class RomanRubinBuilder:
             )
             for igal in range(len(params["redshift"]))
         ]
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"built {len(gals)} galaxies in {_elapsed_time} seconds")
 
+        return gals
+
+
+class RomanRubinBlackBodyBuilder:
+    def __init__(self, survey):
+        from chromatic_shear_sims.blackbody import BlackBody
+        logger.info(f"initializing roman rubin builder with blackbody SEDs")
+        self.survey = survey
+        self.blackbody = BlackBody(self.survey)
+
+        # TODO add support for LSST_rest_* and redshifting
+        columns = [
+           "redshift",
+           "LSST_obs_g",
+           "LSST_obs_r",
+           "LSST_obs_i",
+           "spheroidEllipticity1",
+           "spheroidEllipticity2",
+           "spheroidHalfLightRadiusArcsec",
+           "diskEllipticity1",
+           "diskEllipticity2",
+           "diskHalfLightRadiusArcsec",
+           "bulge_frac",
+        ]
+        # self.columns = list(set(morph_columns + ALL_DIFFSKY_PNAMES))
+        self.columns = columns
+
+
+    def make_gal(
+         self,
+         redshift,
+         LSST_obs_g,
+         LSST_obs_r,
+         LSST_obs_i,
+         spheroidEllipticity1,
+         spheroidEllipticity2,
+         spheroidHalfLightRadiusArcsec,
+         diskEllipticity1,
+         diskEllipticity2,
+         diskHalfLightRadiusArcsec,
+         bulge_frac
+    ):
+        """
+        Create a galaxy from a diffsky catalog
+        """
+        _start_time = time.time()
+        bulge_ellipticity = galsim.Shear(
+            g1=spheroidEllipticity1,
+            g2=spheroidEllipticity2,
+        )
+        bulge = galsim.DeVaucouleurs(
+            half_light_radius=spheroidHalfLightRadiusArcsec,
+        ).shear(bulge_ellipticity)
+
+        disk_ellipticity = galsim.Shear(
+            g1=diskEllipticity1,
+            g2=diskEllipticity2,
+        )
+        disk = galsim.Exponential(
+            half_light_radius=diskHalfLightRadiusArcsec,
+        ).shear(disk_ellipticity)
+
+        disk_frac = 1 - bulge_frac
+
+        color = LSST_obs_g - LSST_obs_i
+        sed = self.blackbody(color)
+        sed = sed.withMagnitude(LSST_obs_r, self.survey.bandpasses["r"])
+
+        gal = (
+            (bulge * bulge_frac + disk * disk_frac) \
+            * sed
+        )
+
+
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.debug(f"built galaxy in {_elapsed_time} seconds")
+
+        return gal
+
+    def build_gals(
+        self,
+        params,
+        rotate=True,
+    ):
+        # FIXME seed rng
+        logger.info(f"building galaxies")
+        rng = np.random.default_rng()
+        _start_time = time.time()
+        gals = []
+        for igal in range(len(params["redshift"])):
+            gal = self.make_gal(
+                params["redshift"][igal],
+                params["LSST_obs_g"][igal],
+                params["LSST_obs_r"][igal],
+                params["LSST_obs_i"][igal],
+                params["spheroidEllipticity1"][igal],
+                params["spheroidEllipticity2"][igal],
+                params["spheroidHalfLightRadiusArcsec"][igal],
+                params["diskEllipticity1"][igal],
+                params["diskEllipticity2"][igal],
+                params["diskHalfLightRadiusArcsec"][igal],
+                params["bulge_frac"][igal],
+            )
+            if rotate:
+                rotation_angle = rng.uniform(0, 180) * galsim.degrees
+                logger.debug(f"rotating galaxy by {rotation_angle}")
+                gal = gal.rotate(rotation_angle)
+            gals.append(gal)
+
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"built {len(gals)} galaxies in {_elapsed_time} seconds")
+
+        return gals
+
+
+class RomanRubinGalaxies:
+    def __init__(self, config, loader, ssp_templates=None, survey=None):
+        self.config = config
+        self.ssp_templates = ssp_templates
+        self.survey = survey
+        self.loader = loader
+        self.builder = RomanRubinBuilder(ssp_templates=self.ssp_templates, survey=self.survey)
+
+
+    def __call__(self, n):
+        gal_params = self.loader.sample(
+            n,
+            columns=self.builder.columns,
+        )
+
+        gals = self.builder.build_gals(gal_params)
+        return gals
+
+
+class RomanRubinBlackBodyGalaxies:
+    def __init__(self, config, loader, survey=None):
+        self.config = config
+        self.survey = survey
+        self.loader = loader
+        self.builder = RomanRubinBlackBodyBuilder(survey=self.survey)
+
+
+    def __call__(self, n):
+        gal_params = self.loader.sample(
+            n,
+            columns=self.builder.columns,
+        )
+
+        gals = self.builder.build_gals(gal_params)
         return gals
 
 
@@ -304,7 +460,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     lsst = surveys.lsst
-    lsst.load_bandpasses("/pscratch/sd/s/smau/baseline")
+    lsst.load_bandpasses(os.environ.get("THROUGHPUT_DIR"))
 
     seed = 42
     rng = np.random.default_rng(seed)
@@ -317,9 +473,8 @@ if __name__ == "__main__":
         & (pc.field("LSST_obs_i") < pc.scalar(26))
         & (pc.field("LSST_obs_z") < pc.scalar(26))
     )
-    romanrubinbuilder = RomanRubinBuilder(
-        diffskypop_params="roman_rubin_2023",
-        ssp_templates="/pscratch/sd/s/smau/dsps_ssp_data_singlemet.h5",
+    romanrubinbuilder = RomanRubinBlackBodyBuilder(
+        # ssp_templates="/pscratch/sd/s/smau/dsps_ssp_data_singlemet.h5",
         survey=lsst,
     )
     columns = romanrubinbuilder.columns
@@ -327,7 +482,8 @@ if __name__ == "__main__":
     columns.append("LSST_obs_r")
     columns.append("LSST_obs_i")
 
-    dataset = ds.dataset("/pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet")
+    # dataset = ds.dataset("/pscratch/sd/s/smau/roman_rubin_2023_v1.1.1_parquet")
+    dataset = ds.dataset("/scratch/users/smau/roman_rubin_2023_v1.1.1_parquet")
     # count = dataset.count_rows(filter=predicate)
     scanner = dataset.scanner(columns=columns, filter=predicate)
     rng = np.random.default_rng(seed)

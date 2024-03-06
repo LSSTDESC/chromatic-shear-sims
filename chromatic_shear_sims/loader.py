@@ -2,6 +2,7 @@ import copy
 import logging
 import os
 import pickle
+import time
 
 import numpy as np
 import pyarrow as pa
@@ -36,15 +37,16 @@ def parse_projection(projection):
     """Parse a projection from a dict of expressions or a list into a dict
     """
     projection_dict = {}
-    for proj in projection:
-        # if a projection is itself a dict, parse the expression as a pyarrow
-        # compute expression
-        if type(proj) == dict:
-            for k, v in proj.items():
-                projection_dict[k] = parse_expression(v)
-        # else interpret as a simple field from the schema
-        else:
-            projection_dict[proj] = pc.field(proj)
+    if projection is not None:
+        for proj in projection:
+            # if a projection is itself a dict, parse the expression as a pyarrow
+            # compute expression
+            if type(proj) == dict:
+                for k, v in proj.items():
+                    projection_dict[k] = parse_expression(v)
+            # else interpret as a simple field from the schema
+            else:
+                projection_dict[proj] = pc.field(proj)
 
     return projection_dict
 
@@ -66,6 +68,7 @@ class Loader:
         self.config = copy.copy(config)
         self.path = self.config.get("path")
         self.format = self.config.get("format")
+        self.seed = self.config.get("seed", None)
 
         self.predicate_dict = self.config.get("predicate", None)
         self.predicate = parse_expression(self.predicate_dict)
@@ -142,7 +145,10 @@ class Loader:
         Load a dataset defined in a config
         """
         dataset = ds.dataset(self.path, format=self.format)
-        scanner = dataset.scanner(columns=columns, filter=self.predicate)
+        scanner = dataset.scanner(
+            columns=columns,
+            filter=self.predicate,
+        )
 
         return scanner
 
@@ -151,23 +157,44 @@ class Loader:
         Process a dataset defined in a config
         """
         logger.info(f"processing aggregates for {self.path}")
+        if self.aggregate_dict is not None:
+            dataset = ds.dataset(self.path, format=self.format)
 
-        dataset = ds.dataset(self.path, format=self.format)
+            aggregate = self.do_aggregate(
+                dataset,
+                self.projection,
+                self.predicate,
+                self.aggregate_dict,
+            )
+            aggregate_dict = aggregate.to_pydict()
+            aggregates = {}
+            for k, v in aggregate_dict.items():
+                if len(v) == 1:
+                    aggregates[k] = v[0]
+                else:
+                    aggregates[k] = v
+        else:
+            aggregates = None
 
-        aggregate = self.do_aggregate(
-            dataset,
-            self.projection,
-            self.predicate,
-            self.aggregate_dict,
-        )
-        aggregate_dict = aggregate.to_pydict()
-
-        self.aggregate = aggregate_dict
+        self.aggregates = aggregates
         return
 
+    def get_rng(self, seed=None):
+        match seed:
+            case None:
+                rng_seed = self.seed
+            case _:
+                rng_seed = seed
+
+        logger.debug(f"spawning rng with seed {rng_seed}")
+        rng = np.random.default_rng(rng_seed)
+
+        return rng
+
     def select(self, n, seed=None):
-        nobj = self.aggregate.get("count")[0]
-        rng = np.random.default_rng(seed)
+        nobj = self.aggregates.get("count")
+        # rng = np.random.default_rng(seed)
+        rng = self.get_rng(seed)
         indices = rng.choice(
             nobj,
             size=n,
@@ -183,7 +210,11 @@ class Loader:
 
         logger.info(f"sampling {n} records from {self.path}")
 
+        _start_time = time.time()
         obj = scanner.take(indices).to_pydict()
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
 
         return obj
 
@@ -198,7 +229,8 @@ class Loader:
         scanner = dataset.scanner(columns=columns, filter=new_predicate)
         nobj = scanner.count_rows()
 
-        rng = np.random.default_rng(seed)
+        # rng = np.random.default_rng(seed)
+        rng = self.get_rng(seed)
         indices = rng.choice(
             nobj,
             size=n,
@@ -208,7 +240,11 @@ class Loader:
 
         logger.info(f"sampling {n} records from {self.path}")
 
+        _start_time = time.time()
         obj = scanner.take(indices).to_pydict()
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
 
         return obj
 
@@ -228,8 +264,8 @@ if __name__ == "__main__":
 
     star_loader.process()
 
-    print("galxies:", galaxy_loader.aggregate)
-    print("stars:", star_loader.aggregate)
+    print("galxies:", galaxy_loader.aggregates)
+    print("stars:", star_loader.aggregates)
 
     rng = np.random.default_rng()
 

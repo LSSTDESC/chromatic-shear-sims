@@ -2,7 +2,7 @@ import logging
 
 
 defaults = {
-    "format":'%(asctime)s - %(module)s - %(levelname)s - %(message)s',
+    "format":'%(asctime)s - %(process)d - %(thread)d - %(module)s - %(levelname)s - %(message)s',
 }
 
 

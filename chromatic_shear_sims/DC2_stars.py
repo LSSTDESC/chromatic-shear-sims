@@ -3,6 +3,7 @@
 
 import functools
 import logging
+import os
 from pathlib import Path
 import time
 
@@ -18,7 +19,7 @@ def read_sed_file(file_name, wave_type, flux_type):
     return galsim.SED(file_name, wave_type, flux_type)
 
 
-def build_star(sed_filename, imag, sed_dir=None, i_bandpass=None):
+def build_star(sed_filename, sed_dir=None, mag=None, bandpass=None):
     _start_time = time.time()
     _standard_dict = {
         "lte*": "phoSimMLT",
@@ -54,22 +55,22 @@ def build_star(sed_filename, imag, sed_dir=None, i_bandpass=None):
     sed = read_sed_file(sed_file, wave_type, flux_type)
 
     # Use the catalog to recover normalization of SED
-    sed = sed.withMagnitude(imag, i_bandpass)
+    if (mag is not None) and (bandpass is not None):
+        sed = sed.withMagnitude(mag, bandpass)
 
     star = galsim.DeltaFunction() * sed
 
     _end_time = time.time()
     _elapsed_time = _end_time - _start_time
-    logger.debug(f"built star in {_elapsed_time:0.2f} seconds")
+    logger.debug(f"built star in {_elapsed_time} seconds")
 
     return star
 
 class DC2Builder:
     def __init__(self, sed_dir=None, survey=None):
         self.sed_dir = sed_dir
-        # self.lsst_i = galsim.Bandpass("LSST_i.dat", "nm").withZeropoint("AB")
-        self.lsst_i = survey.bandpasses["i"]
-        self.columns = ["sedFilename", "imag_obs"]
+        self.survey = survey
+        self.columns = ["sedFilename", "rmag_obs"]
 
         logger.info(f"initializing DC2 builder with sed_dir: {self.sed_dir}")
 
@@ -77,17 +78,63 @@ class DC2Builder:
         self,
         params,
     ):
+        _start_time = time.time()
         stars = [
             build_star(
                 params["sedFilename"][istar],
-                params["imag_obs"][istar],
                 sed_dir=self.sed_dir,
-                i_bandpass=self.lsst_i,
+                mag=params["rmag_obs"][istar],
+                bandpass=self.survey.bandpasses["r"],
             )
             for istar in range(len(params["sedFilename"]))
         ]
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"built {len(stars)} stars in {_elapsed_time} seconds")
 
         return stars
+
+class DC2Stars:
+    def __init__(self, config, loader, sed_dir=None, survey=None):
+        self.config = config
+        self.sed_dir = sed_dir
+        self.survey = survey
+        self.loader = loader
+        self.builder = DC2Builder(sed_dir=self.sed_dir, survey=self.survey)
+
+
+    def __call__(self, color=None, tol=0.01):
+        match color:
+            case None:
+                _star_params = self.loader.sample(
+                    1,
+                    columns=self.builder.columns,
+                )
+            case float() | int():
+                # predicate=(pc.abs_checked(pc.field("gmag_obs") - pc.field("imag_obs") - color) < tol)
+                predicate=pc.less(
+                    pc.abs_checked(
+                        pc.subtract(
+                            pc.subtract(
+                                pc.field("gmag_obs"),
+                                pc.field("imag_obs")
+                            ),
+                            color
+                        )
+                    ),
+                    tol
+                )
+                _star_params = self.loader.sample_with(
+                    1,
+                    columns=self.builder.columns,
+                    predicate=predicate,
+                )
+            case _:
+                raise ValueError(f"Color type not valid!")
+
+        star_params = _star_params[0]
+        star = self.builder.build_stars(star_params)
+        return star
 
 
 if __name__ == "__main__":
@@ -98,10 +145,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     lsst = surveys.lsst
-    lsst.load_bandpasses("/pscratch/sd/s/smau/baseline")
+    lsst.load_bandpasses(os.environ.get("THROUGHPUT_DIR"))
 
     # SED_DIR = "/cvmfs/sw.lsst.eu/linux-x86_64/lsst_sims/sims_w_2020_15/stack/current/Linux64/sims_sed_library/2017.01.24/starSED/"
-    SED_DIR = "/pscratch/sd/s/smau/starSED/"
+    SED_DIR = os.environ.get("SED_DIR")
 
     seed = None
     rng = np.random.default_rng(seed)
@@ -119,7 +166,8 @@ if __name__ == "__main__":
     )
 
     # dataset = ds.dataset("/pscratch/sd/s/smau/dc2_stellar_healpixel.arrow", format="arrow")
-    dataset = ds.dataset("/pscratch/sd/s/smau/dc2_stellar_healpixel_parquet")
+    # dataset = ds.dataset("/pscratch/sd/s/smau/dc2_stellar_healpixel_parquet")
+    dataset = ds.dataset("/scratch/users/smau/dc2_stellar_healpixel_parquet")
     # count = dataset.count_rows(filter=predicate)
     scanner = dataset.scanner(filter=predicate)
     rng = np.random.default_rng(seed)
