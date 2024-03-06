@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -J chromatic-shear-sims
-#SBATCH --partition=kipac
+#SBATCH --partition=kipac,hns
 #SBATCH --time=01:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -36,10 +36,10 @@ echo "task seed: $seed"
 
 source setup.sh
 
-# python run.py \
-run-chromatic-shear-sims
+run-chromatic-shear-sims \
     --config $config \
     --output /scratch/users/smau/out \
     --seed $seed \
     --n_sims 1000 \
-    --n_jobs 32
+    --n_jobs 32 \
+    --log_level 1

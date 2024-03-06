@@ -38,10 +38,10 @@ echo "task seed: $seed"
 
 source setup.sh
 
-# python run.py \
-run-chromatic-shear-sims
+run-chromatic-shear-sims \
     --config $config \
     --output /pscratch/sd/s/smau/out \
     --seed $seed \
     --n_sims 1000 \
-    --n_jobs 64
+    --n_jobs 64 \
+    --log_level 1
