@@ -133,7 +133,7 @@ class DC2Stars:
             case _:
                 raise ValueError(f"Color type not valid!")
 
-        _stars = self.builder.build_stars(star_params)
+        _stars = self.builder.build_stars(_star_params)
         star = _stars[0]
         return star
 
