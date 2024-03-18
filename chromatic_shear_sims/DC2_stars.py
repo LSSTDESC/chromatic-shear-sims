@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import time
 
+import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import galsim
 
