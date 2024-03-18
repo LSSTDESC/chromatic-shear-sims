@@ -228,6 +228,8 @@ class Loader:
         dataset = ds.dataset(self.path, format=self.format)
         scanner = dataset.scanner(columns=columns, filter=new_predicate)
         nobj = scanner.count_rows()
+        if nobj == 0:
+            raise ValueError(f"No objects pass predicate")
 
         # rng = np.random.default_rng(seed)
         rng = self.get_rng(seed)
@@ -241,6 +243,8 @@ class Loader:
         logger.info(f"sampling {n} records from {self.path}")
 
         _start_time = time.time()
+        data = scanner.take(indices)
+
         obj = scanner.take(indices).to_pydict()
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
