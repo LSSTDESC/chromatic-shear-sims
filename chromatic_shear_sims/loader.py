@@ -211,12 +211,12 @@ class Loader:
         logger.info(f"sampling {n} records from {self.path}")
 
         _start_time = time.time()
-        obj = scanner.take(indices).to_pydict()
+        objs = scanner.take(indices).to_pydict()
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
         logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
 
-        return obj
+        return objs
 
     def sample_with(self, n, columns=None, predicate=None, seed=None):
         base_predicate = self.predicate
@@ -243,14 +243,12 @@ class Loader:
         logger.info(f"sampling {n} records from {self.path}")
 
         _start_time = time.time()
-        data = scanner.take(indices)
-
-        obj = scanner.take(indices).to_pydict()
+        objs = scanner.take(indices).to_pydict()
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
         logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
 
-        return obj
+        return objs
 
 
 if __name__ == "__main__":
