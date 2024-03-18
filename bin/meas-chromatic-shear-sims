@@ -11,6 +11,7 @@ import os
 import ngmix
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import Divider, Size
 # import joblib
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -1169,26 +1170,86 @@ def main():
 
     m_req = 2e-3
 
-    fig, axs = plt.subplots(1, 2)
+    # fig, axs = plt.subplots(1, 2)
 
-    axs[0].axvspan(-m_req, m_req, fc="k", alpha=0.1)
-    axs[0].axvline(4e-4, c="k", alpha=0.1, ls="--")
-    axs[0].hist(m_bootstrap, histtype="step", label=r"$R$", ec="k")
-    axs[0].axvline(m_mean, c="k")
-    axs[0].hist(m_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    axs[0].axvline(m_mean_chroma, c="b")
-    axs[0].set_xlabel("$m$")
+    # axs[0].axvspan(-m_req, m_req, fc="k", alpha=0.1)
+    # axs[0].axvline(4e-4, c="k", alpha=0.1, ls="--")
+    # axs[0].hist(m_bootstrap, histtype="step", label=r"$R$", ec="k")
+    # axs[0].axvline(m_mean, c="k")
+    # axs[0].hist(m_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
+    # axs[0].axvline(m_mean_chroma, c="b")
+    # axs[0].set_xlabel("$m$")
 
-    axs[1].hist(c_bootstrap, histtype="step", label=r"$R$", ec="k")
-    axs[1].axvline(c_mean, c="k")
-    axs[1].hist(c_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    axs[1].axvline(c_mean_chroma, c="b")
-    axs[1].legend()
-    axs[1].set_xlabel("$c$")
+    # axs[1].hist(c_bootstrap, histtype="step", label=r"$R$", ec="k")
+    # axs[1].axvline(c_mean, c="k")
+    # axs[1].hist(c_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
+    # axs[1].axvline(c_mean_chroma, c="b")
+    # axs[1].legend()
+    # axs[1].set_xlabel("$c$")
 
     # plt.savefig("out.pdf")
 
-    plt.show()
+    fig = plt.figure(figsize=(3.5, 3))
+    h = [
+        Size.Fixed(1),
+        Size.Fixed(2),
+        Size.Fixed(0.5),
+    ]
+    v = [
+        Size.Fixed(0.5),
+        Size.Fixed(2),
+        Size.Fixed(0.5),
+    ]
+    divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
+
+    ax = fig.add_axes(
+        divider.get_position(),
+        axes_locator=divider.new_locator(nx=1, ny=1)
+    )
+
+    ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
+    ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
+    ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
+    ax.axvline(m_mean, c="k")
+    # ax.hist(m_bootstrap_chroma, histtype="step", label="calibrated", ec="b")
+    # ax.axvline(m_mean_chroma, c="b")
+    ax.set_xlabel("$m$")
+    # ax.legend()
+
+    plt.savefig("shear-bias-measurement.pdf")
+
+    # plt.show()
+    plt.close()
+
+    fig = plt.figure(figsize=(3.5, 3))
+    h = [
+        Size.Fixed(1),
+        Size.Fixed(2),
+        Size.Fixed(0.5),
+    ]
+    v = [
+        Size.Fixed(0.5),
+        Size.Fixed(2),
+        Size.Fixed(0.5),
+    ]
+    divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
+
+    ax = fig.add_axes(
+        divider.get_position(),
+        axes_locator=divider.new_locator(nx=1, ny=1)
+    )
+
+    ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
+    ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
+    ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
+    ax.axvline(m_mean, c="k")
+    ax.hist(m_bootstrap_chroma, histtype="step", label="calibrated", ec="b")
+    ax.axvline(m_mean_chroma, c="b")
+    ax.set_xlabel("$m$")
+    ax.legend(loc="upper left")
+
+    plt.savefig("shear-bias-measurement-calibrated.pdf")
+    plt.close()
 
 
 if __name__ == "__main__":
