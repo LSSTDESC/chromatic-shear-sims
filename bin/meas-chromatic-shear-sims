@@ -213,28 +213,51 @@ def compute_R_var(results, dg):
     return np.array([[p_c1_R11, p_c1_R12], [p_c1_R21, p_c1_R22]]), np.array([[m_c1_R11, m_c1_R12], [m_c1_R21, m_c1_R22]])
 
 
-def compute_de(results, dg, dc, color):
+def compute_de(results, dg, dc, color, order=1):
     # c0
     p_c0_e1_ns = np.average(results["plus"]["c0"]["noshear"]["e1"])
     p_c0_e2_ns = np.average(results["plus"]["c0"]["noshear"]["e2"])
     p_c0_e1c_ns = np.average(results["plus"]["c0"]["noshear"]["e1c"])
     p_c0_e2c_ns = np.average(results["plus"]["c0"]["noshear"]["e2c"])
+    p_c0_e1cc_ns = np.average(results["plus"]["c0"]["noshear"]["e1cc"])
+    p_c0_e2cc_ns = np.average(results["plus"]["c0"]["noshear"]["e2cc"])
 
     m_c0_e1_ns = np.average(results["minus"]["c0"]["noshear"]["e1"])
     m_c0_e2_ns = np.average(results["minus"]["c0"]["noshear"]["e2"])
     m_c0_e1c_ns = np.average(results["minus"]["c0"]["noshear"]["e1c"])
     m_c0_e2c_ns = np.average(results["minus"]["c0"]["noshear"]["e2c"])
+    m_c0_e1cc_ns = np.average(results["minus"]["c0"]["noshear"]["e1cc"])
+    m_c0_e2cc_ns = np.average(results["minus"]["c0"]["noshear"]["e2cc"])
+
+    # c1
+    p_c1_e1_ns = np.average(results["plus"]["c1"]["noshear"]["e1"])
+    p_c1_e2_ns = np.average(results["plus"]["c1"]["noshear"]["e2"])
+    p_c1_e1c_ns = np.average(results["plus"]["c1"]["noshear"]["e1c"])
+    p_c1_e2c_ns = np.average(results["plus"]["c1"]["noshear"]["e2c"])
+    p_c1_e1cc_ns = np.average(results["plus"]["c1"]["noshear"]["e1cc"])
+    p_c1_e2cc_ns = np.average(results["plus"]["c1"]["noshear"]["e2cc"])
+
+    m_c1_e1_ns = np.average(results["minus"]["c1"]["noshear"]["e1"])
+    m_c1_e2_ns = np.average(results["minus"]["c1"]["noshear"]["e2"])
+    m_c1_e1c_ns = np.average(results["minus"]["c1"]["noshear"]["e1c"])
+    m_c1_e2c_ns = np.average(results["minus"]["c1"]["noshear"]["e2c"])
+    m_c1_e1cc_ns = np.average(results["minus"]["c1"]["noshear"]["e1cc"])
+    m_c1_e2cc_ns = np.average(results["minus"]["c1"]["noshear"]["e2cc"])
 
     # c2
     p_c2_e1_ns = np.average(results["plus"]["c2"]["noshear"]["e1"])
     p_c2_e2_ns = np.average(results["plus"]["c2"]["noshear"]["e2"])
     p_c2_e1c_ns = np.average(results["plus"]["c2"]["noshear"]["e1c"])
     p_c2_e2c_ns = np.average(results["plus"]["c2"]["noshear"]["e2c"])
+    p_c2_e1cc_ns = np.average(results["plus"]["c2"]["noshear"]["e1cc"])
+    p_c2_e2cc_ns = np.average(results["plus"]["c2"]["noshear"]["e2cc"])
 
     m_c2_e1_ns = np.average(results["minus"]["c2"]["noshear"]["e1"])
     m_c2_e2_ns = np.average(results["minus"]["c2"]["noshear"]["e2"])
     m_c2_e1c_ns = np.average(results["minus"]["c2"]["noshear"]["e1c"])
     m_c2_e2c_ns = np.average(results["minus"]["c2"]["noshear"]["e2c"])
+    m_c2_e1cc_ns = np.average(results["minus"]["c2"]["noshear"]["e1cc"])
+    m_c2_e2cc_ns = np.average(results["minus"]["c2"]["noshear"]["e2cc"])
 
     # p_dedc_1 = (p_c2_e1dc_ns - p_c0_e1dc_ns) / (2 * dc)
     # p_dedc_2 = (p_c2_e2dc_ns - p_c0_e2dc_ns) / (2 * dc)
@@ -242,32 +265,72 @@ def compute_de(results, dg, dc, color):
     # m_dedc_1 = (m_c2_e1dc_ns - m_c0_e1dc_ns) / (2 * dc)
     # m_dedc_2 = (m_c2_e2dc_ns - m_c0_e2dc_ns) / (2 * dc)
 
-    p_de_1 = (
-        p_c2_e1c_ns - p_c0_e1c_ns - color * (
-            p_c2_e1_ns - p_c0_e1_ns
-        )
-    ) / (2 * dc)
-    p_de_2 = (
-        p_c2_e2c_ns - p_c0_e2c_ns - color * (
-            p_c2_e1_ns - p_c0_e1_ns
-        )
-    ) / (2 * dc)
+    match order:
+        case 1:
+            p_de_1 = (
+                p_c2_e1c_ns - p_c0_e1c_ns - color * (
+                    p_c2_e1_ns - p_c0_e1_ns
+                )
+            ) / (2 * dc)
+            p_de_2 = (
+                p_c2_e2c_ns - p_c0_e2c_ns - color * (
+                    p_c2_e1_ns - p_c0_e1_ns
+                )
+            ) / (2 * dc)
 
-    m_de_1 = (
-        m_c2_e1c_ns - m_c0_e1c_ns - color * (
-            m_c2_e1_ns - m_c0_e1_ns
-        )
-    ) / (2 * dc)
-    m_de_2 = (
-        m_c2_e2c_ns - m_c0_e2c_ns - color * (
-            m_c2_e1_ns - m_c0_e1_ns
-        )
-    ) / (2 * dc)
+            m_de_1 = (
+                m_c2_e1c_ns - m_c0_e1c_ns - color * (
+                    m_c2_e1_ns - m_c0_e1_ns
+                )
+            ) / (2 * dc)
+            m_de_2 = (
+                m_c2_e2c_ns - m_c0_e2c_ns - color * (
+                    m_c2_e1_ns - m_c0_e1_ns
+                )
+            ) / (2 * dc)
+        case 2:
+            p_de_1 = (
+                p_c2_e1c_ns - p_c0_e1c_ns - color * (
+                    p_c2_e1_ns - p_c0_e1_ns
+                )
+            ) / (2 * dc) + (
+                p_c2_e1cc_ns - 2 * p_c1_e1cc_ns + p_c0_e1cc_ns  \
+                - 2 * color * (p_c2_e1c_ns - 2 * p_c1_e1c_ns + p_c0_e1c_ns)  \
+                + color**2 * (p_c2_e1_ns - 2 * p_c1_e1_ns + p_c0_e1_ns)
+            ) / (2 * dc**2)
+            p_de_2 = (
+                p_c2_e2c_ns - p_c0_e2c_ns - color * (
+                    p_c2_e1_ns - p_c0_e1_ns
+                )
+            ) / (2 * dc) + (
+                p_c2_e2cc_ns - 2 * p_c1_e2cc_ns + p_c0_e2cc_ns  \
+                - 2 * color * (p_c2_e2c_ns - 2 * p_c1_e2c_ns + p_c0_e2c_ns)  \
+                + color**2 * (p_c2_e2_ns - 2 * p_c1_e2_ns + p_c0_e2_ns)
+            ) / (2 * dc**2)
+
+            m_de_1 = (
+                m_c2_e1c_ns - m_c0_e1c_ns - color * (
+                    m_c2_e1_ns - m_c0_e1_ns
+                )
+            ) / (2 * dc) + (
+                m_c2_e1cc_ns - 2 * m_c1_e1cc_ns + m_c0_e1cc_ns  \
+                - 2 * color * (m_c2_e1c_ns - 2 * m_c1_e1c_ns + m_c0_e1c_ns)  \
+                + color**2 * (m_c2_e1_ns - 2 * m_c1_e1_ns + m_c0_e1_ns)
+            ) / (2 * dc**2)
+            m_de_2 = (
+                m_c2_e2c_ns - m_c0_e2c_ns - color * (
+                    m_c2_e1_ns - m_c0_e1_ns
+                )
+            ) / (2 * dc) + (
+                m_c2_e2cc_ns - 2 * m_c1_e2cc_ns + m_c0_e2cc_ns  \
+                - 2 * color * (m_c2_e2c_ns - 2 * m_c1_e2c_ns + m_c0_e2c_ns)  \
+                + color**2 * (m_c2_e2_ns - 2 * m_c1_e2_ns + m_c0_e2_ns)
+            ) / (2 * dc**2)
 
     return np.array([p_de_1, p_de_2]), np.array([m_de_1, m_de_2])
 
 
-def compute_dR(results, dg, dc, color):
+def compute_dR(results, dg, dc, color, order=1):
 
     #---------------------------------------------------------------------------
     # plus
@@ -277,65 +340,125 @@ def compute_dR(results, dg, dc, color):
 
     # NOSHEAR
     p_c0_e1_ns = np.average(results["plus"]["c0"]["noshear"]["e1"])
-    p_c0_e1c_ns = np.average(results["plus"]["c0"]["noshear"]["e1c"])
     p_c0_e2_ns = np.average(results["plus"]["c0"]["noshear"]["e2"])
+    p_c0_e1c_ns = np.average(results["plus"]["c0"]["noshear"]["e1c"])
     p_c0_e2c_ns = np.average(results["plus"]["c0"]["noshear"]["e2c"])
+    p_c0_e1cc_ns = np.average(results["plus"]["c0"]["noshear"]["e1cc"])
+    p_c0_e2cc_ns = np.average(results["plus"]["c0"]["noshear"]["e2cc"])
+    p_c0_e1dc_ns = np.average(results["plus"]["c0"]["noshear"]["e1dc"])
+    p_c0_e2dc_ns = np.average(results["plus"]["c0"]["noshear"]["e2dc"])
+    p_c0_e1dc2_ns = np.average(results["plus"]["c0"]["noshear"]["e1dc2"])
+    p_c0_e2dc2_ns = np.average(results["plus"]["c0"]["noshear"]["e2dc2"])
 
     # 1p
     p_c0_e1_1p = np.average(results["plus"]["c0"]["1p"]["e1"])
-    p_c0_e1c_1p = np.average(results["plus"]["c0"]["1p"]["e1c"])
     p_c0_e2_1p = np.average(results["plus"]["c0"]["1p"]["e2"])
+    p_c0_e1c_1p = np.average(results["plus"]["c0"]["1p"]["e1c"])
     p_c0_e2c_1p = np.average(results["plus"]["c0"]["1p"]["e2c"])
+    p_c0_e1cc_1p = np.average(results["plus"]["c0"]["1p"]["e1cc"])
+    p_c0_e2cc_1p = np.average(results["plus"]["c0"]["1p"]["e2cc"])
+    p_c0_e1dc_1p = np.average(results["plus"]["c0"]["1p"]["e1dc"])
+    p_c0_e2dc_1p = np.average(results["plus"]["c0"]["1p"]["e2dc"])
+    p_c0_e1dc2_1p = np.average(results["plus"]["c0"]["1p"]["e1dc2"])
+    p_c0_e2dc2_1p = np.average(results["plus"]["c0"]["1p"]["e2dc2"])
 
     # 1m
     p_c0_e1_1m = np.average(results["plus"]["c0"]["1m"]["e1"])
-    p_c0_e1c_1m = np.average(results["plus"]["c0"]["1m"]["e1c"])
     p_c0_e2_1m = np.average(results["plus"]["c0"]["1m"]["e2"])
+    p_c0_e1c_1m = np.average(results["plus"]["c0"]["1m"]["e1c"])
     p_c0_e2c_1m = np.average(results["plus"]["c0"]["1m"]["e2c"])
+    p_c0_e1cc_1m = np.average(results["plus"]["c0"]["1m"]["e1cc"])
+    p_c0_e2cc_1m = np.average(results["plus"]["c0"]["1m"]["e2cc"])
+    p_c0_e1dc_1m = np.average(results["plus"]["c0"]["1m"]["e1dc"])
+    p_c0_e2dc_1m = np.average(results["plus"]["c0"]["1m"]["e2dc"])
+    p_c0_e1dc2_1m = np.average(results["plus"]["c0"]["1m"]["e1dc2"])
+    p_c0_e2dc2_1m = np.average(results["plus"]["c0"]["1m"]["e2dc2"])
 
     # 2p
     p_c0_e1_2p = np.average(results["plus"]["c0"]["2p"]["e1"])
-    p_c0_e1c_2p = np.average(results["plus"]["c0"]["2p"]["e1c"])
     p_c0_e2_2p = np.average(results["plus"]["c0"]["2p"]["e2"])
+    p_c0_e1c_2p = np.average(results["plus"]["c0"]["2p"]["e1c"])
     p_c0_e2c_2p = np.average(results["plus"]["c0"]["2p"]["e2c"])
+    p_c0_e1cc_2p = np.average(results["plus"]["c0"]["2p"]["e1cc"])
+    p_c0_e2cc_2p = np.average(results["plus"]["c0"]["2p"]["e2cc"])
+    p_c0_e1dc_2p = np.average(results["plus"]["c0"]["2p"]["e1dc"])
+    p_c0_e2dc_2p = np.average(results["plus"]["c0"]["2p"]["e2dc"])
+    p_c0_e1dc2_2p = np.average(results["plus"]["c0"]["2p"]["e1dc2"])
+    p_c0_e2dc2_2p = np.average(results["plus"]["c0"]["2p"]["e2dc2"])
 
     # 2m
     p_c0_e1_2m = np.average(results["plus"]["c0"]["2m"]["e1"])
-    p_c0_e1c_2m = np.average(results["plus"]["c0"]["2m"]["e1c"])
     p_c0_e2_2m = np.average(results["plus"]["c0"]["2m"]["e2"])
+    p_c0_e1c_2m = np.average(results["plus"]["c0"]["2m"]["e1c"])
     p_c0_e2c_2m = np.average(results["plus"]["c0"]["2m"]["e2c"])
+    p_c0_e1cc_2m = np.average(results["plus"]["c0"]["2m"]["e1cc"])
+    p_c0_e2cc_2m = np.average(results["plus"]["c0"]["2m"]["e2cc"])
+    p_c0_e1dc_2m = np.average(results["plus"]["c0"]["2m"]["e1dc"])
+    p_c0_e2dc_2m = np.average(results["plus"]["c0"]["2m"]["e2dc"])
+    p_c0_e1dc2_2m = np.average(results["plus"]["c0"]["2m"]["e1dc2"])
+    p_c0_e2dc2_2m = np.average(results["plus"]["c0"]["2m"]["e2dc2"])
 
     # c1 -----------------------------------------------------------------------
 
     # NOSHEAR
     p_c1_e1_ns = np.average(results["plus"]["c1"]["noshear"]["e1"])
-    p_c1_e1c_ns = np.average(results["plus"]["c1"]["noshear"]["e1c"])
     p_c1_e2_ns = np.average(results["plus"]["c1"]["noshear"]["e2"])
+    p_c1_e1c_ns = np.average(results["plus"]["c1"]["noshear"]["e1c"])
     p_c1_e2c_ns = np.average(results["plus"]["c1"]["noshear"]["e2c"])
+    p_c1_e1cc_ns = np.average(results["plus"]["c1"]["noshear"]["e1cc"])
+    p_c1_e2cc_ns = np.average(results["plus"]["c1"]["noshear"]["e2cc"])
+    p_c1_e1dc_ns = np.average(results["plus"]["c1"]["noshear"]["e1dc"])
+    p_c1_e2dc_ns = np.average(results["plus"]["c1"]["noshear"]["e2dc"])
+    p_c1_e1dc2_ns = np.average(results["plus"]["c1"]["noshear"]["e1dc2"])
+    p_c1_e2dc2_ns = np.average(results["plus"]["c1"]["noshear"]["e2dc2"])
 
     # 1p
     p_c1_e1_1p = np.average(results["plus"]["c1"]["1p"]["e1"])
-    p_c1_e1c_1p = np.average(results["plus"]["c1"]["1p"]["e1c"])
     p_c1_e2_1p = np.average(results["plus"]["c1"]["1p"]["e2"])
+    p_c1_e1c_1p = np.average(results["plus"]["c1"]["1p"]["e1c"])
     p_c1_e2c_1p = np.average(results["plus"]["c1"]["1p"]["e2c"])
+    p_c1_e1cc_1p = np.average(results["plus"]["c1"]["1p"]["e1cc"])
+    p_c1_e2cc_1p = np.average(results["plus"]["c1"]["1p"]["e2cc"])
+    p_c1_e1dc_1p = np.average(results["plus"]["c1"]["1p"]["e1dc"])
+    p_c1_e2dc_1p = np.average(results["plus"]["c1"]["1p"]["e2dc"])
+    p_c1_e1dc2_1p = np.average(results["plus"]["c1"]["1p"]["e1dc2"])
+    p_c1_e2dc2_1p = np.average(results["plus"]["c1"]["1p"]["e2dc2"])
 
     # 1m
     p_c1_e1_1m = np.average(results["plus"]["c1"]["1m"]["e1"])
-    p_c1_e1c_1m = np.average(results["plus"]["c1"]["1m"]["e1c"])
     p_c1_e2_1m = np.average(results["plus"]["c1"]["1m"]["e2"])
+    p_c1_e1c_1m = np.average(results["plus"]["c1"]["1m"]["e1c"])
     p_c1_e2c_1m = np.average(results["plus"]["c1"]["1m"]["e2c"])
+    p_c1_e1cc_1m = np.average(results["plus"]["c1"]["1m"]["e1cc"])
+    p_c1_e2cc_1m = np.average(results["plus"]["c1"]["1m"]["e2cc"])
+    p_c1_e1dc_1m = np.average(results["plus"]["c1"]["1m"]["e1dc"])
+    p_c1_e2dc_1m = np.average(results["plus"]["c1"]["1m"]["e2dc"])
+    p_c1_e1dc2_1m = np.average(results["plus"]["c1"]["1m"]["e1dc2"])
+    p_c1_e2dc2_1m = np.average(results["plus"]["c1"]["1m"]["e2dc2"])
 
     # 2p
     p_c1_e1_2p = np.average(results["plus"]["c1"]["2p"]["e1"])
-    p_c1_e1c_2p = np.average(results["plus"]["c1"]["2p"]["e1c"])
     p_c1_e2_2p = np.average(results["plus"]["c1"]["2p"]["e2"])
+    p_c1_e1c_2p = np.average(results["plus"]["c1"]["2p"]["e1c"])
     p_c1_e2c_2p = np.average(results["plus"]["c1"]["2p"]["e2c"])
+    p_c1_e1cc_2p = np.average(results["plus"]["c1"]["2p"]["e1cc"])
+    p_c1_e2cc_2p = np.average(results["plus"]["c1"]["2p"]["e2cc"])
+    p_c1_e1dc_2p = np.average(results["plus"]["c1"]["2p"]["e1dc"])
+    p_c1_e2dc_2p = np.average(results["plus"]["c1"]["2p"]["e2dc"])
+    p_c1_e1dc2_2p = np.average(results["plus"]["c1"]["2p"]["e1dc2"])
+    p_c1_e2dc2_2p = np.average(results["plus"]["c1"]["2p"]["e2dc2"])
 
     # 2m
     p_c1_e1_2m = np.average(results["plus"]["c1"]["2m"]["e1"])
-    p_c1_e1c_2m = np.average(results["plus"]["c1"]["2m"]["e1c"])
     p_c1_e2_2m = np.average(results["plus"]["c1"]["2m"]["e2"])
+    p_c1_e1c_2m = np.average(results["plus"]["c1"]["2m"]["e1c"])
     p_c1_e2c_2m = np.average(results["plus"]["c1"]["2m"]["e2c"])
+    p_c1_e1cc_2m = np.average(results["plus"]["c1"]["2m"]["e1cc"])
+    p_c1_e2cc_2m = np.average(results["plus"]["c1"]["2m"]["e2cc"])
+    p_c1_e1dc_2m = np.average(results["plus"]["c1"]["2m"]["e1dc"])
+    p_c1_e2dc_2m = np.average(results["plus"]["c1"]["2m"]["e2dc"])
+    p_c1_e1dc2_2m = np.average(results["plus"]["c1"]["2m"]["e1dc2"])
+    p_c1_e2dc2_2m = np.average(results["plus"]["c1"]["2m"]["e2dc2"])
 
     # c2 -----------------------------------------------------------------------
 
@@ -344,30 +467,60 @@ def compute_dR(results, dg, dc, color):
     p_c2_e2_ns = np.average(results["plus"]["c2"]["noshear"]["e2"])
     p_c2_e1c_ns = np.average(results["plus"]["c2"]["noshear"]["e1c"])
     p_c2_e2c_ns = np.average(results["plus"]["c2"]["noshear"]["e2c"])
+    p_c2_e1cc_ns = np.average(results["plus"]["c2"]["noshear"]["e1cc"])
+    p_c2_e2cc_ns = np.average(results["plus"]["c2"]["noshear"]["e2cc"])
+    p_c2_e1dc_ns = np.average(results["plus"]["c2"]["noshear"]["e1dc"])
+    p_c2_e2dc_ns = np.average(results["plus"]["c2"]["noshear"]["e2dc"])
+    p_c2_e1dc2_ns = np.average(results["plus"]["c2"]["noshear"]["e1dc2"])
+    p_c2_e2dc2_ns = np.average(results["plus"]["c2"]["noshear"]["e2dc2"])
 
     # 1p
     p_c2_e1_1p = np.average(results["plus"]["c2"]["1p"]["e1"])
-    p_c2_e1c_1p = np.average(results["plus"]["c2"]["1p"]["e1c"])
     p_c2_e2_1p = np.average(results["plus"]["c2"]["1p"]["e2"])
+    p_c2_e1c_1p = np.average(results["plus"]["c2"]["1p"]["e1c"])
     p_c2_e2c_1p = np.average(results["plus"]["c2"]["1p"]["e2c"])
+    p_c2_e1cc_1p = np.average(results["plus"]["c2"]["1p"]["e1cc"])
+    p_c2_e2cc_1p = np.average(results["plus"]["c2"]["1p"]["e2cc"])
+    p_c2_e1dc_1p = np.average(results["plus"]["c2"]["1p"]["e1dc"])
+    p_c2_e2dc_1p = np.average(results["plus"]["c2"]["1p"]["e2dc"])
+    p_c2_e1dc2_1p = np.average(results["plus"]["c2"]["1p"]["e1dc2"])
+    p_c2_e2dc2_1p = np.average(results["plus"]["c2"]["1p"]["e2dc2"])
 
     # 1m
     p_c2_e1_1m = np.average(results["plus"]["c2"]["1m"]["e1"])
-    p_c2_e1c_1m = np.average(results["plus"]["c2"]["1m"]["e1c"])
     p_c2_e2_1m = np.average(results["plus"]["c2"]["1m"]["e2"])
+    p_c2_e1c_1m = np.average(results["plus"]["c2"]["1m"]["e1c"])
     p_c2_e2c_1m = np.average(results["plus"]["c2"]["1m"]["e2c"])
+    p_c2_e1cc_1m = np.average(results["plus"]["c2"]["1m"]["e1cc"])
+    p_c2_e2cc_1m = np.average(results["plus"]["c2"]["1m"]["e2cc"])
+    p_c2_e1dc_1m = np.average(results["plus"]["c2"]["1m"]["e1dc"])
+    p_c2_e2dc_1m = np.average(results["plus"]["c2"]["1m"]["e2dc"])
+    p_c2_e1dc2_1m = np.average(results["plus"]["c2"]["1m"]["e1dc2"])
+    p_c2_e2dc2_1m = np.average(results["plus"]["c2"]["1m"]["e2dc2"])
 
     # 2p
     p_c2_e1_2p = np.average(results["plus"]["c2"]["2p"]["e1"])
-    p_c2_e1c_2p = np.average(results["plus"]["c2"]["2p"]["e1c"])
     p_c2_e2_2p = np.average(results["plus"]["c2"]["2p"]["e2"])
+    p_c2_e1c_2p = np.average(results["plus"]["c2"]["2p"]["e1c"])
     p_c2_e2c_2p = np.average(results["plus"]["c2"]["2p"]["e2c"])
+    p_c2_e1cc_2p = np.average(results["plus"]["c2"]["2p"]["e1cc"])
+    p_c2_e2cc_2p = np.average(results["plus"]["c2"]["2p"]["e2cc"])
+    p_c2_e1dc_2p = np.average(results["plus"]["c2"]["2p"]["e1dc"])
+    p_c2_e2dc_2p = np.average(results["plus"]["c2"]["2p"]["e2dc"])
+    p_c2_e1dc2_2p = np.average(results["plus"]["c2"]["2p"]["e1dc2"])
+    p_c2_e2dc2_2p = np.average(results["plus"]["c2"]["2p"]["e2dc2"])
 
     # 2m
     p_c2_e1_2m = np.average(results["plus"]["c2"]["2m"]["e1"])
-    p_c2_e1c_2m = np.average(results["plus"]["c2"]["2m"]["e1c"])
     p_c2_e2_2m = np.average(results["plus"]["c2"]["2m"]["e2"])
+    p_c2_e1c_2m = np.average(results["plus"]["c2"]["2m"]["e1c"])
     p_c2_e2c_2m = np.average(results["plus"]["c2"]["2m"]["e2c"])
+    p_c2_e1cc_2m = np.average(results["plus"]["c2"]["2m"]["e1cc"])
+    p_c2_e2cc_2m = np.average(results["plus"]["c2"]["2m"]["e2cc"])
+    p_c2_e1dc_2m = np.average(results["plus"]["c2"]["2m"]["e1dc"])
+    p_c2_e2dc_2m = np.average(results["plus"]["c2"]["2m"]["e2dc"])
+    p_c2_e1dc2_2m = np.average(results["plus"]["c2"]["2m"]["e1dc2"])
+    p_c2_e2dc2_2m = np.average(results["plus"]["c2"]["2m"]["e2dc2"])
 
     #---------------------------------------------------------------------------
     # minus
@@ -377,97 +530,187 @@ def compute_dR(results, dg, dc, color):
 
     # NOSHEAR
     m_c0_e1_ns = np.average(results["minus"]["c0"]["noshear"]["e1"])
-    m_c0_e1c_ns = np.average(results["minus"]["c0"]["noshear"]["e1c"])
     m_c0_e2_ns = np.average(results["minus"]["c0"]["noshear"]["e2"])
+    m_c0_e1c_ns = np.average(results["minus"]["c0"]["noshear"]["e1c"])
     m_c0_e2c_ns = np.average(results["minus"]["c0"]["noshear"]["e2c"])
+    m_c0_e1cc_ns = np.average(results["minus"]["c0"]["noshear"]["e1cc"])
+    m_c0_e2cc_ns = np.average(results["minus"]["c0"]["noshear"]["e2cc"])
+    m_c0_e1dc_ns = np.average(results["minus"]["c0"]["noshear"]["e1dc"])
+    m_c0_e2dc_ns = np.average(results["minus"]["c0"]["noshear"]["e2dc"])
+    m_c0_e1dc2_ns = np.average(results["minus"]["c0"]["noshear"]["e1dc2"])
+    m_c0_e2dc2_ns = np.average(results["minus"]["c0"]["noshear"]["e2dc2"])
 
     # 1p
     m_c0_e1_1p = np.average(results["minus"]["c0"]["1p"]["e1"])
-    m_c0_e1c_1p = np.average(results["minus"]["c0"]["1p"]["e1c"])
     m_c0_e2_1p = np.average(results["minus"]["c0"]["1p"]["e2"])
+    m_c0_e1c_1p = np.average(results["minus"]["c0"]["1p"]["e1c"])
     m_c0_e2c_1p = np.average(results["minus"]["c0"]["1p"]["e2c"])
+    m_c0_e1cc_1p = np.average(results["minus"]["c0"]["1p"]["e1cc"])
+    m_c0_e2cc_1p = np.average(results["minus"]["c0"]["1p"]["e2cc"])
+    m_c0_e1dc_1p = np.average(results["minus"]["c0"]["1p"]["e1dc"])
+    m_c0_e2dc_1p = np.average(results["minus"]["c0"]["1p"]["e2dc"])
+    m_c0_e1dc2_1p = np.average(results["minus"]["c0"]["1p"]["e1dc2"])
+    m_c0_e2dc2_1p = np.average(results["minus"]["c0"]["1p"]["e2dc2"])
 
     # 1m
     m_c0_e1_1m = np.average(results["minus"]["c0"]["1m"]["e1"])
-    m_c0_e1c_1m = np.average(results["minus"]["c0"]["1m"]["e1c"])
     m_c0_e2_1m = np.average(results["minus"]["c0"]["1m"]["e2"])
+    m_c0_e1c_1m = np.average(results["minus"]["c0"]["1m"]["e1c"])
     m_c0_e2c_1m = np.average(results["minus"]["c0"]["1m"]["e2c"])
+    m_c0_e1cc_1m = np.average(results["minus"]["c0"]["1m"]["e1cc"])
+    m_c0_e2cc_1m = np.average(results["minus"]["c0"]["1m"]["e2cc"])
+    m_c0_e1dc_1m = np.average(results["minus"]["c0"]["1m"]["e1dc"])
+    m_c0_e2dc_1m = np.average(results["minus"]["c0"]["1m"]["e2dc"])
+    m_c0_e1dc2_1m = np.average(results["minus"]["c0"]["1m"]["e1dc2"])
+    m_c0_e2dc2_1m = np.average(results["minus"]["c0"]["1m"]["e2dc2"])
 
     # 2p
     m_c0_e1_2p = np.average(results["minus"]["c0"]["2p"]["e1"])
-    m_c0_e1c_2p = np.average(results["minus"]["c0"]["2p"]["e1c"])
     m_c0_e2_2p = np.average(results["minus"]["c0"]["2p"]["e2"])
+    m_c0_e1c_2p = np.average(results["minus"]["c0"]["2p"]["e1c"])
     m_c0_e2c_2p = np.average(results["minus"]["c0"]["2p"]["e2c"])
+    m_c0_e1cc_2p = np.average(results["minus"]["c0"]["2p"]["e1cc"])
+    m_c0_e2cc_2p = np.average(results["minus"]["c0"]["2p"]["e2cc"])
+    m_c0_e1dc_2p = np.average(results["minus"]["c0"]["2p"]["e1dc"])
+    m_c0_e2dc_2p = np.average(results["minus"]["c0"]["2p"]["e2dc"])
+    m_c0_e1dc2_2p = np.average(results["minus"]["c0"]["2p"]["e1dc2"])
+    m_c0_e2dc2_2p = np.average(results["minus"]["c0"]["2p"]["e2dc2"])
 
     # 2m
     m_c0_e1_2m = np.average(results["minus"]["c0"]["2m"]["e1"])
-    m_c0_e1c_2m = np.average(results["minus"]["c0"]["2m"]["e1c"])
     m_c0_e2_2m = np.average(results["minus"]["c0"]["2m"]["e2"])
+    m_c0_e1c_2m = np.average(results["minus"]["c0"]["2m"]["e1c"])
     m_c0_e2c_2m = np.average(results["minus"]["c0"]["2m"]["e2c"])
+    m_c0_e1cc_2m = np.average(results["minus"]["c0"]["2m"]["e1cc"])
+    m_c0_e2cc_2m = np.average(results["minus"]["c0"]["2m"]["e2cc"])
+    m_c0_e1dc_2m = np.average(results["minus"]["c0"]["2m"]["e1dc"])
+    m_c0_e2dc_2m = np.average(results["minus"]["c0"]["2m"]["e2dc"])
+    m_c0_e1dc2_2m = np.average(results["minus"]["c0"]["2m"]["e1dc2"])
+    m_c0_e2dc2_2m = np.average(results["minus"]["c0"]["2m"]["e2dc2"])
 
     # c1 -----------------------------------------------------------------------
 
     # NOSHEAR
     m_c1_e1_ns = np.average(results["minus"]["c1"]["noshear"]["e1"])
-    m_c1_e1c_ns = np.average(results["minus"]["c1"]["noshear"]["e1c"])
     m_c1_e2_ns = np.average(results["minus"]["c1"]["noshear"]["e2"])
+    m_c1_e1c_ns = np.average(results["minus"]["c1"]["noshear"]["e1c"])
     m_c1_e2c_ns = np.average(results["minus"]["c1"]["noshear"]["e2c"])
+    m_c1_e1cc_ns = np.average(results["minus"]["c1"]["noshear"]["e1cc"])
+    m_c1_e2cc_ns = np.average(results["minus"]["c1"]["noshear"]["e2cc"])
+    m_c1_e1dc_ns = np.average(results["minus"]["c1"]["noshear"]["e1dc"])
+    m_c1_e2dc_ns = np.average(results["minus"]["c1"]["noshear"]["e2dc"])
+    m_c1_e1dc2_ns = np.average(results["minus"]["c1"]["noshear"]["e1dc2"])
+    m_c1_e2dc2_ns = np.average(results["minus"]["c1"]["noshear"]["e2dc2"])
 
     # 1p
     m_c1_e1_1p = np.average(results["minus"]["c1"]["1p"]["e1"])
-    m_c1_e1c_1p = np.average(results["minus"]["c1"]["1p"]["e1c"])
     m_c1_e2_1p = np.average(results["minus"]["c1"]["1p"]["e2"])
+    m_c1_e1c_1p = np.average(results["minus"]["c1"]["1p"]["e1c"])
     m_c1_e2c_1p = np.average(results["minus"]["c1"]["1p"]["e2c"])
+    m_c1_e1cc_1p = np.average(results["minus"]["c1"]["1p"]["e1cc"])
+    m_c1_e2cc_1p = np.average(results["minus"]["c1"]["1p"]["e2cc"])
+    m_c1_e1dc_1p = np.average(results["minus"]["c1"]["1p"]["e1dc"])
+    m_c1_e2dc_1p = np.average(results["minus"]["c1"]["1p"]["e2dc"])
+    m_c1_e1dc2_1p = np.average(results["minus"]["c1"]["1p"]["e1dc2"])
+    m_c1_e2dc2_1p = np.average(results["minus"]["c1"]["1p"]["e2dc2"])
 
     # 1m
     m_c1_e1_1m = np.average(results["minus"]["c1"]["1m"]["e1"])
-    m_c1_e1c_1m = np.average(results["minus"]["c1"]["1m"]["e1c"])
     m_c1_e2_1m = np.average(results["minus"]["c1"]["1m"]["e2"])
+    m_c1_e1c_1m = np.average(results["minus"]["c1"]["1m"]["e1c"])
     m_c1_e2c_1m = np.average(results["minus"]["c1"]["1m"]["e2c"])
+    m_c1_e1cc_1m = np.average(results["minus"]["c1"]["1m"]["e1cc"])
+    m_c1_e2cc_1m = np.average(results["minus"]["c1"]["1m"]["e2cc"])
+    m_c1_e1dc_1m = np.average(results["minus"]["c1"]["1m"]["e1dc"])
+    m_c1_e2dc_1m = np.average(results["minus"]["c1"]["1m"]["e2dc"])
+    m_c1_e1dc2_1m = np.average(results["minus"]["c1"]["1m"]["e1dc2"])
+    m_c1_e2dc2_1m = np.average(results["minus"]["c1"]["1m"]["e2dc2"])
 
     # 2p
     m_c1_e1_2p = np.average(results["minus"]["c1"]["2p"]["e1"])
-    m_c1_e1c_2p = np.average(results["minus"]["c1"]["2p"]["e1c"])
     m_c1_e2_2p = np.average(results["minus"]["c1"]["2p"]["e2"])
+    m_c1_e1c_2p = np.average(results["minus"]["c1"]["2p"]["e1c"])
     m_c1_e2c_2p = np.average(results["minus"]["c1"]["2p"]["e2c"])
+    m_c1_e1cc_2p = np.average(results["minus"]["c1"]["2p"]["e1cc"])
+    m_c1_e2cc_2p = np.average(results["minus"]["c1"]["2p"]["e2cc"])
+    m_c1_e1dc_2p = np.average(results["minus"]["c1"]["2p"]["e1dc"])
+    m_c1_e2dc_2p = np.average(results["minus"]["c1"]["2p"]["e2dc"])
+    m_c1_e1dc2_2p = np.average(results["minus"]["c1"]["2p"]["e1dc2"])
+    m_c1_e2dc2_2p = np.average(results["minus"]["c1"]["2p"]["e2dc2"])
 
     # 2m
     m_c1_e1_2m = np.average(results["minus"]["c1"]["2m"]["e1"])
-    m_c1_e1c_2m = np.average(results["minus"]["c1"]["2m"]["e1c"])
     m_c1_e2_2m = np.average(results["minus"]["c1"]["2m"]["e2"])
+    m_c1_e1c_2m = np.average(results["minus"]["c1"]["2m"]["e1c"])
     m_c1_e2c_2m = np.average(results["minus"]["c1"]["2m"]["e2c"])
+    m_c1_e1cc_2m = np.average(results["minus"]["c1"]["2m"]["e1cc"])
+    m_c1_e2cc_2m = np.average(results["minus"]["c1"]["2m"]["e2cc"])
+    m_c1_e1dc_2m = np.average(results["minus"]["c1"]["2m"]["e1dc"])
+    m_c1_e2dc_2m = np.average(results["minus"]["c1"]["2m"]["e2dc"])
+    m_c1_e1dc2_2m = np.average(results["minus"]["c1"]["2m"]["e1dc2"])
+    m_c1_e2dc2_2m = np.average(results["minus"]["c1"]["2m"]["e2dc2"])
 
     # c2 -----------------------------------------------------------------------
 
     # NOSHEAR
     m_c2_e1_ns = np.average(results["minus"]["c2"]["noshear"]["e1"])
-    m_c2_e1c_ns = np.average(results["minus"]["c2"]["noshear"]["e1c"])
     m_c2_e2_ns = np.average(results["minus"]["c2"]["noshear"]["e2"])
+    m_c2_e1c_ns = np.average(results["minus"]["c2"]["noshear"]["e1c"])
     m_c2_e2c_ns = np.average(results["minus"]["c2"]["noshear"]["e2c"])
+    m_c2_e1cc_ns = np.average(results["minus"]["c2"]["noshear"]["e1cc"])
+    m_c2_e2cc_ns = np.average(results["minus"]["c2"]["noshear"]["e2cc"])
+    m_c2_e1dc_ns = np.average(results["minus"]["c2"]["noshear"]["e1dc"])
+    m_c2_e2dc_ns = np.average(results["minus"]["c2"]["noshear"]["e2dc"])
+    m_c2_e1dc2_ns = np.average(results["minus"]["c2"]["noshear"]["e1dc2"])
+    m_c2_e2dc2_ns = np.average(results["minus"]["c2"]["noshear"]["e2dc2"])
 
     # 1p
     m_c2_e1_1p = np.average(results["minus"]["c2"]["1p"]["e1"])
-    m_c2_e1c_1p = np.average(results["minus"]["c2"]["1p"]["e1c"])
     m_c2_e2_1p = np.average(results["minus"]["c2"]["1p"]["e2"])
+    m_c2_e1c_1p = np.average(results["minus"]["c2"]["1p"]["e1c"])
     m_c2_e2c_1p = np.average(results["minus"]["c2"]["1p"]["e2c"])
+    m_c2_e1cc_1p = np.average(results["minus"]["c2"]["1p"]["e1cc"])
+    m_c2_e2cc_1p = np.average(results["minus"]["c2"]["1p"]["e2cc"])
+    m_c2_e1dc_1p = np.average(results["minus"]["c2"]["1p"]["e1dc"])
+    m_c2_e2dc_1p = np.average(results["minus"]["c2"]["1p"]["e2dc"])
+    m_c2_e1dc2_1p = np.average(results["minus"]["c2"]["1p"]["e1dc2"])
+    m_c2_e2dc2_1p = np.average(results["minus"]["c2"]["1p"]["e2dc2"])
 
     # 1m
     m_c2_e1_1m = np.average(results["minus"]["c2"]["1m"]["e1"])
-    m_c2_e1c_1m = np.average(results["minus"]["c2"]["1m"]["e1c"])
     m_c2_e2_1m = np.average(results["minus"]["c2"]["1m"]["e2"])
+    m_c2_e1c_1m = np.average(results["minus"]["c2"]["1m"]["e1c"])
     m_c2_e2c_1m = np.average(results["minus"]["c2"]["1m"]["e2c"])
+    m_c2_e1cc_1m = np.average(results["minus"]["c2"]["1m"]["e1cc"])
+    m_c2_e2cc_1m = np.average(results["minus"]["c2"]["1m"]["e2cc"])
+    m_c2_e1dc_1m = np.average(results["minus"]["c2"]["1m"]["e1dc"])
+    m_c2_e2dc_1m = np.average(results["minus"]["c2"]["1m"]["e2dc"])
+    m_c2_e1dc2_1m = np.average(results["minus"]["c2"]["1m"]["e1dc2"])
+    m_c2_e2dc2_1m = np.average(results["minus"]["c2"]["1m"]["e2dc2"])
 
     # 2p
     m_c2_e1_2p = np.average(results["minus"]["c2"]["2p"]["e1"])
-    m_c2_e1c_2p = np.average(results["minus"]["c2"]["2p"]["e1c"])
     m_c2_e2_2p = np.average(results["minus"]["c2"]["2p"]["e2"])
+    m_c2_e1c_2p = np.average(results["minus"]["c2"]["2p"]["e1c"])
     m_c2_e2c_2p = np.average(results["minus"]["c2"]["2p"]["e2c"])
+    m_c2_e1cc_2p = np.average(results["minus"]["c2"]["2p"]["e1cc"])
+    m_c2_e2cc_2p = np.average(results["minus"]["c2"]["2p"]["e2cc"])
+    m_c2_e1dc_2p = np.average(results["minus"]["c2"]["2p"]["e1dc"])
+    m_c2_e2dc_2p = np.average(results["minus"]["c2"]["2p"]["e2dc"])
+    m_c2_e1dc2_2p = np.average(results["minus"]["c2"]["2p"]["e1dc2"])
+    m_c2_e2dc2_2p = np.average(results["minus"]["c2"]["2p"]["e2dc2"])
 
     # 2m
     m_c2_e1_2m = np.average(results["minus"]["c2"]["2m"]["e1"])
-    m_c2_e1c_2m = np.average(results["minus"]["c2"]["2m"]["e1c"])
     m_c2_e2_2m = np.average(results["minus"]["c2"]["2m"]["e2"])
+    m_c2_e1c_2m = np.average(results["minus"]["c2"]["2m"]["e1c"])
     m_c2_e2c_2m = np.average(results["minus"]["c2"]["2m"]["e2c"])
+    m_c2_e1cc_2m = np.average(results["minus"]["c2"]["2m"]["e1cc"])
+    m_c2_e2cc_2m = np.average(results["minus"]["c2"]["2m"]["e2cc"])
+    m_c2_e1dc_2m = np.average(results["minus"]["c2"]["2m"]["e1dc"])
+    m_c2_e2dc_2m = np.average(results["minus"]["c2"]["2m"]["e2dc"])
+    m_c2_e1dc2_2m = np.average(results["minus"]["c2"]["2m"]["e1dc2"])
+    m_c2_e2dc2_2m = np.average(results["minus"]["c2"]["2m"]["e2dc2"])
 
     #---------------------------------------------------------------------------
 
@@ -476,47 +719,131 @@ def compute_dR(results, dg, dc, color):
     # dR21_p = (p_c2_e2c_1p - p_c2_e2c_1m - p_c0_e2c_1p + p_c0_e2c_1m) / (2 * dg * 2 * dc)
     # dR22_p = (p_c2_e2c_2p - p_c2_e2c_2m - p_c0_e2c_2p + p_c0_e2c_2m) / (2 * dg * 2 * dc)
 
-    dR11_p = (
-        p_c2_e1c_1p - p_c2_e1c_1m - p_c0_e1c_1p + p_c0_e1c_1m - color * (
-            p_c2_e1_1p - p_c2_e1_1m - p_c0_e1_1p + p_c0_e1_1m
-        )
-    ) / (2 * dg * 2 * dc)
-    dR12_p = (
-        p_c2_e1c_2p - p_c2_e1c_2m - p_c0_e1c_2p + p_c0_e1c_2m - color * (
-            p_c2_e1_2p - p_c2_e1_2m - p_c0_e1_2p + p_c0_e1_2m
-        )
-    ) / (2 * dg * 2 * dc)
-    dR21_p = (
-        p_c2_e2c_1p - p_c2_e2c_1m - p_c0_e2c_1p + p_c0_e2c_1m - color * (
-            p_c2_e2_1p - p_c2_e2_1m - p_c0_e2_1p + p_c0_e2_1m
-        )
-    ) / (2 * dg * 2 * dc)
-    dR22_p = (
-        p_c2_e2c_2p - p_c2_e2c_2m - p_c0_e2c_2p + p_c0_e2c_2m - color * (
-            p_c2_e2_2p - p_c2_e2_2m - p_c0_e2_2p + p_c0_e2_2m
-        )
-    ) / (2 * dg * 2 * dc)
+    match order:
+        case 1:
+            dR11_p = (
+                p_c2_e1c_1p - p_c2_e1c_1m - p_c0_e1c_1p + p_c0_e1c_1m - color * (
+                    p_c2_e1_1p - p_c2_e1_1m - p_c0_e1_1p + p_c0_e1_1m
+                )
+            ) / (2 * dg * 2 * dc)
+            dR12_p = (
+                p_c2_e1c_2p - p_c2_e1c_2m - p_c0_e1c_2p + p_c0_e1c_2m - color * (
+                    p_c2_e1_2p - p_c2_e1_2m - p_c0_e1_2p + p_c0_e1_2m
+                )
+            ) / (2 * dg * 2 * dc)
+            dR21_p = (
+                p_c2_e2c_1p - p_c2_e2c_1m - p_c0_e2c_1p + p_c0_e2c_1m - color * (
+                    p_c2_e2_1p - p_c2_e2_1m - p_c0_e2_1p + p_c0_e2_1m
+                )
+            ) / (2 * dg * 2 * dc)
+            dR22_p = (
+                p_c2_e2c_2p - p_c2_e2c_2m - p_c0_e2c_2p + p_c0_e2c_2m - color * (
+                    p_c2_e2_2p - p_c2_e2_2m - p_c0_e2_2p + p_c0_e2_2m
+                )
+            ) / (2 * dg * 2 * dc)
 
-    dR11_m = (
-        m_c2_e1c_1p - m_c2_e1c_1m - m_c0_e1c_1p + m_c0_e1c_1m - color * (
-            m_c2_e1_1p - m_c2_e1_1m - m_c0_e1_1p + m_c0_e1_1m
-        )
-    ) / (2 * dg * 2 * dc)
-    dR12_m = (
-        m_c2_e1c_2p - m_c2_e1c_2m - m_c0_e1c_2p + m_c0_e1c_2m - color * (
-            m_c2_e1_2p - m_c2_e1_2m - m_c0_e1_2p + m_c0_e1_2m
-        )
-    ) / (2 * dg * 2 * dc)
-    dR21_m = (
-        m_c2_e2c_1p - m_c2_e2c_1m - m_c0_e2c_1p + m_c0_e2c_1m - color * (
-            m_c2_e2_1p - m_c2_e2_1m - m_c0_e2_1p + m_c0_e2_1m
-        )
-    ) / (2 * dg * 2 * dc)
-    dR22_m = (
-        m_c2_e2c_2p - m_c2_e2c_2m - m_c0_e2c_2p + m_c0_e2c_2m - color * (
-            m_c2_e2_2p - m_c2_e2_2m - m_c0_e2_2p + m_c0_e2_2m
-        )
-    ) / (2 * dg * 2 * dc)
+            dR11_m = (
+                m_c2_e1c_1p - m_c2_e1c_1m - m_c0_e1c_1p + m_c0_e1c_1m - color * (
+                    m_c2_e1_1p - m_c2_e1_1m - m_c0_e1_1p + m_c0_e1_1m
+                )
+            ) / (2 * dg * 2 * dc)
+            dR12_m = (
+                m_c2_e1c_2p - m_c2_e1c_2m - m_c0_e1c_2p + m_c0_e1c_2m - color * (
+                    m_c2_e1_2p - m_c2_e1_2m - m_c0_e1_2p + m_c0_e1_2m
+                )
+            ) / (2 * dg * 2 * dc)
+            dR21_m = (
+                m_c2_e2c_1p - m_c2_e2c_1m - m_c0_e2c_1p + m_c0_e2c_1m - color * (
+                    m_c2_e2_1p - m_c2_e2_1m - m_c0_e2_1p + m_c0_e2_1m
+                )
+            ) / (2 * dg * 2 * dc)
+            dR22_m = (
+                m_c2_e2c_2p - m_c2_e2c_2m - m_c0_e2c_2p + m_c0_e2c_2m - color * (
+                    m_c2_e2_2p - m_c2_e2_2m - m_c0_e2_2p + m_c0_e2_2m
+                )
+            ) / (2 * dg * 2 * dc)
+        case 2:
+            dR11_p = (
+                p_c2_e1c_1p - p_c2_e1c_1m - p_c0_e1c_1p + p_c0_e1c_1m - color * (
+                    p_c2_e1_1p - p_c2_e1_1m - p_c0_e1_1p + p_c0_e1_1m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                p_c2_e1dc2_1p - p_c2_e1dc2_1m - 2 * (p_c1_e1dc2_1p - p_c1_e1dc2_1m) + p_c0_e1dc2_1p - p_c0_e1dc2_1m
+                # p_c2_e1cc_1p - p_c2_e1cc_1m - 2 * (p_c1_e1cc_1p - p_c1_e1cc_1m) + p_c0_e1cc_1p - p_c0_e1cc_1m \
+                # - 2 * color * (p_c2_e1c_1p - p_c2_e1c_1m - 2 * (p_c1_e1c_1p - p_c1_e1c_1m) + p_c0_e1c_1p - p_c0_e1c_1m) \
+                # + color**2 * (p_c2_e1_1p - p_c2_e1_1m - 2 * (p_c1_e1_1p - p_c1_e1_1m) + p_c0_e1_1p - p_c0_e1_1m)
+            ) / (2 * dg * 2 * dc**2)
+            dR12_p = (
+                p_c2_e1c_2p - p_c2_e1c_2m - p_c0_e1c_2p + p_c0_e1c_2m - color * (
+                    p_c2_e1_2p - p_c2_e1_2m - p_c0_e1_2p + p_c0_e1_2m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                p_c2_e1dc2_2p - p_c2_e1dc2_2m - 2 * (p_c1_e1dc2_2p - p_c1_e1dc2_2m) + p_c0_e1dc2_2p - p_c0_e1dc2_2m
+                # p_c2_e1cc_2p - p_c2_e1cc_2m - 2 * (p_c1_e1cc_2p - p_c1_e1cc_2m) + p_c0_e1cc_2p - p_c0_e1cc_2m \
+                # - 2 * color * (p_c2_e1c_2p - p_c2_e1c_2m - 2 * (p_c1_e1c_2p - p_c1_e1c_2m) + p_c0_e1c_2p - p_c0_e1c_2m) \
+                # + color**2 * (p_c2_e1_2p - p_c2_e1_2m - 2 * (p_c1_e1_2p - p_c1_e1_2m) + p_c0_e1_2p - p_c0_e1_2m)
+            ) / (2 * dg * 2 * dc**2)
+            dR21_p = (
+                p_c2_e2c_1p - p_c2_e2c_1m - p_c0_e2c_1p + p_c0_e2c_1m - color * (
+                    p_c2_e2_1p - p_c2_e2_1m - p_c0_e2_1p + p_c0_e2_1m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                p_c2_e2dc2_1p - p_c2_e2dc2_1m - 2 * (p_c1_e2dc2_1p - p_c1_e2dc2_1m) + p_c0_e2dc2_1p - p_c0_e2dc2_1m
+                # p_c2_e2cc_1p - p_c2_e2cc_1m - 2 * (p_c1_e2cc_1p - p_c1_e2cc_1m) + p_c0_e2cc_1p - p_c0_e2cc_1m \
+                # - 2 * color * (p_c2_e2c_1p - p_c2_e2c_1m - 2 * (p_c1_e2c_1p - p_c1_e2c_1m) + p_c0_e2c_1p - p_c0_e2c_1m) \
+                # + color**2 * (p_c2_e2_1p - p_c2_e2_1m - 2 * (p_c1_e2_1p - p_c1_e2_1m) + p_c0_e2_1p - p_c0_e2_1m)
+            ) / (2 * dg * 2 * dc**2)
+            dR22_p = (
+                p_c2_e2c_2p - p_c2_e2c_2m - p_c0_e2c_2p + p_c0_e2c_2m - color * (
+                    p_c2_e2_2p - p_c2_e2_2m - p_c0_e2_2p + p_c0_e2_2m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                p_c2_e2dc2_2p - p_c2_e2dc2_2m - 2 * (p_c1_e2dc2_2p - p_c1_e2dc2_2m) + p_c0_e2dc2_2p - p_c0_e2dc2_2m
+                # p_c2_e2cc_2p - p_c2_e2cc_2m - 2 * (p_c1_e2cc_2p - p_c1_e2cc_2m) + p_c0_e2cc_2p - p_c0_e2cc_2m \
+                # - 2 * color * (p_c2_e2c_2p - p_c2_e2c_2m - 2 * (p_c1_e2c_2p - p_c1_e2c_2m) + p_c0_e2c_2p - p_c0_e2c_2m) \
+                # + color**2 * (p_c2_e2_2p - p_c2_e2_2m - 2 * (p_c1_e2_2p - p_c1_e2_2m) + p_c0_e2_2p - p_c0_e2_2m)
+            ) / (2 * dg * 2 * dc**2)
+
+            dR11_m = (
+                m_c2_e1c_1p - m_c2_e1c_1m - m_c0_e1c_1p + m_c0_e1c_1m - color * (
+                    m_c2_e1_1p - m_c2_e1_1m - m_c0_e1_1p + m_c0_e1_1m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                m_c2_e1dc2_1p - m_c2_e1dc2_1m - 2 * (m_c1_e1dc2_1p - m_c1_e1dc2_1m) + m_c0_e1dc2_1p - m_c0_e1dc2_1m
+                # m_c2_e1cc_1p - m_c2_e1cc_1m - 2 * (m_c1_e1cc_1p - m_c1_e1cc_1m) + m_c0_e1cc_1p - m_c0_e1cc_1m \
+                # - 2 * color * (m_c2_e1c_1p - m_c2_e1c_1m - 2 * (m_c1_e1c_1p - m_c1_e1c_1m) + m_c0_e1c_1p - m_c0_e1c_1m) \
+                # + color**2 * (m_c2_e1_1p - m_c2_e1_1m - 2 * (m_c1_e1_1p - m_c1_e1_1m) + m_c0_e1_1p - m_c0_e1_1m)
+            ) / (2 * dg * 2 * dc**2)
+            dR12_m = (
+                m_c2_e1c_2p - m_c2_e1c_2m - m_c0_e1c_2p + m_c0_e1c_2m - color * (
+                    m_c2_e1_2p - m_c2_e1_2m - m_c0_e1_2p + m_c0_e1_2m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                m_c2_e1dc2_2p - m_c2_e1dc2_2m - 2 * (m_c1_e1dc2_2p - m_c1_e1dc2_2m) + m_c0_e1dc2_2p - m_c0_e1dc2_2m
+                # m_c2_e1cc_2p - m_c2_e1cc_2m - 2 * (m_c1_e1cc_2p - m_c1_e1cc_2m) + m_c0_e1cc_2p - m_c0_e1cc_2m \
+                # - 2 * color * (m_c2_e1c_2p - m_c2_e1c_2m - 2 * (m_c1_e1c_2p - m_c1_e1c_2m) + m_c0_e1c_2p - m_c0_e1c_2m) \
+                # + color**2 * (m_c2_e1_2p - m_c2_e1_2m - 2 * (m_c1_e1_2p - m_c1_e1_2m) + m_c0_e1_2p - m_c0_e1_2m)
+            ) / (2 * dg * 2 * dc**2)
+            dR21_m = (
+                m_c2_e2c_1p - m_c2_e2c_1m - m_c0_e2c_1p + m_c0_e2c_1m - color * (
+                    m_c2_e2_1p - m_c2_e2_1m - m_c0_e2_1p + m_c0_e2_1m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                m_c2_e2dc2_1p - m_c2_e2dc2_1m - 2 * (m_c1_e2dc2_1p - m_c1_e2dc2_1m) + m_c0_e2dc2_1p - m_c0_e2dc2_1m
+                # m_c2_e2cc_1p - m_c2_e2cc_1m - 2 * (m_c1_e2cc_1p - m_c1_e2cc_1m) + m_c0_e2cc_1p - m_c0_e2cc_1m \
+                # - 2 * color * (m_c2_e2c_1p - m_c2_e2c_1m - 2 * (m_c1_e2c_1p - m_c1_e2c_1m) + m_c0_e2c_1p - m_c0_e2c_1m) \
+                # + color**2 * (m_c2_e2_1p - m_c2_e2_1m - 2 * (m_c1_e2_1p - m_c1_e2_1m) + m_c0_e2_1p - m_c0_e2_1m)
+            ) / (2 * dg * 2 * dc**2)
+            dR22_m = (
+                m_c2_e2c_2p - m_c2_e2c_2m - m_c0_e2c_2p + m_c0_e2c_2m - color * (
+                    m_c2_e2_2p - m_c2_e2_2m - m_c0_e2_2p + m_c0_e2_2m
+                )
+            ) / (2 * dg * 2 * dc) + (
+                m_c2_e2dc2_2p - m_c2_e2dc2_2m - 2 * (m_c1_e2dc2_2p - m_c1_e2dc2_2m) + m_c0_e2dc2_2p - m_c0_e2dc2_2m
+                # m_c2_e2cc_2p - m_c2_e2cc_2m - 2 * (m_c1_e2cc_2p - m_c1_e2cc_2m) + m_c0_e2cc_2p - m_c0_e2cc_2m \
+                # - 2 * color * (m_c2_e2c_2p - m_c2_e2c_2m - 2 * (m_c1_e2c_2p - m_c1_e2c_2m) + m_c0_e2c_2p - m_c0_e2c_2m) \
+                # + color**2 * (m_c2_e2_2p - m_c2_e2_2m - 2 * (m_c1_e2_2p - m_c1_e2_2m) + m_c0_e2_2p - m_c0_e2_2m)
+            ) / (2 * dg * 2 * dc**2)
 
     return (
         np.array([
@@ -557,12 +884,12 @@ def compute_bias(batch, dg, dc):
     # return m, c
 
 
-def compute_bias_chromatic(batch, dg, dc, color):
+def compute_bias_chromatic(batch, dg, dc, color, order=1):
     e_p, e_m = compute_e_chromatic(batch)
     R_p, R_m = compute_R_chromatic(batch, dg)
 
-    de_p, de_m = compute_de(batch, dg, dc, color)
-    dR_p, dR_m = compute_dR(batch, dg, dc, color)
+    de_p, de_m = compute_de(batch, dg, dc, color, order=order)
+    dR_p, dR_m = compute_dR(batch, dg, dc, color, order=1)
 
     g_p = np.linalg.inv(R_p + dR_p) @ (e_p + de_p)
     g_m = np.linalg.inv(R_m + dR_m) @ (e_m + de_m)
@@ -623,16 +950,20 @@ def pivot_aggregates(res, seeds=None):
                         pc.multiply(pc.field("mean_e1e2"), pc.field("count")),
                         pc.multiply(pc.field("mean_e1c"), pc.field("count")),
                         pc.multiply(pc.field("mean_e2c"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e1cc"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e2cc"), pc.field("count")),
                         pc.multiply(pc.field("mean_e1dc"), pc.field("count")),
                         pc.multiply(pc.field("mean_e2dc"), pc.field("count")),
-                        pc.multiply(pc.field("var_e1"), pc.field("count")),
-                        pc.multiply(pc.field("var_e2"), pc.field("count")),
-                        pc.multiply(pc.field("var_c"), pc.field("count")),
-                        pc.multiply(pc.field("var_e1e2"), pc.field("count")),
-                        pc.multiply(pc.field("var_e1c"), pc.field("count")),
-                        pc.multiply(pc.field("var_e2c"), pc.field("count")),
-                        pc.multiply(pc.field("var_e1dc"), pc.field("count")),
-                        pc.multiply(pc.field("var_e2dc"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e1dc2"), pc.field("count")),
+                        pc.multiply(pc.field("mean_e2dc2"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e1"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e2"), pc.field("count")),
+                        # pc.multiply(pc.field("var_c"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e1e2"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e1c"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e2c"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e1dc"), pc.field("count")),
+                        # pc.multiply(pc.field("var_e2dc"), pc.field("count")),
                     ],
                     names=[
                         "count",
@@ -642,16 +973,20 @@ def pivot_aggregates(res, seeds=None):
                         "weighted_mean_e1e2",
                         "weighted_mean_e1c",
                         "weighted_mean_e2c",
+                        "weighted_mean_e1cc",
+                        "weighted_mean_e2cc",
                         "weighted_mean_e1dc",
                         "weighted_mean_e2dc",
-                        "weighted_var_e1",
-                        "weighted_var_e2",
-                        "weighted_var_c",
-                        "weighted_var_e1e2",
-                        "weighted_var_e1c",
-                        "weighted_var_e2c",
-                        "weighted_var_e1dc",
-                        "weighted_var_e2dc",
+                        "weighted_mean_e1dc2",
+                        "weighted_mean_e2dc2",
+                        # "weighted_var_e1",
+                        # "weighted_var_e2",
+                        # "weighted_var_c",
+                        # "weighted_var_e1e2",
+                        # "weighted_var_e1c",
+                        # "weighted_var_e2c",
+                        # "weighted_var_e1dc",
+                        # "weighted_var_e2dc",
                     ],
                 ),
             )
@@ -666,16 +1001,20 @@ def pivot_aggregates(res, seeds=None):
                         ("weighted_mean_e1e2", "sum", None, "sum_mean_e1e2"),
                         ("weighted_mean_e1c", "sum", None, "sum_mean_e1c"),
                         ("weighted_mean_e2c", "sum", None, "sum_mean_e2c"),
+                        ("weighted_mean_e1cc", "sum", None, "sum_mean_e1cc"),
+                        ("weighted_mean_e2cc", "sum", None, "sum_mean_e2cc"),
                         ("weighted_mean_e1dc", "sum", None, "sum_mean_e1dc"),
                         ("weighted_mean_e2dc", "sum", None, "sum_mean_e2dc"),
-                        ("weighted_var_e1", "sum", None, "sum_var_e1"),
-                        ("weighted_var_e2", "sum", None, "sum_var_e2"),
-                        ("weighted_var_c", "sum", None, "sum_var_c"),
-                        ("weighted_var_e1e2", "sum", None, "sum_var_e1e2"),
-                        ("weighted_var_e1c", "sum", None, "sum_var_e1c"),
-                        ("weighted_var_e2c", "sum", None, "sum_var_e2c"),
-                        ("weighted_var_e1dc", "sum", None, "sum_var_e1dc"),
-                        ("weighted_var_e2dc", "sum", None, "sum_var_e2dc"),
+                        ("weighted_mean_e1dc2", "sum", None, "sum_mean_e1dc2"),
+                        ("weighted_mean_e2dc2", "sum", None, "sum_mean_e2dc2"),
+                        # ("weighted_var_e1", "sum", None, "sum_var_e1"),
+                        # ("weighted_var_e2", "sum", None, "sum_var_e2"),
+                        # ("weighted_var_c", "sum", None, "sum_var_c"),
+                        # ("weighted_var_e1e2", "sum", None, "sum_var_e1e2"),
+                        # ("weighted_var_e1c", "sum", None, "sum_var_e1c"),
+                        # ("weighted_var_e2c", "sum", None, "sum_var_e2c"),
+                        # ("weighted_var_e1dc", "sum", None, "sum_var_e1dc"),
+                        # ("weighted_var_e2dc", "sum", None, "sum_var_e2dc"),
                     ],
                 ),
             )
@@ -689,16 +1028,20 @@ def pivot_aggregates(res, seeds=None):
                         pc.divide(pc.field("sum_mean_e1e2"), pc.field("sum_count")),
                         pc.divide(pc.field("sum_mean_e1c"), pc.field("sum_count")),
                         pc.divide(pc.field("sum_mean_e2c"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e1cc"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e2cc"), pc.field("sum_count")),
                         pc.divide(pc.field("sum_mean_e1dc"), pc.field("sum_count")),
                         pc.divide(pc.field("sum_mean_e2dc"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e1"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e2"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_c"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e1e2"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e1c"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e2c"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e1dc"), pc.field("sum_count")),
-                        pc.divide(pc.field("sum_var_e2dc"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e1dc2"), pc.field("sum_count")),
+                        pc.divide(pc.field("sum_mean_e2dc2"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e1"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e2"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_c"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e1e2"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e1c"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e2c"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e1dc"), pc.field("sum_count")),
+                        # pc.divide(pc.field("sum_var_e2dc"), pc.field("sum_count")),
                     ],
                     names=[
                         "e1",
@@ -707,16 +1050,20 @@ def pivot_aggregates(res, seeds=None):
                         "e1e2",
                         "e1c",
                         "e2c",
+                        "e1cc",
+                        "e2cc",
                         "e1dc",
                         "e2dc",
-                        "var_e1",
-                        "var_e2",
-                        "var_c",
-                        "var_e1e2",
-                        "var_e1c",
-                        "var_e2c",
-                        "var_e1dc",
-                        "var_e2dc",
+                        "e1dc2",
+                        "e2dc2",
+                        # "var_e1",
+                        # "var_e2",
+                        # "var_c",
+                        # "var_e1e2",
+                        # "var_e1c",
+                        # "var_e2c",
+                        # "var_e1dc",
+                        # "var_e2dc",
                     ],
                 ),
             )
@@ -730,37 +1077,41 @@ def pivot_aggregates(res, seeds=None):
                         pc.field("e1e2"),
                         pc.field("e1c"),
                         pc.field("e2c"),
+                        pc.field("e1cc"),
+                        pc.field("e2cc"),
                         pc.field("e1dc"),
                         pc.field("e2dc"),
-                        pc.field("var_e1"),
-                        pc.field("var_e2"),
-                        pc.field("var_c"),
-                        pc.field("var_e1e2"),
-                        pc.field("var_e1c"),
-                        pc.field("var_e2c"),
-                        pc.field("var_e1dc"),
-                        pc.field("var_e2dc"),
-                        pc.subtract(
-                            pc.field("e1e2"),
-                            pc.multiply(
-                                pc.field("e1"),
-                                pc.field("e2"),
-                            ),
-                        ),
-                        pc.subtract(
-                            pc.field("e1c"),
-                            pc.multiply(
-                                pc.field("e1"),
-                                pc.field("c"),
-                            ),
-                        ),
-                        pc.subtract(
-                            pc.field("e2c"),
-                            pc.multiply(
-                                pc.field("e2"),
-                                pc.field("c"),
-                            ),
-                        ),
+                        pc.field("e1dc2"),
+                        pc.field("e2dc2"),
+                        # pc.field("var_e1"),
+                        # pc.field("var_e2"),
+                        # pc.field("var_c"),
+                        # pc.field("var_e1e2"),
+                        # pc.field("var_e1c"),
+                        # pc.field("var_e2c"),
+                        # pc.field("var_e1dc"),
+                        # pc.field("var_e2dc"),
+                        # pc.subtract(
+                        #     pc.field("e1e2"),
+                        #     pc.multiply(
+                        #         pc.field("e1"),
+                        #         pc.field("e2"),
+                        #     ),
+                        # ),
+                        # pc.subtract(
+                        #     pc.field("e1c"),
+                        #     pc.multiply(
+                        #         pc.field("e1"),
+                        #         pc.field("c"),
+                        #     ),
+                        # ),
+                        # pc.subtract(
+                        #     pc.field("e2c"),
+                        #     pc.multiply(
+                        #         pc.field("e2"),
+                        #         pc.field("c"),
+                        #     ),
+                        # ),
                     ],
                     names=[
                         "e1",
@@ -769,19 +1120,23 @@ def pivot_aggregates(res, seeds=None):
                         "e1e2",
                         "e1c",
                         "e2c",
+                        "e1cc",
+                        "e2cc",
                         "e1dc",
                         "e2dc",
-                        "var_e1",
-                        "var_e2",
-                        "var_c",
-                        "var_e1e2",
-                        "var_e1c",
-                        "var_e2c",
-                        "var_e1dc",
-                        "var_e2dc",
-                        "cov_e1e2",
-                        "cov_e1c",
-                        "cov_e2c",
+                        "e1dc2",
+                        "e2dc2",
+                        # "var_e1",
+                        # "var_e2",
+                        # "var_c",
+                        # "var_e1e2",
+                        # "var_e1c",
+                        # "var_e2c",
+                        # "var_e1dc",
+                        # "var_e2dc",
+                        # "cov_e1e2",
+                        # "cov_e1c",
+                        # "cov_e2c",
                     ],
                 ),
             )
@@ -843,16 +1198,20 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             pc.multiply(pc.field("mean_e1e2"), pc.field("count")),
                             pc.multiply(pc.field("mean_e1c"), pc.field("count")),
                             pc.multiply(pc.field("mean_e2c"), pc.field("count")),
+                            pc.multiply(pc.field("mean_e1cc"), pc.field("count")),
+                            pc.multiply(pc.field("mean_e2cc"), pc.field("count")),
                             pc.multiply(pc.field("mean_e1dc"), pc.field("count")),
                             pc.multiply(pc.field("mean_e2dc"), pc.field("count")),
-                            pc.multiply(pc.field("var_e1"), pc.field("count")),
-                            pc.multiply(pc.field("var_e2"), pc.field("count")),
-                            pc.multiply(pc.field("var_c"), pc.field("count")),
-                            pc.multiply(pc.field("var_e1e2"), pc.field("count")),
-                            pc.multiply(pc.field("var_e1c"), pc.field("count")),
-                            pc.multiply(pc.field("var_e2c"), pc.field("count")),
-                            pc.multiply(pc.field("var_e1dc"), pc.field("count")),
-                            pc.multiply(pc.field("var_e2dc"), pc.field("count")),
+                            pc.multiply(pc.field("mean_e1dc2"), pc.field("count")),
+                            pc.multiply(pc.field("mean_e2dc2"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e1"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e2"), pc.field("count")),
+                            # pc.multiply(pc.field("var_c"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e1e2"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e1c"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e2c"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e1dc"), pc.field("count")),
+                            # pc.multiply(pc.field("var_e2dc"), pc.field("count")),
                         ],
                         names=[
                             "count",
@@ -862,16 +1221,20 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             "weighted_mean_e1e2",
                             "weighted_mean_e1c",
                             "weighted_mean_e2c",
+                            "weighted_mean_e1cc",
+                            "weighted_mean_e2cc",
                             "weighted_mean_e1dc",
                             "weighted_mean_e2dc",
-                            "weighted_var_e1",
-                            "weighted_var_e2",
-                            "weighted_var_c",
-                            "weighted_var_e1e2",
-                            "weighted_var_e1c",
-                            "weighted_var_e2c",
-                            "weighted_var_e1dc",
-                            "weighted_var_e2dc",
+                            "weighted_mean_e1dc2",
+                            "weighted_mean_e2dc2",
+                            # "weighted_var_e1",
+                            # "weighted_var_e2",
+                            # "weighted_var_c",
+                            # "weighted_var_e1e2",
+                            # "weighted_var_e1c",
+                            # "weighted_var_e2c",
+                            # "weighted_var_e1dc",
+                            # "weighted_var_e2dc",
                         ],
                     ),
                 )
@@ -886,16 +1249,20 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             ("weighted_mean_e1e2", "sum", None, "sum_mean_e1e2"),
                             ("weighted_mean_e1c", "sum", None, "sum_mean_e1c"),
                             ("weighted_mean_e2c", "sum", None, "sum_mean_e2c"),
+                            ("weighted_mean_e1cc", "sum", None, "sum_mean_e1cc"),
+                            ("weighted_mean_e2cc", "sum", None, "sum_mean_e2cc"),
                             ("weighted_mean_e1dc", "sum", None, "sum_mean_e1dc"),
                             ("weighted_mean_e2dc", "sum", None, "sum_mean_e2dc"),
-                            ("weighted_var_e1", "sum", None, "sum_var_e1"),
-                            ("weighted_var_e2", "sum", None, "sum_var_e2"),
-                            ("weighted_var_c", "sum", None, "sum_var_c"),
-                            ("weighted_var_e1e2", "sum", None, "sum_var_e1e2"),
-                            ("weighted_var_e1c", "sum", None, "sum_var_e1c"),
-                            ("weighted_var_e2c", "sum", None, "sum_var_e2c"),
-                            ("weighted_var_e1dc", "sum", None, "sum_var_e1dc"),
-                            ("weighted_var_e2dc", "sum", None, "sum_var_e2dc"),
+                            ("weighted_mean_e1dc2", "sum", None, "sum_mean_e1dc2"),
+                            ("weighted_mean_e2dc2", "sum", None, "sum_mean_e2dc2"),
+                            # ("weighted_var_e1", "sum", None, "sum_var_e1"),
+                            # ("weighted_var_e2", "sum", None, "sum_var_e2"),
+                            # ("weighted_var_c", "sum", None, "sum_var_c"),
+                            # ("weighted_var_e1e2", "sum", None, "sum_var_e1e2"),
+                            # ("weighted_var_e1c", "sum", None, "sum_var_e1c"),
+                            # ("weighted_var_e2c", "sum", None, "sum_var_e2c"),
+                            # ("weighted_var_e1dc", "sum", None, "sum_var_e1dc"),
+                            # ("weighted_var_e2dc", "sum", None, "sum_var_e2dc"),
                         ],
                     ),
                 )
@@ -909,16 +1276,20 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             pc.divide(pc.field("sum_mean_e1e2"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e1c"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e2c"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_e1cc"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_e2cc"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e1dc"), pc.field("sum_count")),
                             pc.divide(pc.field("sum_mean_e2dc"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e1"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e2"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_c"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e1e2"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e1c"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e2c"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e1dc"), pc.field("sum_count")),
-                            pc.divide(pc.field("sum_var_e2dc"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_e1dc2"), pc.field("sum_count")),
+                            pc.divide(pc.field("sum_mean_e2dc2"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e1"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e2"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_c"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e1e2"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e1c"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e2c"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e1dc"), pc.field("sum_count")),
+                            # pc.divide(pc.field("sum_var_e2dc"), pc.field("sum_count")),
                         ],
                         names=[
                             "e1",
@@ -927,16 +1298,20 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             "e1e2",
                             "e1c",
                             "e2c",
+                            "e1cc",
+                            "e2cc",
                             "e1dc",
                             "e2dc",
-                            "var_e1",
-                            "var_e2",
-                            "var_c",
-                            "var_e1e2",
-                            "var_e1c",
-                            "var_e2c",
-                            "var_e1dc",
-                            "var_e2dc",
+                            "e1dc2",
+                            "e2dc2",
+                            # "var_e1",
+                            # "var_e2",
+                            # "var_c",
+                            # "var_e1e2",
+                            # "var_e1c",
+                            # "var_e2c",
+                            # "var_e1dc",
+                            # "var_e2dc",
                         ],
                     ),
                 )
@@ -950,37 +1325,41 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             pc.field("e1e2"),
                             pc.field("e1c"),
                             pc.field("e2c"),
+                            pc.field("e1cc"),
+                            pc.field("e2cc"),
                             pc.field("e1dc"),
                             pc.field("e2dc"),
-                            pc.field("var_e1"),
-                            pc.field("var_e2"),
-                            pc.field("var_c"),
-                            pc.field("var_e1e2"),
-                            pc.field("var_e1c"),
-                            pc.field("var_e2c"),
-                            pc.field("var_e1dc"),
-                            pc.field("var_e2dc"),
-                            pc.subtract(
-                                pc.field("e1e2"),
-                                pc.multiply(
-                                    pc.field("e1"),
-                                    pc.field("e2"),
-                                ),
-                            ),
-                            pc.subtract(
-                                pc.field("e1c"),
-                                pc.multiply(
-                                    pc.field("e1"),
-                                    pc.field("c"),
-                                ),
-                            ),
-                            pc.subtract(
-                                pc.field("e2c"),
-                                pc.multiply(
-                                    pc.field("e2"),
-                                    pc.field("c"),
-                                ),
-                            ),
+                            pc.field("e1dc2"),
+                            pc.field("e2dc2"),
+                            # pc.field("var_e1"),
+                            # pc.field("var_e2"),
+                            # pc.field("var_c"),
+                            # pc.field("var_e1e2"),
+                            # pc.field("var_e1c"),
+                            # pc.field("var_e2c"),
+                            # pc.field("var_e1dc"),
+                            # pc.field("var_e2dc"),
+                            # pc.subtract(
+                            #     pc.field("e1e2"),
+                            #     pc.multiply(
+                            #         pc.field("e1"),
+                            #         pc.field("e2"),
+                            #     ),
+                            # ),
+                            # pc.subtract(
+                            #     pc.field("e1c"),
+                            #     pc.multiply(
+                            #         pc.field("e1"),
+                            #         pc.field("c"),
+                            #     ),
+                            # ),
+                            # pc.subtract(
+                            #     pc.field("e2c"),
+                            #     pc.multiply(
+                            #         pc.field("e2"),
+                            #         pc.field("c"),
+                            #     ),
+                            # ),
                         ],
                         names=[
                             "e1",
@@ -989,19 +1368,23 @@ def pivot_aggregates_chromatic(res, seeds=None):
                             "e1e2",
                             "e1c",
                             "e2c",
+                            "e1cc",
+                            "e2cc",
                             "e1dc",
                             "e2dc",
-                            "var_e1",
-                            "var_e2",
-                            "var_c",
-                            "var_e1e2",
-                            "var_e1c",
-                            "var_e2c",
-                            "var_e1dc",
-                            "var_e2dc",
-                            "cov_e1e2",
-                            "cov_e1c",
-                            "cov_e2c",
+                            "e1dc2",
+                            "e2dc2",
+                            # "var_e1",
+                            # "var_e2",
+                            # "var_c",
+                            # "var_e1e2",
+                            # "var_e1c",
+                            # "var_e2c",
+                            # "var_e1dc",
+                            # "var_e2dc",
+                            # "cov_e1e2",
+                            # "cov_e1c",
+                            # "cov_e2c",
                         ],
                     ),
                 )
@@ -1112,7 +1495,8 @@ def main():
     results = pivot_aggregates_chromatic(aggregates)
 
     m_mean, c_mean = compute_bias(results, dg, dc)
-    m_mean_chroma, c_mean_chroma = compute_bias_chromatic(results, dg, dc, color)
+    m_mean_c1, c_mean_c1 = compute_bias_chromatic(results, dg, dc, color, order=1)
+    m_mean_c2, c_mean_c2 = compute_bias_chromatic(results, dg, dc, color, order=2)
 
     multiprocessing.set_start_method("spawn")
     # ctx = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
@@ -1143,30 +1527,40 @@ def main():
 
     m_bootstrap = []
     c_bootstrap = []
-    m_bootstrap_chroma = []
-    c_bootstrap_chroma = []
+    m_bootstrap_c1 = []
+    c_bootstrap_c1 = []
+    m_bootstrap_c2 = []
+    c_bootstrap_c2 = []
     for res in results:
         _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc)
-        _m_bootstrap_chroma, _c_bootstrap_chroma = compute_bias_chromatic(res, dg, dc, color)
+        _m_bootstrap_c1, _c_bootstrap_c1 = compute_bias_chromatic(res, dg, dc, color, order=1)
+        _m_bootstrap_c2, _c_bootstrap_c2 = compute_bias_chromatic(res, dg, dc, color, order=2)
 
         m_bootstrap.append(_m_bootstrap)
         c_bootstrap.append(_c_bootstrap)
-        m_bootstrap_chroma.append(_m_bootstrap_chroma)
-        c_bootstrap_chroma.append(_c_bootstrap_chroma)
+        m_bootstrap_c1.append(_m_bootstrap_c1)
+        c_bootstrap_c1.append(_c_bootstrap_c1)
+        m_bootstrap_c2.append(_m_bootstrap_c2)
+        c_bootstrap_c2.append(_c_bootstrap_c2)
 
     m_bootstrap = np.array(m_bootstrap)
     c_bootstrap = np.array(c_bootstrap)
-    m_bootstrap_chroma = np.array(m_bootstrap_chroma)
-    c_bootstrap_chroma = np.array(c_bootstrap_chroma)
+    m_bootstrap_c1 = np.array(m_bootstrap_c1)
+    c_bootstrap_c1 = np.array(c_bootstrap_c1)
+    m_bootstrap_c2 = np.array(m_bootstrap_c2)
+    c_bootstrap_c2 = np.array(c_bootstrap_c2)
 
     # report 3 standard deviations as error
     m_error = np.nanstd(m_bootstrap) * 3
     c_error = np.nanstd(c_bootstrap) * 3
-    m_error_chroma = np.nanstd(m_bootstrap_chroma) * 3
-    c_error_chroma = np.nanstd(c_bootstrap_chroma) * 3
+    m_error_c1 = np.nanstd(m_bootstrap_c1) * 3
+    c_error_c1 = np.nanstd(c_bootstrap_c1) * 3
+    m_error_c2 = np.nanstd(m_bootstrap_c2) * 3
+    c_error_c2 = np.nanstd(c_bootstrap_c2) * 3
 
     print(f"mdet: m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
-    print(f"drdc: m = {m_mean_chroma:0.3e} +/- {m_error_chroma:0.3e} [3-sigma], c = {c_mean_chroma:0.3e} +/- {c_error_chroma:0.3e} [3-sigma]")
+    print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1:0.3e} [3-sigma]")
+    print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2:0.3e} [3-sigma]")
 
     m_req = 2e-3
 
@@ -1218,7 +1612,7 @@ def main():
 
     plt.savefig("shear-bias-measurement.pdf")
 
-    # plt.show()
+    plt.show()
     plt.close()
 
     fig = plt.figure(figsize=(3.5, 3))
@@ -1243,12 +1637,45 @@ def main():
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
     ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
     ax.axvline(m_mean, c="k")
-    ax.hist(m_bootstrap_chroma, histtype="step", label="calibrated", ec="b")
-    ax.axvline(m_mean_chroma, c="b")
+    ax.hist(m_bootstrap_c1, histtype="step", label="calibrated", ec="b")
+    ax.axvline(m_mean_c1, c="b")
     ax.set_xlabel("$m$")
     ax.legend(loc="upper left")
 
     plt.savefig("shear-bias-measurement-calibrated.pdf")
+    plt.show()
+    plt.close()
+
+
+    fig = plt.figure(figsize=(3.5, 3))
+    h = [
+        Size.Fixed(1),
+        Size.Fixed(2),
+        Size.Fixed(0.5),
+    ]
+    v = [
+        Size.Fixed(0.5),
+        Size.Fixed(2),
+        Size.Fixed(0.5),
+    ]
+    divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
+
+    ax = fig.add_axes(
+        divider.get_position(),
+        axes_locator=divider.new_locator(nx=1, ny=1)
+    )
+
+    ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
+    ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
+    ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
+    ax.axvline(m_mean, c="k")
+    ax.hist(m_bootstrap_c2, histtype="step", label="calibrated", ec="b")
+    ax.axvline(m_mean_c2, c="b")
+    ax.set_xlabel("$m$")
+    ax.legend(loc="upper left")
+
+    plt.savefig("shear-bias-measurement-calibrated-second.pdf")
+    plt.show()
     plt.close()
 
 
