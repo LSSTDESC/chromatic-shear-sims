@@ -44,9 +44,6 @@ def initializer(queue, log_level):
     logger.debug(f"spawning worker process")
 
 
-TOL = 0.01
-
-
 def run_pipeline(config, seed=None):
     rng = np.random.default_rng(seed)
 
@@ -213,10 +210,8 @@ def get_args():
 def main():
     args = get_args()
 
-    # logger = logging.getLogger(__name__)
-    logger_config = logging_config.defaults
     log_level = logging_config.get_level(args.log_level)
-    logging.basicConfig(level=log_level, **logging_config.defaults)
+    logging_config.setup_logging(logger, logging.root, __name__, log_level)
 
     logger.info(f"{vars(args)}")
 
@@ -293,10 +288,14 @@ def main():
             maxtasksperchild=n_sims // n_jobs,
             # context=ctx,
         ) as pool:
-            for batches in pool.imap(functools.partial(run_pipeline, config), seeds):
-                logger.info(f"writing batches")
+            for i, batches in enumerate(pool.imap(functools.partial(run_pipeline, config), seeds)):
+                ii = i + 1
+                logger.info(f"finished simulation {ii}")
+                n_batches_written = 0
                 for batch in batches:
                     writer.write_batch(batch)
+                    n_batches_written += 1
+                    logger.debug(f"{n_batches_written} batches written for simulation {ii}")
 
     # chained = chain.from_iterable(batches_generator)
     # # logger.info(f"Constructing record batch reader")
