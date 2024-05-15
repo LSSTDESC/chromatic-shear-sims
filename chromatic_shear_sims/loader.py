@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 from pyarrow import acero
+# import scipy.stats
 import yaml
 
 
@@ -179,6 +180,35 @@ class Loader:
         self.aggregates = aggregates
         return
 
+    def digitize_color(self, n_bins=100):
+        min_color = self.aggregates.get("min_color")
+        max_color = self.aggregates.get("max_color")
+
+        logger.info(f"making color bins ({min_color}, {max_color}, {n_bins})")
+        color_bin_edges = np.linspace(
+            min_color,
+            max_color,
+            n_bins + 1,
+        )
+        color_hist = np.zeros(n_bins)
+
+        logger.info(f"accumulating color histogram...")
+        scanner = self.get_scanner(columns=self.projection)
+        for i, batch in enumerate(scanner.to_batches()):
+            logger.debug(f"accumulating color histogram batch {i}")
+            _hist, _ = np.histogram(
+                batch["color"],
+                bins=color_bin_edges,
+            )
+            color_hist += _hist
+
+        return color_hist, color_bin_edges
+        # hist_dist = scipy.stats.rv_histogram(
+        #     (color_hist, color_bin_edges),
+        #     density=False,
+        # )
+        # return hist_dist
+
     def get_rng(self, seed=None):
         match seed:
             case None:
@@ -249,6 +279,46 @@ class Loader:
         logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
 
         return objs
+
+    def sample_color(self, n, n_bins=100, distribution=None, seed=None):
+        # need to supply hist, bins from self
+        rng = self.get_rng(seed)
+
+        aggregates = self.aggregates
+        nobj = aggregates.get("count")
+
+        _pr, _px = self.digitize_color(n_bins=n_bins)
+
+        logging.debug(f"sampling galaxies with distribution: {distribution}")
+        match distribution:
+            case "uniform":
+                pr = None
+            case "population":
+                pr = _pr
+            case _:
+                # i.e., use the sample distribution
+                pr = None
+
+        px = (_px[:-1] + _px[1:]) / 2
+        # pr = pr / np.sum(pr) if distribution else None
+        if pr is not None:
+            pr /= np.sum(pr)
+
+        colors = rng.choice(px, size=n, p=pr, replace=True)
+        # hist_dist = scipy.stats.rv_histogram(
+        #     (pr, _px),
+        #     density=False,
+        # )
+        # colors = hist_dist.rvs(size=n)
+
+        # import matplotlib.pyplot as plt
+        # plt.stairs(_pr / np.sum(_pr), _px, ec="k", label="true")
+        # # plt.stairs(pr / np.sum(pr), _px, ec="r", label="uniform")
+        # plt.hist(colors, bins=_px, histtype="step", ec="r", label=distribution, density=True)
+        # plt.legend(loc="upper right")
+        # plt.show()
+
+        return colors
 
 
 if __name__ == "__main__":

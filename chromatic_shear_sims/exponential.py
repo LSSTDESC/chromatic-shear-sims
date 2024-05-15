@@ -19,6 +19,14 @@ class ExponentialBlackBodyBuilder:
         self.survey = survey
         self.blackbody = BlackBody(self.survey)
 
+        columns = [
+           "redshift",
+           "LSST_obs_g",
+           "LSST_obs_r",
+           "LSST_obs_i",
+        ]
+        self.columns = columns
+
     def make_gal(
          self,
          color,
@@ -41,17 +49,14 @@ class ExponentialBlackBodyBuilder:
 
     def build_gals(
         self,
-        n,
-        color_min=None,
-        color_max=None,
+        # n,
+        colors,
     ):
-        # FIXME seed rng
         logger.info(f"building galaxies")
         rng = np.random.default_rng()
         _start_time = time.time()
         gals = []
-        for igal in range(n):
-            color = rng.uniform(color_min, color_max)
+        for i, color in enumerate(colors):
             half_light_radius = 0.5
             gal = self.make_gal(
                 color,
@@ -79,13 +84,16 @@ class ExponentialBlackBodyGalaxies:
 
 
     def __call__(self, n):
+        color_min = self.color_min
+        color_max = self.color_max
+        # FIXME seed rng
+        rng = np.random.default_rng()
+        colors = rng.uniform(color_min, color_max, size=n)
+        # colors = self.loader.sample_color(n, distribution="uniform", n_bins=100)
         gals = self.builder.build_gals(
-            n,
-            color_min=self.color_min,
-            color_max=self.color_max,
+            colors,
         )
         return gals
-
 
 if __name__ == "__main__":
     exit()

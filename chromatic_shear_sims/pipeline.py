@@ -59,9 +59,9 @@ class Pipeline:
         for k, v in self.config.items():
             if type(v) == dict:
                 for _k, _v in v.items():
-                    logger.info(f"{k}.{_k}: {_v}")
+                    logger.debug(f"{k}.{_k}: {_v}")
             else:
-                logger.info(f"{k}: {v}")
+                logger.debug(f"{k}: {v}")
 
 
     def get_config(self, fname):
@@ -142,6 +142,20 @@ class Pipeline:
                             loader,
                             survey=self.survey,
                         )
+                    case "RomanRubinBlackBody":
+                        ssp_templates = self.config.get(
+                            "ssp_templates",
+                            os.environ.get("SSP_TEMPLATES"),
+                        )
+                        loader = Loader(self.galaxy_config)
+                        loader.process()
+                        if loader.aggregates is not None:
+                            self.aggregates["galaxies"] = loader.aggregates
+                        galaxies = RomanRubinBlackBodyGalaxies(
+                            galaxy_config,
+                            loader,
+                            survey=self.survey,
+                        )
                     case "RomanRubin":
                         ssp_templates = self.config.get(
                             "ssp_templates",
@@ -155,20 +169,6 @@ class Pipeline:
                             galaxy_config,
                             loader,
                             ssp_templates=ssp_templates,
-                            survey=self.survey,
-                        )
-                    case "RomanRubinBlackBody":
-                        ssp_templates = self.config.get(
-                            "ssp_templates",
-                            os.environ.get("SSP_TEMPLATES"),
-                        )
-                        loader = Loader(self.galaxy_config)
-                        loader.process()
-                        if loader.aggregates is not None:
-                            self.aggregates["galaxies"] = loader.aggregates
-                        galaxies = RomanRubinBlackBodyGalaxies(
-                            galaxy_config,
-                            loader,
                             survey=self.survey,
                         )
                     case _:

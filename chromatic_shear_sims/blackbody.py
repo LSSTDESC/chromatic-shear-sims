@@ -67,7 +67,7 @@ class BlackBody:
 
     def __call__(self, color):
         temp = self.lut(color)
-        logger.info(f"drawing blackbody SED with temperature {temp}")
+        logger.debug(f"drawing blackbody SED with temperature {temp}")
         sed = blackbody_sed(temp)
         return sed
 
