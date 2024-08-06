@@ -1591,11 +1591,11 @@ def main():
 
     # plt.savefig("out.pdf")
 
-    fig = plt.figure(figsize=(4, 3))
+    fig = plt.figure(figsize=(6, 3))
     h = [
-        Size.Fixed(1),
         Size.Fixed(2),
-        Size.Fixed(1),
+        Size.Fixed(2),
+        Size.Fixed(2),
     ]
     v = [
         Size.Fixed(0.5),
@@ -1619,16 +1619,16 @@ def main():
     # ax.legend()
     ax.set_title(pipeline.name)
 
-    plt.savefig("shear-bias-measurement.pdf")
+    plt.savefig(f"{pipeline.name}-shear-bias-measurement.pdf")
 
-    plt.show()
+    # plt.show()
     plt.close()
 
-    fig = plt.figure(figsize=(4, 3))
+    fig = plt.figure(figsize=(6, 3))
     h = [
-        Size.Fixed(1),
         Size.Fixed(2),
-        Size.Fixed(1),
+        Size.Fixed(2),
+        Size.Fixed(2),
     ]
     v = [
         Size.Fixed(0.5),
@@ -1652,16 +1652,16 @@ def main():
     ax.legend(loc="upper left")
     ax.set_title(pipeline.name)
 
-    plt.savefig("shear-bias-measurement-calibrated.pdf")
-    plt.show()
+    plt.savefig(f"{pipeline.name}-shear-bias-measurement-calibrated.pdf")
+    # plt.show()
     plt.close()
 
 
-    fig = plt.figure(figsize=(4, 3))
+    fig = plt.figure(figsize=(6, 3))
     h = [
-        Size.Fixed(1),
         Size.Fixed(2),
-        Size.Fixed(1),
+        Size.Fixed(2),
+        Size.Fixed(2),
     ]
     v = [
         Size.Fixed(0.5),
@@ -1685,8 +1685,8 @@ def main():
     ax.legend(loc="upper left")
     ax.set_title(pipeline.name)
 
-    plt.savefig("shear-bias-measurement-calibrated-second.pdf")
-    plt.show()
+    plt.savefig(f"{pipeline.name}-shear-bias-measurement-calibrated-second.pdf")
+    # plt.show()
     plt.close()
 
 
