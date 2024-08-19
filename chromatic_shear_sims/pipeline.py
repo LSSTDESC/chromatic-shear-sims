@@ -14,6 +14,7 @@ import yaml
 from chromatic_shear_sims import run_utils, surveys
 from chromatic_shear_sims.loader import Loader
 from chromatic_shear_sims.DC2_stars import DC2Stars
+from chromatic_shear_sims.phoenix_stars import PhoenixStars
 from chromatic_shear_sims.roman_rubin import RomanRubinGalaxies, RomanRubinBlackBodyGalaxies
 from chromatic_shear_sims.exponential import ExponentialBlackBodyGalaxies
 from chromatic_shear_sims.blackbody import BlackBodyStars
@@ -209,6 +210,8 @@ class Pipeline:
                         )
                     case "BlackBody":
                         stars = BlackBodyStars(star_config, self.survey)
+                    case "Phoenix":
+                        stars = PhoenixStars(star_config, self.survey)
                     case _:
                         raise ValueError(f"Star type not valid!")
 

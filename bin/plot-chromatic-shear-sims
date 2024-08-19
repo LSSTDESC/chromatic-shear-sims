@@ -15,7 +15,7 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import yaml
 
-from chromatic_shear_sims import run_utils, roman_rubin, DC2_stars
+from chromatic_shear_sims import run_utils
 from chromatic_shear_sims import logging_config
 from chromatic_shear_sims.pipeline import Pipeline
 
