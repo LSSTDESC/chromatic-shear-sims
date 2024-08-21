@@ -136,7 +136,7 @@ def _get_hex_pos(separation, xsize, ysize, border=0, seed=None):
 
 def get_positions(
     scene_type,
-    scale,
+    scale=None,
     n=None,
     separation=None,
     xsize=None,
@@ -165,15 +165,25 @@ def get_positions(
     return scene_pos
 
 
-class Positions:
-    def __init__(self, *args, **kwargs):
-        positions = get_positions(*args, **kwargs)
-        self.positions = positions
-
+class PositionBuilder:
+    def __init__(self, position_type, position_kwargs):
+        # positions = get_positions(*args, **kwargs)
+        # self.positions = positions
+        self.position_type = position_type
+        self.position_kwargs = position_kwargs
 
     @classmethod
     def from_config(cls, position_config):
         position_config_copy = copy.deepcopy(position_config)
         position_type = position_config_copy.pop("type")
-        scale = position_config_copy.pop("scale")
-        return cls(position_type, scale, **position_config_copy)
+        # scale = position_config_copy.pop("scale")
+        # return cls(position_type, scale, **position_config_copy)
+        return cls(position_type, position_config_copy)
+
+    def get_positions(self, seed=None):
+        positions = get_positions(
+            self.position_type,
+            **self.position_kwargs,
+            seed=seed,
+        )
+        return positions
