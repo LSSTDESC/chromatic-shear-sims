@@ -33,6 +33,14 @@ class ImageBuilder:
         image_config_copy = copy.deepcopy(image_config)
         return cls(**image_config_copy)
 
+    def get_image(self):
+        image = galsim.Image(
+            self.xsize,
+            self.ysize,
+            scale=self.scale,
+        )
+        return image
+
     def get_noise_sigma(self, darksky, throughput):
         noise_sigma = utils.get_noise_sigma(
             darksky,
@@ -42,10 +50,13 @@ class ImageBuilder:
         )
         return noise_sigma
 
-    def get_image(self):
-        image = galsim.Image(
-            self.xsize,
-            self.ysize,
-            scale=self.scale,
-        )
-        return image
+    # def get_noise(self, darksky, throughput, seed=None):
+    #     noise_sigma = self.get_noise_sigma(
+    #         darksky,
+    #         throughput,
+    #     )
+    #     grng = galsim.BaseDeviate(seed)
+    #     noise = galsim.GaussianNoise(grng, sigma=noise_sigma)
+
+    #     return noise
+
