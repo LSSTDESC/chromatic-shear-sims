@@ -166,8 +166,11 @@ def get_positions(
 
 def get_rotations(n, seed=None):
     rng = np.random.default_rng(seed)
-    rotations = list(rng.uniform(0, 360, n) * galsim.degrees)
-    return rotations
+    angles = rng.uniform(0, 360, n)
+    return [
+        angle * galsim.degrees
+        for angle in angles
+    ]
 
 
 class PositionBuilder:
