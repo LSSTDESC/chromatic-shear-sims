@@ -2,6 +2,7 @@ import importlib
 import logging
 import functools
 import math
+import sys
 
 import galsim
 import numpy as np
@@ -10,6 +11,18 @@ from chromatic_weak_lensing import MainSequence
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_seed(seed=None):
+    rng = np.random.default_rng(seed)
+    maxint = sys.maxsize  # np.iinfo(np.int64).max
+    return rng.integers(0, maxint)
+
+
+def get_seeds(n, seed=None):
+    rng = np.random.default_rng(seed)
+    maxint = sys.maxsize  # np.iinfo(np.int64).max
+    return rng.integers(0, maxint, n)
 
 
 def get_instance(module_name, class_name, *args, **kwargs):
