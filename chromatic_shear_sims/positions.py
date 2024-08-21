@@ -133,7 +133,6 @@ def _get_hex_pos(separation, xsize, ysize, border=0, seed=None):
     return (xs, ys)
 
 
-
 def get_positions(
     scene_type,
     scale=None,
@@ -160,9 +159,15 @@ def get_positions(
     if dither:
         xs, ys = _dither(xs, ys, dither_scale)
 
-    scene_pos = _to_scene(xs, ys, scale)
+    scene_positions = _to_scene(xs, ys, scale)
 
-    return scene_pos
+    return scene_positions
+
+
+def get_rotations(n, seed=None):
+    rng = np.random.default_rng(seed)
+    rotations = list(rng.uniform(0, 360, n) * galsim.degrees)
+    return rotations
 
 
 class PositionBuilder:
@@ -181,9 +186,15 @@ class PositionBuilder:
         return cls(position_type, position_config_copy)
 
     def get_positions(self, seed=None):
-        positions = get_positions(
+        return get_positions(
             self.position_type,
             **self.position_kwargs,
             seed=seed,
         )
-        return positions
+
+    def get_rotations_for(self, iterable, seed=None):
+        n = len(iterable)
+        return get_rotations(
+            n,
+            seed=seed,
+        )
