@@ -1,17 +1,19 @@
 astropy
-dsps==0.3.5
-diffstar==0.2.2
-diffmah==0.4.2
+chromatic-weak-lensing
+lsstdesc.weaklensingdeblending
+# dsps==0.3.5
+# diffstar==0.2.2
+# diffmah==0.4.2
 galsim
-jax==0.4.19
+# jax==0.4.19
 joblib
-lsstdesc-diffsky==1.0.0
+# lsstdesc-diffsky==1.0.0
 matplotlib
 metadetect
 ngmix
 numpy
 psutil
 pyarrow
-scipy=1.10.1
+# scipy=1.10.1
 tqdm
 yaml
