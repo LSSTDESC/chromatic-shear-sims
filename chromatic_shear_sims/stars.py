@@ -12,9 +12,9 @@ from chromatic_shear_sims import utils
 logger = logging.getLogger(__name__)
 
 
-class Stars:
-    def __init__(self, module_name, class_name):
-        self.model = utils.get_instance(module_name, class_name)
+class StarBuilder:
+    def __init__(self, module_name, class_name, **kwargs):
+        self.model = utils.get_instance(module_name, class_name, **kwargs)
         self.name = self.model.name
 
     def __call__(self, stellar_params, **kwargs):
@@ -74,10 +74,10 @@ class InterpolatedStars:
 
 
 class StarData:
-    def __init__(self, module_name, class_name):
-        self._data = None
-        self._num_rows = None
-        self.model = utils.get_class(module_name, class_name)
+    def __init__(self, module_name, class_name, data):
+        self.module_name = module_name
+        self.class_name = class_name
+        self._data = utils.get_instance(module_name, class_name, data)
 
     @property
     def data(self):
@@ -85,12 +85,7 @@ class StarData:
 
     @property
     def num_rows(self):
-        return self._num_rows
-
-    def register_data(self, data):
-        self._data = self.model(data)
-        self._num_rows = self.data.num_rows
-        logger.info(f"registered data with {self.num_rows} rows")
+        return self.data.num_rows
 
     def __call__(self, i, **kwargs):
         return self.data.get_params(i, **kwargs)
