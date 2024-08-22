@@ -15,6 +15,7 @@ class DiffskyGalaxies:
         self.name = self.model.name
         self.morphology = morphology
         self.knots = knots
+        self.columns = RomanRubin.columns
         logger.info(f"initialized {self.name} galaxies with morphology={self.morphology} and knots={self.knots}")
 
     @property
