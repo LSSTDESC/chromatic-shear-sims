@@ -115,7 +115,17 @@ def get_obs(
     return obs
 
 
-def get_mbobs(bands, throughputs, scene, psf, psf_star, psf_image_builder, image_builder, sky_background, seed=None):
+def get_mbobs(
+    bands,
+    throughputs,
+    scene,
+    psf,
+    psf_star,
+    psf_image_builder,
+    image_builder,
+    sky_background,
+    seed=None,
+):
     seeds = utils.get_seeds(len(bands), seed=seed)
     mbobs = ngmix.MultiBandObsList()
     for _seed, band in zip(seeds, bands):
