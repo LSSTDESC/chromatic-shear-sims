@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class PSF:
-    def __init__(self, gsobject):
-        self.gsobject = gsobject
+    def __init__(self, model):
+        self.model = model
 
     @classmethod
     def from_config(cls, psf_config):
@@ -21,12 +21,12 @@ class PSF:
         return cls(psf)
 
     def __eq__(self, other):
-        return self.gsobject == other.gsobject
+        return self.model == other.model
 
     def draw_image(self, star, throughput, image):
         # note that we provide a special method for drawing PSF images to
         # ensure normalizaiton and centering
-        psf_model = self.gsobject
+        psf_model = self.model
         observed_psf = galsim.Convolve([star, psf_model])
         observed_psf.drawImage(
             image=image,
@@ -36,4 +36,3 @@ class PSF:
         rescaled_image = utils.rescale(image)
         recentered_image = utils.recenter(rescaled_image)
         return recentered_image
-

@@ -68,7 +68,7 @@ def get_obs(
     noise_image.addNoise(noise)
 
     for galaxy in scene.galaxies:
-        observed = galsim.Convolve([psf.gsobject, galaxy])
+        observed = galsim.Convolve([psf.model, galaxy])
         observed.drawImage(
             throughput,
             image,
@@ -76,7 +76,7 @@ def get_obs(
         )
 
     for star in scene.stars:
-        observed = galsim.Convolve([psf.gsobject, star])
+        observed = galsim.Convolve([psf.model, star])
         observed.drawImage(
             throughput,
             image,
