@@ -24,6 +24,8 @@ class PSF:
         return self.gsobject == other.gsobject
 
     def draw_image(self, star, throughput, nx, ny, scale):
+        # note that we provide a special method for drawing PSF images to
+        # ensure normalizaiton and centering
         psf_model = self.gsobject
         observed_psf = galsim.Convolve([star, psf_model])
         psf_image = galsim.Image(
