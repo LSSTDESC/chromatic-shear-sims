@@ -23,9 +23,9 @@ class StarBuilder:
         return star
 
 
-class InterpolatedStars:
-    def __init__(self, module_name, class_name, throughput_1, throughput_2):
-        self.model = utils.get_instance(module_name, class_name)
+class InterpolatedStarBuilder:
+    def __init__(self, module_name, class_name, throughput_1, throughput_2, **kwargs):
+        self.model = utils.get_instance(module_name, class_name, **kwargs)
         self.name = self.model.name
         self.lut = self.get_lut(throughput_1, throughput_2)
         self.x_min = self.lut.x_min
@@ -54,22 +54,22 @@ class InterpolatedStars:
 
         return lut
 
-    def get_spec(self, color):
+    def get_spec(self, color, **kwargs):
         mass = self.lut(color)
         sparams = MainSequence.get_params(mass)
         params = self.model.get_params(sparams)
-        spec = self.model.get_spectrum(*params)
+        spec = self.model.get_spectrum(*params, **kwargs)
         return spec
 
-    def get_star(self, color):
+    def get_star(self, color, **kwargs):
         mass = self.lut(color)
         sparams = MainSequence.get_params(mass)
         params = self.model.get_params(sparams)
-        star = self.model.get_star(*params)
+        star = self.model.get_star(*params, **kwargs)
         return star
 
-    def __call__(self, color):
-        star = self.get_star(color)
+    def __call__(self, color, **kwargs):
+        star = self.get_star(color, **kwargs)
         return star
 
 
