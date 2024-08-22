@@ -23,22 +23,17 @@ class PSF:
     def __eq__(self, other):
         return self.gsobject == other.gsobject
 
-    def draw_image(self, star, throughput, nx, ny, scale):
+    def draw_image(self, star, throughput, image):
         # note that we provide a special method for drawing PSF images to
         # ensure normalizaiton and centering
         psf_model = self.gsobject
         observed_psf = galsim.Convolve([star, psf_model])
-        psf_image = galsim.Image(
-            nx,
-            ny,
-            scale=scale,
-        )
         observed_psf.drawImage(
-            image=psf_image,
+            image=image,
             bandpass=throughput,
             add_to_image=True,
         )
-        rescaled_image = utils.rescale(psf_image)
+        rescaled_image = utils.rescale(image)
         recentered_image = utils.recenter(rescaled_image)
         return recentered_image
 
