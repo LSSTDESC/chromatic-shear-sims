@@ -18,8 +18,8 @@ class Stars:
         self.name = self.model.name
 
     def __call__(self, stellar_params):
-        model_params = model.get_params(stellar_params)
-        star = model.get_star(*model_params)
+        model_params = self.model.get_params(stellar_params)
+        star = self.model.get_star(*model_params)
         return star
 
 
