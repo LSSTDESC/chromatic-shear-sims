@@ -49,8 +49,9 @@ def get_obs(
     scene,
     psf,
     psf_star,
+    psf_image_builder,
     image_builder,
-    darksky,
+    sky_background,
     seed=None,
 ):
     grng = galsim.BaseDeviate(seed)
@@ -58,7 +59,9 @@ def get_obs(
     image = image_builder.get_image()
     noise_image = image_builder.get_image()
 
-    noise_sigma = image_builder.get_noise_sigma(darksky, throughput)
+    psf_image = psf_image_builder.get_image()
+
+    noise_sigma = image_builder.get_noise_sigma(sky_background, throughput)
     noise = galsim.GaussianNoise(grng, sigma=noise_sigma)
 
     image.addNoise(noise)
@@ -83,9 +86,7 @@ def get_obs(
     psf_image = psf.draw_image(
         psf_star,
         throughput,
-        53,  # add psf image builder to args?
-        53,
-        image.scale,
+        psf_image,
     )
 
     ormask = get_ormask(image.nrow, image.ncol)
@@ -114,7 +115,7 @@ def get_obs(
     return obs
 
 
-def get_mbobs(bands, throughputs, scene, psf, psf_star, image_builder, darksky, seed=None):
+def get_mbobs(bands, throughputs, scene, psf, psf_star, psf_image_builder, image_builder, sky_background, seed=None):
     seeds = utils.get_seeds(len(bands), seed=seed)
     mbobs = ngmix.MultiBandObsList()
     for _seed, band in zip(seeds, bands):
@@ -125,8 +126,9 @@ def get_mbobs(bands, throughputs, scene, psf, psf_star, image_builder, darksky, 
             scene,
             psf,
             psf_star,
+            psf_image_builder,
             image_builder,
-            darksky,
+            sky_background,
             seed=_seed,
         )
         obslist.append(obs)

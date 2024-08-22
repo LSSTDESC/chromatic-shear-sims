@@ -41,18 +41,18 @@ class ImageBuilder:
         )
         return image
 
-    def get_noise_sigma(self, darksky, throughput):
+    def get_noise_sigma(self, sky_background, throughput):
         noise_sigma = utils.get_noise_sigma(
-            darksky,
+            sky_background,
             throughput,
             self.npixel,
             ncoadd=self.ncoadd,
         )
         return noise_sigma
 
-    # def get_noise(self, darksky, throughput, seed=None):
+    # def get_noise(self, sky_background, throughput, seed=None):
     #     noise_sigma = self.get_noise_sigma(
-    #         darksky,
+    #         sky_background,
     #         throughput,
     #     )
     #     grng = galsim.BaseDeviate(seed)
