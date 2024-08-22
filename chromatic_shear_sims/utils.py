@@ -59,6 +59,7 @@ def recenter(image):
     return shifted_image
 
 
+@functools.cache
 def get_noise_sigma(darksky, throughput, npixel, ncoadd=1):
     # get background noise according to a dark sky spectrum
     darksky_flux = darksky.calculateFlux(throughput)
