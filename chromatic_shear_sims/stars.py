@@ -17,9 +17,9 @@ class Stars:
         self.model = utils.get_instance(module_name, class_name)
         self.name = self.model.name
 
-    def __call__(self, stellar_params):
+    def __call__(self, stellar_params, **kwargs):
         model_params = self.model.get_params(stellar_params)
-        star = self.model.get_star(*model_params)
+        star = self.model.get_star(*model_params, **kwargs)
         return star
 
 
@@ -88,11 +88,10 @@ class StarData:
         return self._num_rows
 
     def register_data(self, data):
-        # self._data = LSST_Sim(data)
         self._data = self.model(data)
         self._num_rows = self.data.num_rows
         logger.info(f"registered data with {self.num_rows} rows")
 
-    def __call__(self, i):
-        return self.data.get_params(i)
+    def __call__(self, i, **kwargs):
+        return self.data.get_params(i, **kwargs)
 
