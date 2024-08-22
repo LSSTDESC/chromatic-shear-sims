@@ -153,6 +153,9 @@ def get_positions(
         case "hex":
             pixel_separation = separation / scale
             xs, ys = _get_hex_pos(pixel_separation, xsize, ysize, border=border, seed=seed)
+        case "none":
+            xs = []
+            ys = []
         case _:
             raise ValueError(f"Scene type {scene_type} not valid!")
 
