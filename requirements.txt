@@ -1,6 +1,5 @@
 astropy
 chromatic-weak-lensing
-lsstdesc.weaklensingdeblending
 # dsps==0.3.5
 # diffstar==0.2.2
 # diffmah==0.4.2
