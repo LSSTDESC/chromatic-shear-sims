@@ -71,3 +71,28 @@ class InterpolatedStars:
     def __call__(self, color):
         star = self.get_star(color)
         return star
+
+
+class StarData:
+    def __init__(self, module_name, class_name):
+        self._data = None
+        self._num_rows = None
+        self.model = utils.get_class(module_name, class_name)
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def num_rows(self):
+        return self._num_rows
+
+    def register_data(self, data):
+        # self._data = LSST_Sim(data)
+        self._data = self.model(data)
+        self._num_rows = self.data.num_rows
+        logger.info(f"registered data with {self.num_rows} rows")
+
+    def __call__(self, i):
+        return self.data.get_params(i)
+

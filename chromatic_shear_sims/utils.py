@@ -25,9 +25,16 @@ def get_seeds(n, seed=None):
     return rng.integers(0, maxint, n)
 
 
-def get_instance(module_name, class_name, *args, **kwargs):
+def get_class(module_name, class_name):
     _module = importlib.import_module(module_name)
     _class = getattr(_module, class_name)
+    return _class
+
+
+def get_instance(module_name, class_name, *args, **kwargs):
+    # _module = importlib.import_module(module_name)
+    # _class = getattr(_module, class_name)
+    _class = get_class(module_name, class_name)
     _instance = _class(*args, **kwargs)
     return _instance
 
