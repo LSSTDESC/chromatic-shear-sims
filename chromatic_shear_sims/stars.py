@@ -79,21 +79,3 @@ class InterpolatedStarBuilder:
         star = self.get_star(color, **kwargs)
         return star
 
-
-class StarData:
-    def __init__(self, module_name, class_name, data):
-        self.module_name = module_name
-        self.class_name = class_name
-        self._data = utils.get_instance(module_name, class_name, data)
-
-    @property
-    def data(self):
-        return self._data
-
-    @property
-    def num_rows(self):
-        return self.data.num_rows
-
-    def __call__(self, i, **kwargs):
-        return self.data.get_params(i, **kwargs)
-
