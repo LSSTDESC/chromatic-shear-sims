@@ -28,7 +28,7 @@ class Scene:
         return len(self.stars)
 
     def with_shear(self, g1, g2):
-        logger.info("replicating scene with shear g1={g1}, g2={g2}")
+        logger.info(f"replicating scene with shear g1={g1}, g2={g2}")
         shear = galsim.Shear(g1=g1, g2=g2)
         galaxies = [
             galaxy.shear(shear)
