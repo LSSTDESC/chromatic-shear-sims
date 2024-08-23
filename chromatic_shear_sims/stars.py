@@ -31,13 +31,20 @@ class InterpolatedStarBuilder:
         self.x_min = self.lut.x_min
         self.x_max = self.lut.x_max
 
-    def get_lut(self, throughput_1, throughput_2, m_min=0.1, m_max=10.0, n=1_000):
+    def get_lut(self, throughput_1, throughput_2):
         """
         Get a lookup table so as to find the mass of a star
         whose spectra produces a given color.
         """
         _start_time = time.time()
-        masses = np.geomspace(m_min, m_max, n)
+        logM_min = np.min(MainSequence.logM)
+        logM_max = np.max(MainSequence.logM)
+        n = 1000
+        masses = np.logspace(
+            logM_min,
+            logM_max,
+            n,
+        )
 
         colors = []
         for mass in masses:
