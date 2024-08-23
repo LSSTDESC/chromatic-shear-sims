@@ -144,6 +144,10 @@ def get_mbobs(
         obslist.append(obs)
         mbobs.append(obslist)
 
+    mbobs.set_meta({
+        "bands": bands,
+    })
+
     return mbobs
 
 
