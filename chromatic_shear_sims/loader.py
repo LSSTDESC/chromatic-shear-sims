@@ -79,6 +79,8 @@ class Loader:
 
         self.aggregate_dict = self.config.get("aggregate", None)
 
+        self.num_rows = None
+
         logger.info(f"initializing loader for {self.path}")
 
     def do_aggregate(self, dataset, projection, predicate, aggregate):
@@ -157,10 +159,12 @@ class Loader:
         """
         Process a dataset defined in a config
         """
+        dataset = ds.dataset(self.path, format=self.format)
+        num_rows = dataset.count_rows(filter=self.predicate)
+        self.num_rows = num_rows
+
         logger.info(f"processing aggregates for {self.path}")
         if self.aggregate_dict is not None:
-            dataset = ds.dataset(self.path, format=self.format)
-
             aggregate = self.do_aggregate(
                 dataset,
                 self.projection,
@@ -189,10 +193,9 @@ class Loader:
         return rng
 
     def select(self, n, seed=None):
-        nobj = self.aggregates.get("count")
         rng = self.get_rng(seed)
         indices = rng.choice(
-            nobj,
+            self.num_rows,
             size=n,
             replace=True,
             shuffle=True,
