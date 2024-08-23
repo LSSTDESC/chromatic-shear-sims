@@ -180,6 +180,38 @@ class Loader:
         self.aggregates = aggregates
         return
 
+    def get_rng(self, seed=None):
+        rng_seed = seed if seed else self.seed
+
+        logger.debug(f"spawning rng with seed {rng_seed}")
+        rng = np.random.default_rng(rng_seed)
+
+        return rng
+
+    def select(self, n, seed=None):
+        nobj = self.aggregates.get("count")
+        rng = self.get_rng(seed)
+        indices = rng.choice(
+            nobj,
+            size=n,
+            replace=True,
+            shuffle=True,
+        )
+
+        return indices
+
+    def sample(self, n, columns=None, seed=None):
+        indices = self.select(n, seed=seed)
+        scanner = self.get_scanner(columns)
+
+        _start_time = time.time()
+        objs = scanner.take(indices).to_pydict()
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
+
+        return objs
+
     def digitize_color(self, n_bins=100):
         min_color = self.aggregates.get("min_color")
         max_color = self.aggregates.get("max_color")
@@ -208,158 +240,4 @@ class Loader:
         #     density=False,
         # )
         # return hist_dist
-
-    def get_rng(self, seed=None):
-        match seed:
-            case None:
-                rng_seed = self.seed
-            case _:
-                rng_seed = seed
-
-        logger.debug(f"spawning rng with seed {rng_seed}")
-        rng = np.random.default_rng(rng_seed)
-
-        return rng
-
-    def select(self, n, seed=None):
-        nobj = self.aggregates.get("count")
-        # rng = np.random.default_rng(seed)
-        rng = self.get_rng(seed)
-        indices = rng.choice(
-            nobj,
-            size=n,
-            replace=True,
-            shuffle=True,
-        )
-
-        return indices
-
-    def sample(self, n, columns=None, seed=None):
-        indices = self.select(n, seed=seed)
-        scanner = self.get_scanner(columns)
-
-        logger.info(f"sampling {n} records from {self.path}")
-
-        _start_time = time.time()
-        objs = scanner.take(indices).to_pydict()
-        _end_time = time.time()
-        _elapsed_time = _end_time - _start_time
-        logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
-
-        return objs
-
-    def sample_with(self, n, columns=None, predicate=None, seed=None):
-        base_predicate = self.predicate
-        if predicate is not None:
-            new_predicate = base_predicate & predicate
-        else:
-            new_predicate = base_predicate
-
-        dataset = ds.dataset(self.path, format=self.format)
-        scanner = dataset.scanner(columns=columns, filter=new_predicate)
-        nobj = scanner.count_rows()
-        if nobj == 0:
-            raise ValueError(f"No objects pass predicate")
-
-        # rng = np.random.default_rng(seed)
-        rng = self.get_rng(seed)
-        indices = rng.choice(
-            nobj,
-            size=n,
-            replace=True,
-            shuffle=True,
-        )
-
-        logger.info(f"sampling {n} records from {self.path}")
-
-        _start_time = time.time()
-        objs = scanner.take(indices).to_pydict()
-        _end_time = time.time()
-        _elapsed_time = _end_time - _start_time
-        logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
-
-        return objs
-
-    def sample_color(self, n, n_bins=100, distribution=None, seed=None):
-        # need to supply hist, bins from self
-        rng = self.get_rng(seed)
-
-        aggregates = self.aggregates
-        nobj = aggregates.get("count")
-
-        _pr, _px = self.digitize_color(n_bins=n_bins)
-
-        logging.debug(f"sampling galaxies with distribution: {distribution}")
-        match distribution:
-            case "uniform":
-                pr = None
-            case "population":
-                pr = _pr
-            case _:
-                # i.e., use the sample distribution
-                pr = None
-
-        px = (_px[:-1] + _px[1:]) / 2
-        # pr = pr / np.sum(pr) if distribution else None
-        if pr is not None:
-            pr /= np.sum(pr)
-
-        colors = rng.choice(px, size=n, p=pr, replace=True)
-        # hist_dist = scipy.stats.rv_histogram(
-        #     (pr, _px),
-        #     density=False,
-        # )
-        # colors = hist_dist.rvs(size=n)
-
-        # import matplotlib.pyplot as plt
-        # plt.stairs(_pr / np.sum(_pr), _px, ec="k", label="true")
-        # # plt.stairs(pr / np.sum(pr), _px, ec="r", label="uniform")
-        # plt.hist(colors, bins=_px, histtype="step", ec="r", label=distribution, density=True)
-        # plt.legend(loc="upper right")
-        # plt.show()
-
-        return colors
-
-
-if __name__ == "__main__":
-
-    from pipeline import Pipeline
-    pipeline = Pipeline("config.yaml")
-    print("pipeline:", pipeline.name)
-    print("cpu count:", pa.cpu_count())
-    print("thread_count:", pa.io_thread_count())
-
-    galaxy_loader = Loader(pipeline.galaxy_config)
-    star_loader = Loader(pipeline.star_config)
-
-    galaxy_loader.process()
-
-    star_loader.process()
-
-    print("galxies:", galaxy_loader.aggregates)
-    print("stars:", star_loader.aggregates)
-
-    rng = np.random.default_rng()
-
-    star_columns = ["sedFilename", "imag"]
-    star_params = star_loader.sample(
-        3,
-        columns=star_columns
-    )
-
-    from lsstdesc_diffsky.io_utils.load_diffsky_healpixel import ALL_DIFFSKY_PNAMES
-    morph_columns = [
-       "redshift",
-       "spheroidEllipticity1",
-       "spheroidEllipticity2",
-       "spheroidHalfLightRadiusArcsec",
-       "diskEllipticity1",
-       "diskEllipticity2",
-       "diskHalfLightRadiusArcsec",
-    ]
-    gal_columns = list(set(morph_columns + ALL_DIFFSKY_PNAMES))
-    gal_params = galaxy_loader.sample(
-        300,
-        columns=gal_columns,
-    )
 
