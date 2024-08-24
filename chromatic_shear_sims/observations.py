@@ -68,29 +68,31 @@ def get_obs(
     image.addNoise(noise)
     noise_image.addNoise(noise)
 
-    _start_time = time.time()
-    for galaxy in scene.galaxies:
-        observed = galsim.Convolve([psf.model, galaxy])
-        observed.drawImage(
-            throughput,
-            image,
-            add_to_image=True,
-        )
-    _end_time = time.time()
-    _elapsed_time = _end_time - _start_time
-    logger.info(f"drew {scene.ngal} galaxies in {_elapsed_time} seconds")
+    if scene.ngal > 0:
+        _start_time = time.time()
+        for galaxy in scene.galaxies:
+            observed = galsim.Convolve([psf.model, galaxy])
+            observed.drawImage(
+                throughput,
+                image,
+                add_to_image=True,
+            )
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"drew {scene.ngal} galaxies in {_elapsed_time} seconds")
 
-    _start_time = time.time()
-    for star in scene.stars:
-        observed = galsim.Convolve([psf.model, star])
-        observed.drawImage(
-            throughput,
-            image,
-            add_to_image=True,
-        )
-    _end_time = time.time()
-    _elapsed_time = _end_time - _start_time
-    logger.info(f"drew {scene.nstar} stars in {_elapsed_time} seconds")
+    if scene.nstar > 0:
+        _start_time = time.time()
+        for star in scene.stars:
+            observed = galsim.Convolve([psf.model, star])
+            observed.drawImage(
+                throughput,
+                image,
+                add_to_image=True,
+            )
+        _end_time = time.time()
+        _elapsed_time = _end_time - _start_time
+        logger.info(f"drew {scene.nstar} stars in {_elapsed_time} seconds")
 
     psf_image = psf.draw_image(
         psf_star,
@@ -139,7 +141,7 @@ def get_mbobs(
 
     seeds = utils.get_seeds(len(bands), seed=seed)
     mbobs = ngmix.MultiBandObsList()
-    for _seed, band in zip(seeds, bands):
+    for obs_seed, band in zip(seeds, bands):
         throughput = throughputs[band]
         obslist = ngmix.ObsList()
         _obs_start_time = time.time()
@@ -151,7 +153,7 @@ def get_mbobs(
             psf_image_builder,
             image_builder,
             sky_background,
-            seed=_seed,
+            seed=obs_seed,
         )
         obs.set_meta({
             "band": band,
