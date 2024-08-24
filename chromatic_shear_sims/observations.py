@@ -1,5 +1,6 @@
 import copy
 import logging
+import time
 
 import galsim
 import numpy as np
@@ -67,6 +68,7 @@ def get_obs(
     image.addNoise(noise)
     noise_image.addNoise(noise)
 
+    _start_time = time.time()
     for galaxy in scene.galaxies:
         observed = galsim.Convolve([psf.model, galaxy])
         observed.drawImage(
@@ -74,7 +76,11 @@ def get_obs(
             image,
             add_to_image=True,
         )
+    _end_time = time.time()
+    _elapsed_time = _end_time - _start_time
+    logger.info(f"drew {scene.ngal} galaxies in {_elapsed_time} seconds")
 
+    _start_time = time.time()
     for star in scene.stars:
         observed = galsim.Convolve([psf.model, star])
         observed.drawImage(
@@ -82,6 +88,9 @@ def get_obs(
             image,
             add_to_image=True,
         )
+    _end_time = time.time()
+    _elapsed_time = _end_time - _start_time
+    logger.info(f"drew {scene.nstar} stars in {_elapsed_time} seconds")
 
     psf_image = psf.draw_image(
         psf_star,
@@ -126,11 +135,14 @@ def get_mbobs(
     sky_background,
     seed=None,
 ):
+    _start_time = time.time()
+
     seeds = utils.get_seeds(len(bands), seed=seed)
     mbobs = ngmix.MultiBandObsList()
     for _seed, band in zip(seeds, bands):
         throughput = throughputs[band]
         obslist = ngmix.ObsList()
+        _obs_start_time = time.time()
         obs = get_obs(
             throughput,
             scene,
@@ -141,6 +153,12 @@ def get_mbobs(
             sky_background,
             seed=_seed,
         )
+        obs.set_meta({
+            "band": band,
+        })
+        _obs_end_time = time.time()
+        _obs_elapsed_time = _obs_end_time - _obs_start_time
+        logger.info(f"made {band}-band observation in {_obs_elapsed_time} seconds")
         obslist.append(obs)
         mbobs.append(obslist)
 
@@ -148,16 +166,8 @@ def get_mbobs(
         "bands": bands,
     })
 
+    _end_time = time.time()
+    _elapsed_time = _end_time - _start_time
+    logger.info(f"made {''.join(bands)}-multiband observation in {_elapsed_time} seconds")
+
     return mbobs
-
-
-class ObservationBuilder:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    @classmethod
-    def from_config(cls, observation_config):
-        observation_config_copy = copy.deepcopy(observation_config)
-        return cls(**observation_config_copy)
-
-
