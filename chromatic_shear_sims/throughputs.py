@@ -10,7 +10,7 @@ import galsim
 logger = logging.getLogger(__name__)
 
 
-BANDS = {"u", "g", "r", "i", "z", "y"}
+BANDS = ["u", "g", "r", "i", "z", "y"]
 
 # https://github.com/LSSTDESC/lsstdesc-diffsky/blob/rr23_legacy/data/throughputs/lsst/README.rst
 # /global/cfs/cdirs/descssim/imSim/lsst/data/throughputs/baseline/total_*.dat
@@ -75,9 +75,9 @@ def load_throughput(band=""):
     return throughput
 
 
-def load_throughputs():
+def load_throughputs(bands=BANDS):
     throughputs = {}
-    for band in BANDS:
+    for band in bands:
         throughputs[band] = load_throughput(band)
 
     return throughputs
