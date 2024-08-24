@@ -83,6 +83,13 @@ class Loader:
 
         logger.info(f"initializing loader for {self.path}")
 
+    @classmethod
+    def from_yaml(cls, filename):
+        logger.info(f"initializing loader from {filename}")
+        with open(filename) as fp:
+            config = yaml.safe_load(fp)
+        return cls(config)
+
     def do_aggregate(self, dataset, projection, predicate, aggregate):
         """
         Plan and execute aggregations for a dataset
