@@ -41,7 +41,7 @@ def get_instance(module_name, class_name, *args, **kwargs):
 
 def rescale(image):
     _normalization = 1 / image.FindAdaptiveMom().moments_amp
-    logger.info(f"rescaling image with normalization: {_normalization}")
+    logger.debug(f"rescaling image with normalization: {_normalization}")
 
     rescaled_image = image * _normalization
 
@@ -50,7 +50,7 @@ def rescale(image):
 
 def recenter(image):
     _shift = image.FindAdaptiveMom().moments_centroid - image.true_center
-    logger.info(f"recentering image with pixel shift: ({_shift.x}, {_shift.y})")
+    logger.debug(f"recentering image with pixel shift: ({_shift.x}, {_shift.y})")
 
     shifted = galsim.InterpolatedImage(
         image,
