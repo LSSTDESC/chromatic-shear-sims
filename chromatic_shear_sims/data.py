@@ -34,7 +34,7 @@ class Data:
 
         data = self.data_builder(sample)
 
-        return CatalogDatum(data)
+        return Datum(data)
 
 
 class Datum:
