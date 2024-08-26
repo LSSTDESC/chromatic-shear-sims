@@ -10,15 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 class PSF:
-    def __init__(self, model):
-        self.model = model
-
-    @classmethod
-    def from_config(cls, psf_config):
-        psf_config_copy = copy.deepcopy(psf_config)
-        config = {"psf": psf_config_copy}
-        psf, _ = galsim.config.BuildGSObject(config, "psf")
-        return cls(psf)
+    def __init__(self, config, seed=None):
+        psf_config_copy = copy.deepcopy(config)
+        self.config = psf_config_copy
+        self.seed = seed
+        grng = galsim.BaseDeviate(seed)
+        config = {
+            "psf": psf_config_copy,
+            "rng": grng,
+        }
+        psf, _ = galsim.config.BuildGSObject(config, "psf", logger=logger)
+        self.model = psf
 
     def __eq__(self, other):
         return self.model == other.model
