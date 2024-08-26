@@ -234,3 +234,13 @@ def get_mbobs(
     logger.info(f"made {''.join(bands)}-multiband observation in {_elapsed_time} seconds")
 
     return mbobs
+
+
+def with_psf_obs(mbobs, psf_mbobs):
+    mbobs_copy = copy.deepcopy(mbobs)
+    psf_mbobs_copy = copy.deepcopy(psf_mbobs)
+    for obslist, psf_obslist in zip(mbobs_copy, psf_mbobs_copy):
+        for obs, psf_obs in zip(obslist, psf_obslist):
+            obs.set_psf(psf_obs)
+
+    return mbobs_copy
