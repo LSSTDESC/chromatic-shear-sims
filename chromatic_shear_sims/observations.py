@@ -45,12 +45,80 @@ def get_jacobian(image, wcs):
     )
 
 
-def get_obs(
+def get_psf_obs(
     throughput,
-    scene,
     psf,
     psf_star,
     psf_image_builder,
+    seed=None,
+):
+    psf_image = psf_image_builder.get_image()
+
+    psf_image = psf.draw_image(
+        psf_star,
+        throughput,
+        psf_image,
+    )
+
+    wcs = get_wcs(psf_image.scale, psf_image.center)
+
+    psf_jac = get_jacobian(psf_image, wcs)
+
+    psf_obs = ngmix.Observation(
+        psf_image.array,
+        jacobian=psf_jac
+    )
+
+    return psf_obs
+
+def get_psf_mbobs(
+    bands,
+    throughputs,
+    psf,
+    psf_star,
+    psf_image_builder,
+    seed=None,
+):
+    _start_time = time.time()
+
+    mbobs = ngmix.MultiBandObsList()
+    for band in bands:
+        throughput = throughputs[band]
+        obslist = ngmix.ObsList()
+        _obs_start_time = time.time()
+        obs = get_psf_obs(
+            throughput,
+            psf,
+            psf_star,
+            psf_image_builder,
+            seed=seed,
+        )
+        obs.set_meta({
+            "band": band,
+        })
+        _obs_end_time = time.time()
+        _obs_elapsed_time = _obs_end_time - _obs_start_time
+        logger.info(f"made {band}-band psf observation in {_obs_elapsed_time} seconds")
+        obslist.append(obs)
+        mbobs.append(obslist)
+
+    mbobs.set_meta({
+        "bands": bands,
+    })
+
+    _end_time = time.time()
+    _elapsed_time = _end_time - _start_time
+    logger.info(f"made {''.join(bands)}-multiband psf observation in {_elapsed_time} seconds")
+
+    return mbobs
+
+
+def get_obs(
+    throughput,
+    psf,
+    scene,
+    # psf_star,
+    # psf_image_builder,
     image_builder,
     sky_background,
     seed=None,
@@ -59,8 +127,6 @@ def get_obs(
 
     image = image_builder.get_image()
     noise_image = image_builder.get_image()
-
-    psf_image = psf_image_builder.get_image()
 
     noise_sigma = image_builder.get_noise_sigma(sky_background, throughput)
     noise = galsim.GaussianNoise(grng, sigma=noise_sigma)
@@ -94,28 +160,23 @@ def get_obs(
         _elapsed_time = _end_time - _start_time
         logger.info(f"drew {scene.nstar} stars in {_elapsed_time} seconds")
 
-    psf_image = psf.draw_image(
-        psf_star,
-        throughput,
-        psf_image,
-    )
-
     ormask = get_ormask(image.nrow, image.ncol)
     bmask = get_bmask(image.nrow, image.ncol)
     weight = get_weight(image.nrow, image.ncol, noise_sigma)
 
     wcs = get_wcs(image.scale, image.center)
     im_jac = get_jacobian(image, wcs)
-    psf_jac = get_jacobian(psf_image, wcs)
 
-    psf_obs = ngmix.Observation(
-        psf_image.array,
-        jacobian=psf_jac
-    )
+    # psf_obs = get_psf_obs(
+    #     throughput,
+    #     psf,
+    #     psf_star
+    # )
 
     obs = ngmix.Observation(
         image.array,
-        psf=psf_obs,
+        # psf=psf_obs,
+        psf=None,
         noise=noise_image.array,
         weight=weight,
         ormask=ormask,
@@ -129,10 +190,10 @@ def get_obs(
 def get_mbobs(
     bands,
     throughputs,
-    scene,
     psf,
-    psf_star,
-    psf_image_builder,
+    scene,
+    # psf_star,
+    # psf_image_builder,
     image_builder,
     sky_background,
     seed=None,
@@ -147,10 +208,10 @@ def get_mbobs(
         _obs_start_time = time.time()
         obs = get_obs(
             throughput,
-            scene,
             psf,
-            psf_star,
-            psf_image_builder,
+            scene,
+            # psf_star,
+            # psf_image_builder,
             image_builder,
             sky_background,
             seed=obs_seed,
