@@ -1,0 +1,19 @@
+[project]
+name = "chromatic-shear-sims"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+readme = "README.md"
+description = ""
+authors = [
+    {name = "Sidney Mau", email = "sidneymau@gmail.com" }
+]
+dynamic = ["version"]
+dependencies = [
+    "astropy",
+    "chromatic_weak_lensing",
+    "galsim",
+    "matplotlib",
+    "numpy",
+    "pyarrow",
+    "scipy",
+]
