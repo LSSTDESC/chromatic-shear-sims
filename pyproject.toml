@@ -13,7 +13,10 @@ dependencies = [
     "chromatic_weak_lensing",
     "galsim",
     "matplotlib",
+    "metadetect",
+    "ngmix",
     "numpy",
     "pyarrow",
     "scipy",
+    "pyyaml",
 ]
