@@ -20,3 +20,7 @@ dependencies = [
     "scipy",
     "pyyaml",
 ]
+
+
+[project.scripts]
+plot-chromatic-shear-sim = "chromatic_shear_sims.scripts.plot:main"
