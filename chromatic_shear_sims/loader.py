@@ -1,9 +1,13 @@
+import ast
 import copy
+import functools
 import logging
+import re
 import time
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 
@@ -29,20 +33,55 @@ def parse_expression(predicate):
         return predicate
 
 
+def parse_filters(filters):
+    def parse_token(token):
+        try:
+            val = ast.literal_eval(token)
+        except:
+            val = token
+        return val
+
+    # see pq.core._DNF_filter_doc
+    _operators = ["==", "=", "!=", "<=", ">=", "<", ">", "in", "not in"]
+    _re = re.compile("(" + "|".join(_operators) + ")")
+    disjunction = []
+    for _conjunction in filters:
+        conjunction = []
+        for filters_string in _conjunction:
+            filters_tuple = tuple(
+                map(
+                    parse_token,
+                    map(
+                        str.strip,
+                        _re.split(
+                            filters_string,
+                        ),
+                    ),
+                ),
+            )
+            conjunction.append(filters_tuple)
+        disjunction.append(conjunction)
+
+    return pq.filters_to_expression(disjunction)
+
+
 class Loader:
     def __init__(self, config):
         self.config = copy.copy(config)
         self.path = self.config.get("path")
 
-        logger.info(f"initializing loader for {self.path}")
-
         self.format = self.config.get("format")
         self.seed = self.config.get("seed", None)
 
-        self.predicate_dict = self.config.get("predicate", None)
-        self.predicate = parse_expression(self.predicate_dict)
+        # self.predicate_dict = self.config.get("predicate", None)
+        # self.predicate = parse_expression(self.predicate_dict)
+
+        self.predicate_filters = self.config.get("predicate", None)
+        self.predicate = parse_filters(self.predicate_filters)
 
         self.num_rows = self.count_rows()
+
+        logger.info(f"initialized loader for {self.path} with {self.predicate}; found {self.num_rows} rows")
 
     def get_scanner(self, columns=None):
         """
