@@ -168,7 +168,7 @@ class SimulationBuilder:
         return psf
 
     def make_psf_obs(self, psf, color=None, seed=None):
-        psf_star = self.psf_star_builder(psf_color)
+        psf_star = self.psf_star_builder(color)
 
         psf_mbobs = observations.get_psf_mbobs(
             self.bands,
