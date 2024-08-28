@@ -10,7 +10,7 @@ from chromatic_shear_sims.loader import Loader
 from chromatic_shear_sims.psf import PSF
 from chromatic_shear_sims.scene import Scene
 from chromatic_shear_sims.images import ImageBuilder
-from chromatic_shear_sims.galaxies import GalaxyBuilder
+from chromatic_shear_sims.galaxies import GalaxyBuilder, HybridGalaxyBuilder
 from chromatic_shear_sims.positions import PositionBuilder
 from chromatic_shear_sims.stars import StarBuilder, InterpolatedStarBuilder
 from chromatic_shear_sims.throughputs import load_throughputs
@@ -26,7 +26,7 @@ class SimulationBuilder:
         self.config = simulation_config_copy
         self.bands = self.config.get("bands")
 
-        self.throughputs = load_throughputs()
+        self.throughputs = load_throughputs(bands=self.bands)
         self.sky_background = load_darksky()
 
         if "builder" in self.config["stars"]:
@@ -35,8 +35,6 @@ class SimulationBuilder:
             )
             psf_star_builder = InterpolatedStarBuilder(
                 **self.config["stars"]["builder"],
-                throughput_1=self.throughputs["g"],
-                throughput_2=self.throughputs["i"],
             )
         else:
             star_builder = None
@@ -66,9 +64,16 @@ class SimulationBuilder:
         self.star_position_builder = star_position_builder
 
         if "builder" in self.config["galaxies"]:
-            galaxy_builder = GalaxyBuilder(
-                **self.config["galaxies"]["builder"],
-            )
+            self.hybrid = self.config["galaxies"]["builder"].pop("hybrid", False)
+            if self.hybrid:
+                galaxy_builder = HybridGalaxyBuilder(
+                    **self.config["galaxies"]["builder"],
+                    spectra_entry_point=self.config["stars"]["builder"].get("entrypoint")
+                )
+            else:
+                galaxy_builder = GalaxyBuilder(
+                    **self.config["galaxies"]["builder"],
+                )
         else:
             galaxy_builder = None
         self.galaxy_builder = galaxy_builder
@@ -135,7 +140,7 @@ class SimulationBuilder:
         if stars is not None:
             star_kwargs = self.config["stars"].get("kwargs", {})
             scene_stars = [
-                self.star_builder(stars(i), **star_kwargs).rotate(
+                self.star_builder(stars.get_params(i), **star_kwargs).rotate(
                     rotation
                 ).shift(position)
                 for i, (position, rotation) in enumerate(
@@ -147,14 +152,31 @@ class SimulationBuilder:
 
         if galaxies is not None:
             galaxy_kwargs = self.config["galaxies"].get("kwargs", {})
-            scene_galaxies = [
-                self.galaxy_builder(galaxies(i), **galaxy_kwargs).rotate(
-                    rotation
-                ).shift(position)
-                for i, (position, rotation) in enumerate(
-                    zip(galaxy_positions, galaxy_rotations)
-                )
-            ]
+            if self.hybrid:
+                scene_galaxies = [
+                    self.galaxy_builder(
+                        galaxies.get_morphology_params(i),
+                        galaxies.get_obs_params(i),
+                        **galaxy_kwargs
+                    ).rotate(
+                        rotation
+                    ).shift(position)
+                    for i, (position, rotation) in enumerate(
+                        zip(galaxy_positions, galaxy_rotations)
+                    )
+                ]
+            else:
+                scene_galaxies = [
+                    self.galaxy_builder(
+                        galaxies.get_params(i),
+                        **galaxy_kwargs,
+                    ).rotate(
+                        rotation
+                    ).shift(position)
+                    for i, (position, rotation) in enumerate(
+                        zip(galaxy_positions, galaxy_rotations)
+                    )
+                ]
         else:
             scene_galaxies = []
 
