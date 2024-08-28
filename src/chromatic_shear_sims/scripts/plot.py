@@ -278,8 +278,8 @@ def main():
     ) as pool:
         for i, (obs, psf) in enumerate(
             pool.imap(
-                simulation_builder.run_sim,
-                # simulation_builder.run_sim_pair,
+                simulation_builder.make_sim,
+                # simulation_builder.make_sim_pair,
                 seeds,
             )
         ):

@@ -231,7 +231,7 @@ class SimulationBuilder:
 
         return mbobs_dict
 
-    def run_sim(self, seed=None):
+    def make_sim(self, seed=None):
         psf_seed, obs_seed = utils.get_seeds(2, seed=seed)
 
         psf = self.make_psf(seed=psf_seed)
@@ -240,7 +240,7 @@ class SimulationBuilder:
 
         return obs, psf
 
-    def run_sim_pair(self, seed=None):
+    def make_sim_pair(self, seed=None):
         psf_seed, obs_seed = utils.get_seeds(2, seed=seed)
 
         psf = self.make_psf(seed=psf_seed)
