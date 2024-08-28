@@ -242,9 +242,10 @@ class SimulationBuilder:
         psf = self.make_psf(seed=psf_seed)
 
         obs = self.make_obs(psf, seed=obs_seed)
-        psf_obs = self.make_psf_obs(psf)
+        # psf_obs = self.make_psf_obs(psf)
 
-        return obs, psf_obs
+        # return obs, psf_obs
+        return obs, psf
 
     def run_sim_pair(self, seed=None):
         psf_seed, obs_seed = utils.get_seeds(2, seed=seed)
@@ -252,6 +253,7 @@ class SimulationBuilder:
         psf = self.make_psf(seed=psf_seed)
 
         obs_dict = self.make_obs_pair(psf, g1=0.02, g2=0.00, seed=obs_seed)
-        psf_obs = self.make_psf_obs(psf)
+        # psf_obs = self.make_psf_obs(psf)
 
-        return obs_dict, psf_obs
+        # return obs_dict, psf_obs
+        return obs_dict, psf

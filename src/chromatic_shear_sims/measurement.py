@@ -8,6 +8,7 @@ import numpy as np
 import pyarrow as pa
 
 from chromatic_shear_sims import utils
+from chromatic_shear_sims import observations
 
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,8 @@ class Metadetect(Measure):
     def get_schema(self):
         return self.schema
 
-    def run(self, obs, *, seed=None, **kwargs):
+    def run(self, obs, psf_obs, *, seed=None, **kwargs):
+        obs = observations.with_psf_obs(obs, psf_obs)
         rng = np.random.default_rng(seed)
         measurement = metadetect.do_metadetect(
             self.config,
