@@ -43,7 +43,8 @@ def parse_filters(filters):
 
     # see pq.core._DNF_filter_doc
     _operators = ["==", "=", "!=", "<=", ">=", "<", ">", "in", "not in"]
-    _re = re.compile("(" + "|".join(_operators) + ")")
+    _pattern = "(" + "|".join(_operators) + ")"
+    pattern = re.compile(_pattern)
     disjunction = []
     for _conjunction in filters:
         conjunction = []
@@ -53,7 +54,7 @@ def parse_filters(filters):
                     parse_token,
                     map(
                         str.strip,
-                        _re.split(
+                        pattern.split(
                             filters_string,
                         ),
                     ),
