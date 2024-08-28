@@ -24,3 +24,4 @@ dependencies = [
 
 [project.scripts]
 plot-chromatic-shear-sim = "chromatic_shear_sims.scripts.plot:main"
+measure-chromatic-shear-sim = "chromatic_shear_sims.scripts.measure:main"
