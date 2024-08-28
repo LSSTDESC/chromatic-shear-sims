@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from chromatic_shear_sims import utils
+from chromatic_shear_sims import measurement
+from chromatic_shear_sims import observations
 from chromatic_shear_sims.simulation import SimulationBuilder
 
 
@@ -54,8 +56,55 @@ def initializer(queue, log_level=None):
     logger.debug(f"spawning worker process")
 
 
-def plot_sim(mbobs, psf_mbobs):
+def _apply_selection(meas, model):
+    if model == "wmom":
+        tcut = 1.2
+    else:
+        tcut = 0.5
+
+    s2n_cut = 10
+    t_ratio_cut = tcut
+    # mfrac_cut = 10
+    # s2n_cut = 0
+    # t_ratio_cut = 0
+    mfrac_cut = 0
+    ormask_cut = None
+
+    def _mask(data):
+        if "flags" in data.dtype.names:
+            flag_col = "flags"
+        else:
+            flag_col = model + "_flags"
+
+        _cut_msk = (
+            (data[flag_col] == 0)
+            & (data[model + "_s2n"] > s2n_cut)
+            & (data[model + "_T_ratio"] > t_ratio_cut)
+        )
+        if ormask_cut:
+            _cut_msk = _cut_msk & (data["ormask"] == 0)
+        if mfrac_cut is not None:
+            _cut_msk = _cut_msk & (data["mfrac"] <= mfrac_cut)
+        return _cut_msk
+
+    o = meas["noshear"]
+    q = _mask(o)
+    ns = o[q]
+    return ns
+
+
+def plot_sim(mbobs, psf_mbobs, measure=None):
+    mbobs = observations.with_psf_obs(mbobs, psf_mbobs)
+
     bands = mbobs.meta.get("bands")
+
+    if measure is not None:
+        model = measure.config.get("model")
+        meas = measure.run(mbobs)
+        meas = _apply_selection(
+            meas,
+            model,
+        )
 
     fig, axs = plt.subplots(
         2, len(bands),
@@ -80,6 +129,10 @@ def plot_sim(mbobs, psf_mbobs):
 
         axs[1, i].imshow(np.arcsinh(image * np.sqrt(weight_image)), origin="lower", norm=norm_field)
 
+        if measure is not None:
+            for j in range(len(meas)):
+                axs[1, i].text(meas["sx_col"][j], meas["sx_row"][j], round(meas[model + "_s2n"][j]), c="r", ha="left", va="bottom")
+
         axs[0, i].set_title(band)
 
     axs[0, 0].set_ylabel("PSF")
@@ -88,10 +141,27 @@ def plot_sim(mbobs, psf_mbobs):
     plt.show()
 
 
-def plot_sim_pair(mbobs_dict, psf_mbobs):
+def plot_sim_pair(mbobs_dict, psf_mbobs, measure=None):
     plus_mbobs = mbobs_dict["plus"]
     minus_mbobs = mbobs_dict["minus"]
+
+    plus_mbobs = observations.with_psf_obs(plus_mbobs, psf_mbobs)
+    minus_mbobs = observations.with_psf_obs(minus_mbobs, psf_mbobs)
+
     bands = plus_mbobs.meta.get("bands")
+
+    if measure is not None:
+        model = measure.config.get("model")
+        meas_p = measure.run(plus_mbobs)
+        meas_p = _apply_selection(
+            meas_p,
+            model,
+        )
+        meas_m = measure.run(minus_mbobs)
+        meas_m = _apply_selection(
+            meas_m,
+            model,
+        )
 
     fig, axs = plt.subplots(
         3, len(bands),
@@ -121,6 +191,12 @@ def plot_sim_pair(mbobs_dict, psf_mbobs):
         axs[1, i].imshow(np.arcsinh(plus_image * np.sqrt(plus_weight_image)), origin="lower", norm=norm_field)
 
         axs[2, i].imshow(np.arcsinh(minus_image * np.sqrt(minus_weight_image)), origin="lower", norm=norm_field)
+
+        if measure is not None:
+            for j in range(len(meas_p)):
+                axs[1, i].text(meas_p["sx_col"][j], meas_p["sx_row"][j], round(meas_p[model + "_s2n"][j]), c="r", ha="left", va="bottom")
+            for j in range(len(meas_m)):
+                axs[2, i].text(meas_m["sx_col"][j], meas_m["sx_row"][j], round(meas_m[model + "_s2n"][j]), c="r", ha="left", va="bottom")
 
         axs[0, i].set_title(band)
 
@@ -159,11 +235,11 @@ def get_args():
         default=1,
         help="Number of parallel jobs to run [int; 1]"
     )
-    # parser.add_argument(
-    #     "--detect",
-    #     action="store_true",
-    #     help="Whether to make detections",
-    # )
+    parser.add_argument(
+        "--detect",
+        action="store_true",
+        help="run detection",
+    )
     parser.add_argument(
         "--log_level",
         type=int,
@@ -181,21 +257,12 @@ def main():
 
     config_file = args.config
     simulation_builder = SimulationBuilder.from_yaml(config_file)
-
-    # while True:
-    #     seed = utils.get_seed()
-    #     sim = simulation_builder.make_obs(
-    #         seed=seed,
-    #     )
-    #     plot_sim(sim)
-
-    # while True:
-    #     seed = utils.get_seed()
-    #     sim_pair = simulation_builder.make_obs_pair(
-    #         g1=0.02, g2=0.00,
-    #         seed=seed,
-    #     )
-    #     plot_sim_pair(sim_pair)
+    if args.detect:
+        measure = measurement.get_measure(
+            **simulation_builder.config["measurement"].get("builder"),
+        )
+    else:
+        measure = None
 
     multiprocessing.set_start_method("spawn")
 
@@ -217,12 +284,14 @@ def main():
     ) as pool:
         for i, (obs, psf_obs) in enumerate(
             pool.imap(
+                # simulation_builder.run_sim,
                 simulation_builder.run_sim_pair,
                 seeds,
             )
         ):
             print(f"finished simulation {i + 1}/{n_sims}")
-            plot_sim_pair(obs, psf_obs)
+            # plot_sim(obs, psf_obs, measure=measure)
+            plot_sim_pair(obs, psf_obs, measure=measure)
 
     queue.put(None)
     lp.join()
