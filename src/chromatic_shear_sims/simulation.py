@@ -168,11 +168,6 @@ class SimulationBuilder:
         return psf
 
     def make_psf_obs(self, psf, color=None, seed=None):
-        if color is not None:
-            psf_color = color
-        else:
-            psf_color = self.config["psf"]["color"]
-
         psf_star = self.psf_star_builder(psf_color)
 
         psf_mbobs = observations.get_psf_mbobs(
@@ -242,9 +237,7 @@ class SimulationBuilder:
         psf = self.make_psf(seed=psf_seed)
 
         obs = self.make_obs(psf, seed=obs_seed)
-        # psf_obs = self.make_psf_obs(psf)
 
-        # return obs, psf_obs
         return obs, psf
 
     def run_sim_pair(self, seed=None):
@@ -253,7 +246,5 @@ class SimulationBuilder:
         psf = self.make_psf(seed=psf_seed)
 
         obs_dict = self.make_obs_pair(psf, g1=0.02, g2=0.00, seed=obs_seed)
-        # psf_obs = self.make_psf_obs(psf)
 
-        # return obs_dict, psf_obs
         return obs_dict, psf
