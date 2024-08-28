@@ -7,6 +7,7 @@ import numpy as np
 from chromatic_weak_lensing import MainSequence
 
 from chromatic_shear_sims import utils
+from chromatic_shear_sims.throughputs import load_throughputs
 
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,16 @@ class StarBuilder:
 
 
 class InterpolatedStarBuilder:
-    def __init__(self, entrypoint, throughput_1, throughput_2, **kwargs):
+    def __init__(self, entrypoint, band_1="g", band_2="i", **kwargs):
         self.model = utils.get_instance(entrypoint, **kwargs)
         self.name = self.model.name
-        self.lut = self.get_lut(throughput_1, throughput_2)
+        self.band_1 = band_1
+        self.band_2 = band_2
+        self.throughputs = load_throughputs(bands=[self.band_1, self.band_2])
+        self.lut = self.get_lut(
+            self.throughputs[self.band_1],
+            self.throughputs[self.band_2],
+        )
         self.x_min = self.lut.x_min
         self.x_max = self.lut.x_max
 
@@ -61,7 +68,7 @@ class InterpolatedStarBuilder:
 
         return lut
 
-    def get_spec(self, color, **kwargs):
+    def get_spectrum(self, color, **kwargs):
         mass = self.lut(color)
         sparams = MainSequence.get_params(mass)
         params = self.model.get_params(sparams)
