@@ -10,7 +10,6 @@ import numpy as np
 
 from chromatic_shear_sims import utils
 from chromatic_shear_sims import measurement
-from chromatic_shear_sims import observations
 from chromatic_shear_sims.simulation import SimulationBuilder
 
 
@@ -94,13 +93,11 @@ def _apply_selection(meas, model):
 
 
 def plot_sim(mbobs, psf_mbobs, measure=None):
-    mbobs = observations.with_psf_obs(mbobs, psf_mbobs)
-
     bands = mbobs.meta.get("bands")
 
     if measure is not None:
         model = measure.config.get("model")
-        meas = measure.run(mbobs)
+        meas = measure.run(mbobs, psf_mbobs)
         meas = _apply_selection(
             meas,
             model,
@@ -145,19 +142,16 @@ def plot_sim_pair(mbobs_dict, psf_mbobs, measure=None):
     plus_mbobs = mbobs_dict["plus"]
     minus_mbobs = mbobs_dict["minus"]
 
-    plus_mbobs = observations.with_psf_obs(plus_mbobs, psf_mbobs)
-    minus_mbobs = observations.with_psf_obs(minus_mbobs, psf_mbobs)
-
     bands = plus_mbobs.meta.get("bands")
 
     if measure is not None:
         model = measure.config.get("model")
-        meas_p = measure.run(plus_mbobs)
+        meas_p = measure.run(plus_mbobs, psf_mbobs)
         meas_p = _apply_selection(
             meas_p,
             model,
         )
-        meas_m = measure.run(minus_mbobs)
+        meas_m = measure.run(minus_mbobs, psf_mbobs)
         meas_m = _apply_selection(
             meas_m,
             model,
@@ -282,16 +276,17 @@ def main():
         initargs=(queue, log_level),
         maxtasksperchild=n_sims // n_jobs,
     ) as pool:
-        for i, (obs, psf_obs) in enumerate(
+        for i, (obs, psf) in enumerate(
             pool.imap(
-                # simulation_builder.run_sim,
-                simulation_builder.run_sim_pair,
+                simulation_builder.run_sim,
+                # simulation_builder.run_sim_pair,
                 seeds,
             )
         ):
             print(f"finished simulation {i + 1}/{n_sims}")
-            # plot_sim(obs, psf_obs, measure=measure)
-            plot_sim_pair(obs, psf_obs, measure=measure)
+            psf_obs = simulation_builder.make_psf_obs(psf, color=0.8)
+            plot_sim(obs, psf_obs, measure=measure)
+            # plot_sim_pair(obs, psf_obs, measure=measure)
 
     queue.put(None)
     lp.join()
