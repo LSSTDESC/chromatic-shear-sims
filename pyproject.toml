@@ -23,5 +23,6 @@ dependencies = [
 
 
 [project.scripts]
-plot-chromatic-shear-sim = "chromatic_shear_sims.scripts.plot:main"
+plot-scene-chromatic-shear-sim = "chromatic_shear_sims.scripts.plot_scene:main"
+plot-obs-chromatic-shear-sim = "chromatic_shear_sims.scripts.plot_obs:main"
 measure-chromatic-shear-sim = "chromatic_shear_sims.scripts.measure:main"
