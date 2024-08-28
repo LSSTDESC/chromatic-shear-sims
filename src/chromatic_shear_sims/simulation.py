@@ -68,7 +68,7 @@ class SimulationBuilder:
             if self.hybrid:
                 galaxy_builder = HybridGalaxyBuilder(
                     **self.config["galaxies"]["builder"],
-                    spectra_entry_point=self.config["stars"]["builder"].get("entrypoint")
+                    spectra_entrypoint=self.config["stars"]["builder"].get("entrypoint"),
                 )
             else:
                 galaxy_builder = GalaxyBuilder(
