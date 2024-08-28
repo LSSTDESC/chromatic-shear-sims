@@ -14,8 +14,8 @@ from chromatic_shear_sims import observations
 logger = logging.getLogger(__name__)
 
 
-def get_measure(module_name, class_name, **kwargs):
-    return utils.get_instance(module_name, class_name, **kwargs)
+def get_measure(entrypoint, **kwargs):
+    return utils.get_instance(entrypoint, **kwargs)
 
 
 class Measure:

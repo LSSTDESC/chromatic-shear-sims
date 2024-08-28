@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class GalaxyBuilder:
-    def __init__(self, module_name, class_name, **kwargs):
-        self.model = utils.get_instance(module_name, class_name, **kwargs)
+    def __init__(self, entrypoint, **kwargs):
+        self.model = utils.get_instance(entrypoint, **kwargs)
         self.name = self.model.name
 
     def __call__(self, galaxy_params, **kwargs):

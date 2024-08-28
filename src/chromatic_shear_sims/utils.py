@@ -25,16 +25,16 @@ def get_seeds(n, seed=None):
     return rng.integers(0, maxint, n)
 
 
-def get_class(module_name, class_name):
+def get_class(entrypoint):
+    # https://packaging.python.org/en/latest/specifications/entry-points/#data-model
+    module_name, class_name = entrypoint.split(":")
     _module = importlib.import_module(module_name)
     _class = getattr(_module, class_name)
     return _class
 
 
-def get_instance(module_name, class_name, *args, **kwargs):
-    # _module = importlib.import_module(module_name)
-    # _class = getattr(_module, class_name)
-    _class = get_class(module_name, class_name)
+def get_instance(entrypoint, *args, **kwargs):
+    _class = get_class(entrypoint)
     _instance = _class(*args, **kwargs)
     return _instance
 

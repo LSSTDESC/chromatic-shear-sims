@@ -7,11 +7,10 @@ logger = logging.getLogger(__name__)
 
 
 class Data:
-    def __init__(self, module_name, class_name, data_loader):
-        logger.info(f"initializing data for {module_name}.{class_name}")
-        self.module_name = module_name
-        self.class_name = class_name
-        self.data_builder = utils.get_class(module_name, class_name)
+    def __init__(self, entrypoint, data_loader):
+        logger.info(f"initializing data for {entrypoint}")
+        self.entrypoint = entrypoint
+        self.data_builder = utils.get_class(entrypoint)
         self.columns = self.data_builder.columns
         self.data_loader = data_loader
         # self._data = None

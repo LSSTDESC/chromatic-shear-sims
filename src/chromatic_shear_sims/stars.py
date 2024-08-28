@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class StarBuilder:
-    def __init__(self, module_name, class_name, **kwargs):
-        self.model = utils.get_instance(module_name, class_name, **kwargs)
+    def __init__(self, entrypoint, **kwargs):
+        self.model = utils.get_instance(entrypoint, **kwargs)
         self.name = self.model.name
 
     def __call__(self, stellar_params, **kwargs):
@@ -24,8 +24,8 @@ class StarBuilder:
 
 
 class InterpolatedStarBuilder:
-    def __init__(self, module_name, class_name, throughput_1, throughput_2, **kwargs):
-        self.model = utils.get_instance(module_name, class_name, **kwargs)
+    def __init__(self, entrypoint, throughput_1, throughput_2, **kwargs):
+        self.model = utils.get_instance(entrypoint, **kwargs)
         self.name = self.model.name
         self.lut = self.get_lut(throughput_1, throughput_2)
         self.x_min = self.lut.x_min
