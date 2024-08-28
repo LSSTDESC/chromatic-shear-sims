@@ -51,13 +51,13 @@ def plot_scene(scene):
         spec = galaxy.sed
         centroid = galaxy.calculateCentroid(throughputs["r"])
         axs[1, 0].plot(wl, spec(wl))
-        axs[0, 0].scatter(centroid.x, centroid.y)
+        axs[0, 0].scatter(centroid.x, centroid.y, s=12)
 
     for star in scene.stars:
         spec = star.sed
         centroid = star.calculateCentroid(throughputs["r"])
         axs[1, 1].plot(wl, spec(wl))
-        axs[0, 1].scatter(centroid.x, centroid.y)
+        axs[0, 1].scatter(centroid.x, centroid.y, s=12)
 
     axs[0, 0].set_xlabel("[$arcsec$]")
     axs[0, 0].set_ylabel("[$arcsec$]")
