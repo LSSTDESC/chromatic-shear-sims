@@ -26,7 +26,7 @@ class SimulationBuilder:
         self.config = simulation_config_copy
         self.bands = self.config.get("bands")
 
-        self.throughputs = load_throughputs(bands=self.bands)
+        self.throughputs = load_throughputs()
         self.sky_background = load_darksky()
 
         if "builder" in self.config["stars"]:
