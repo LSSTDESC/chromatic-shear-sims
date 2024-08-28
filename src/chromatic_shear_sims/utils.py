@@ -80,6 +80,11 @@ def get_noise_sigma(sky_background, throughput, npixel, ncoadd=1):
     # equivalently, we could multiply both fluxes by n
     sky_background_flux_per_pixel = (sky_background_flux / ncoadd) ** (1/2) / npixel
 
-    logger.info(f"computed noise standard deviation {sky_background_flux_per_pixel} per pixel")
+    logger.info(f"computed noise standard deviation {sky_background_flux_per_pixel} flux per pixel")
 
     return sky_background_flux_per_pixel
+
+
+def get_mag(flux, throughput):
+    zeropoint = throughput.zeropoint
+    return -2.5 * np.log10(flux) + zeropoint
