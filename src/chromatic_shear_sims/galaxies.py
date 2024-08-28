@@ -12,6 +12,6 @@ class GalaxyBuilder:
         self.name = self.model.name
 
     def __call__(self, galaxy_params, **kwargs):
-        galaxy = self.model.get_galaxy(*galaxy_params, **kwargs)
+        galaxy = self.model.get_galaxy(galaxy_params, **kwargs)
         return galaxy
 
