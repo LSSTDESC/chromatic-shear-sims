@@ -8,34 +8,52 @@ Chromatic image simulations for shear testing
 conda create --prefix /path/to/prefix --file requirements.txt
 ```
 
-## bin
+## scripts
 
-- `prepare-chromatic-shear-sims`: prepare a config for analysis
-- `plot-chromatic-shear-sims`: make an example plot of a config
-- `run-chromatic-shear-sims`: run simulations
-- `aggregate-chromatic-shear-sims`: aggregate measurement results
-- `meas-chromatic-shear-sims`: make final measurements
-- `plot-drdc-chromatic-shear-sims`: make a plot of the chromatic response
-
-## usage
-
+`plot-scene-chromatic-shear-sim`
 ```
-prepare-chromatic-shear-sims --config config.yaml
-```
+usage: plot-scene-chromatic-shear-sim [-h] [--seed SEED] [--n_sims N_SIMS] [--log_level LOG_LEVEL] config
 
-```
-plot-chromatic-shear-sims --config config.yaml --seed $RANDOM --detect
- ```
+positional arguments:
+  config                configuration file [yaml]
 
-
-```
-run-chromatic-shear-sims --config config.yaml --seed $RANDOM --n_sims 1000 --n_jos 96 --output $SCRATCH/out
+options:
+  -h, --help            show this help message and exit
+  --seed SEED           RNG seed [int]
+  --n_sims N_SIMS       Number of sims to run [int; 1]
+  --log_level LOG_LEVEL
+                        logging level [int; 2]
 ```
 
+`plot-obs-chromatic-shear-sim`
 ```
-aggregate-chromatic-shear-sims --config config.yaml --seed $RANDOM --s2n-cut 10 --ormask-cut 1 --n_jobs 16 --output /pscratch/sd/s/smau/out
+usage: plot-obs-chromatic-shear-sim [-h] [--seed SEED] [--n_sims N_SIMS] [--n_jobs N_JOBS] [--detect] [--log_level LOG_LEVEL] config
+
+positional arguments:
+  config                configuration file [yaml]
+
+options:
+  -h, --help            show this help message and exit
+  --seed SEED           RNG seed [int]
+  --n_sims N_SIMS       Number of sims to run [int; 1]
+  --n_jobs N_JOBS       Number of parallel jobs to run [int; 1]
+  --detect              run detection
+  --log_level LOG_LEVEL
+                        logging level [int; 2]
 ```
 
+`measure-chromatic-shear-sim`
 ```
-meas-chromatic-shear-sims.py --config config.yaml --seed $RANDOM --n_resample 1000 --n_jobs 16 --output /pscratch/sd/s/smau/out/
+usage: measure-chromatic-shear-sim [-h] [--seed SEED] [--n_sims N_SIMS] [--n_jobs N_JOBS] [--log_level LOG_LEVEL] config
+
+positional arguments:
+  config                configuration file [yaml]
+
+options:
+  -h, --help            show this help message and exit
+  --seed SEED           RNG seed [int]
+  --n_sims N_SIMS       Number of sims to run [int; 1]
+  --n_jobs N_JOBS       Number of parallel jobs to run [int; 1]
+  --log_level LOG_LEVEL
+                        logging level [int; 2]
 ```
