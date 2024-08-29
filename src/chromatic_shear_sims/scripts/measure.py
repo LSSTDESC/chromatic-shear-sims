@@ -1,5 +1,6 @@
 import argparse
 import logging
+import functools
 from logging import handlers
 import multiprocessing
 import threading
@@ -7,10 +8,14 @@ import threading
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from chromatic_shear_sims import utils
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
+
+from . import log_util
 
 
 import os
@@ -18,91 +23,13 @@ os.environ["THROUGHPUTS_DIR"] = "."
 os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
 
 
-LOGGING_FORMAT = '%(asctime)s - %(process)d - %(name)s - %(levelname)s - %(message)s'
-
-
-def get_log_level(log_level):
-    match log_level:
-        case 0 | logging.ERROR:
-            level = logging.ERROR
-        case 1 | logging.WARNING:
-            level = logging.WARNING
-        case 2 | logging.INFO:
-            level = logging.INFO
-        case 3 | logging.DEBUG:
-            level = logging.DEBUG
-        case _:
-            level = logging.INFO
-
-    return level
-
-
-# https://docs.python.org/3/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
-def logger_thread(queue):
-    while True:
-        record = queue.get()
-        if record is None:
-            break
-        logger = logging.getLogger(record.name)
-        logger.handle(record)
-
-
-def initializer(queue, log_level=None):
-    queue_handler = handlers.QueueHandler(queue)
-    logger = logging.getLogger()
-    logger.setLevel(log_level)
-    logger.addHandler(queue_handler)
-    logger.debug(f"spawning worker process")
-
-
-def _apply_selection(meas, model):
-    if model == "wmom":
-        tcut = 1.2
-    else:
-        tcut = 0.5
-
-    s2n_cut = 10
-    t_ratio_cut = tcut
-    # mfrac_cut = 10
-    # s2n_cut = 0
-    # t_ratio_cut = 0
-    mfrac_cut = 0
-    ormask_cut = None
-
-    def _mask(data):
-        if "flags" in data.dtype.names:
-            flag_col = "flags"
-        else:
-            flag_col = model + "_flags"
-
-        _cut_msk = (
-            (data[flag_col] == 0)
-            & (data[model + "_s2n"] > s2n_cut)
-            & (data[model + "_T_ratio"] > t_ratio_cut)
-        )
-        if ormask_cut:
-            _cut_msk = _cut_msk & (data["ormask"] == 0)
-        if mfrac_cut is not None:
-            _cut_msk = _cut_msk & (data["mfrac"] <= mfrac_cut)
-        return _cut_msk
-
-    o = meas["noshear"]
-    q = _mask(o)
-    ns = o[q]
-    return ns
-
-
 def measure_sim(mbobs, psf_mbobs, measure):
     bands = mbobs.meta.get("bands")
 
-    model = measure.config.get("model")
     meas = measure.run(mbobs, psf_mbobs)
-    meas = _apply_selection(
-        meas,
-        model,
-    )
+    batches = measure.to_batches(meas)
 
-    return meas
+    return batches
 
 
 def measure_sim_pair(mbobs_dict, psf_mbobs, measure):
@@ -111,24 +38,49 @@ def measure_sim_pair(mbobs_dict, psf_mbobs, measure):
 
     bands = plus_mbobs.meta.get("bands")
 
-    model = measure.config.get("model")
     meas_p = measure.run(plus_mbobs, psf_mbobs)
-    meas_p = _apply_selection(
-        meas_p,
-        model,
-    )
-    meas_m = measure.run(minus_mbobs, psf_mbobs)
-    meas_m = _apply_selection(
-        meas_m,
-        model,
-    )
+    batches_p = measure.to_batches(meas_p)
 
-    meas_dict = {
-        "plus": meas_p,
-        "minus": meas_m,
+    meas_m = measure.run(minus_mbobs, psf_mbobs)
+    batches_m = measure.to_batches(meas_m)
+
+    batches_dict = {
+        "plus": batches_p,
+        "minus": batches_m,
     }
 
-    return meas_dict
+    return batches_dict
+
+
+def task(simulation_builder, measure, seed):
+    obs_dict, psf = simulation_builder.make_sim_pair(seed)
+    all_batches = []
+    # for psf_color in [0.5, 0.8, 1.1]:
+    psf_colors = simulation_builder.config["measurement"].get("colors")
+    for i, psf_color in enumerate(psf_colors):
+        color_step = f"c{i}"
+        # psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
+        # batches = measure_sim(obs, psf_obs, measure)
+        # table = pa.Table.from_batches(batches)
+        # seed_array = pa.array([seeds[i] for _ in range(table.num_rows)])
+        # color_array = pa.array([psf_color for _ in range(table.num_rows)])
+        # table = table.append_column("seed", seed_array)
+        # table = table.append_column("color_step", color_array)
+
+        psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
+        batches_dict = measure_sim_pair(obs_dict, psf_obs, measure)
+        for shear_step, batches in batches_dict.items():
+            for batch in batches:
+                seed_array = pa.array([seed for _ in range(batch.num_rows)])
+                shear_array = pa.array([shear_step for _ in range(batch.num_rows)])
+                color_array = pa.array([color_step for _ in range(batch.num_rows)])
+                batch = batch.append_column("seed", seed_array)
+                batch = batch.append_column("shear_step", shear_array)
+                batch = batch.append_column("color_step", color_array)
+                all_batches.append(batch)
+
+    return all_batches
+
 
 
 def get_args():
@@ -171,8 +123,8 @@ def get_args():
 
 def main():
     args = get_args()
-    log_level = get_log_level(args.log_level)
-    logging.basicConfig(format=LOGGING_FORMAT, level=log_level)
+    log_level = log_util.get_level(args.log_level)
+    logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
     config_file = args.config
     simulation_builder = SimulationBuilder.from_yaml(config_file)
@@ -184,7 +136,7 @@ def main():
 
     queue = multiprocessing.Queue(-1)
 
-    lp = threading.Thread(target=logger_thread, args=(queue,))
+    lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
 
     n_jobs = args.n_jobs
@@ -192,25 +144,35 @@ def main():
     seed = args.seed
     seeds = utils.get_seeds(n_sims, seed=seed)
 
-    with multiprocessing.Pool(
-        n_jobs,
-        initializer=initializer,
-        initargs=(queue, log_level),
-        maxtasksperchild=n_sims // n_jobs,
-    ) as pool:
-        for i, (obs, psf) in enumerate(
-            pool.imap(
-                simulation_builder.make_sim,
-                # simulation_builder.make_sim_pair,
-                seeds,
-            )
-        ):
-            print(f"finished simulation {i + 1}/{n_sims}")
-            for psf_color in [0.5, 0.8, 1.1]:
-                psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
-                meas = measure_sim(obs, psf_obs, measure)
-                # meas_dict = measure_sim_pair(obs, psf_obs, measure)
-                print(meas)
+    schema = measure.schema
+    schema = schema.append(
+        pa.field("seed", pa.int64()),
+    )
+    schema = schema.append(
+        pa.field("shear_step", pa.string()),
+    )
+    schema = schema.append(
+        pa.field("color_step", pa.string()),
+    )
+
+    with pq.ParquetWriter(f"{seed}.parquet", schema=schema) as writer:
+        with multiprocessing.Pool(
+            n_jobs,
+            initializer=log_util.initializer,
+            initargs=(queue, log_level),
+            maxtasksperchild=max(1, n_sims // n_jobs),
+        ) as pool:
+            for i, batches in enumerate(
+                pool.imap(
+                    # simulation_builder.make_sim,
+                    # simulation_builder.make_sim_pair,
+                    functools.partial(task, simulation_builder, measure),
+                    seeds,
+                )
+            ):
+                print(f"finished simulation {i + 1}/{n_sims}")
+                for batch in batches:
+                    writer.write_batch(batch)
 
     queue.put(None)
     lp.join()

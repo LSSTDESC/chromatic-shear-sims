@@ -12,47 +12,11 @@ from chromatic_shear_sims import utils
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
+from . import log_util
 
 import os
 os.environ["THROUGHPUTS_DIR"] = "."
 os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
-
-
-LOGGING_FORMAT = '%(asctime)s - %(process)d - %(name)s - %(levelname)s - %(message)s'
-
-
-def get_log_level(log_level):
-    match log_level:
-        case 0 | logging.ERROR:
-            level = logging.ERROR
-        case 1 | logging.WARNING:
-            level = logging.WARNING
-        case 2 | logging.INFO:
-            level = logging.INFO
-        case 3 | logging.DEBUG:
-            level = logging.DEBUG
-        case _:
-            level = logging.INFO
-
-    return level
-
-
-# https://docs.python.org/3/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
-def logger_thread(queue):
-    while True:
-        record = queue.get()
-        if record is None:
-            break
-        logger = logging.getLogger(record.name)
-        logger.handle(record)
-
-
-def initializer(queue, log_level=None):
-    queue_handler = handlers.QueueHandler(queue)
-    logger = logging.getLogger()
-    logger.setLevel(log_level)
-    logger.addHandler(queue_handler)
-    logger.debug(f"spawning worker process")
 
 
 def _apply_selection(meas, model):
@@ -246,8 +210,8 @@ def get_args():
 
 def main():
     args = get_args()
-    log_level = get_log_level(args.log_level)
-    logging.basicConfig(format=LOGGING_FORMAT, level=log_level)
+    log_level = log_util.get_level(args.log_level)
+    logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
     config_file = args.config
     simulation_builder = SimulationBuilder.from_yaml(config_file)
@@ -262,7 +226,7 @@ def main():
 
     queue = multiprocessing.Queue(-1)
 
-    lp = threading.Thread(target=logger_thread, args=(queue,))
+    lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
 
     n_jobs = args.n_jobs
@@ -272,9 +236,9 @@ def main():
 
     with multiprocessing.Pool(
         n_jobs,
-        initializer=initializer,
+        initializer=log_util.initializer,
         initargs=(queue, log_level),
-        maxtasksperchild=n_sims // n_jobs,
+        maxtasksperchild=max(1, n_sims // n_jobs),
     ) as pool:
         for i, (obs, psf) in enumerate(
             pool.imap(
