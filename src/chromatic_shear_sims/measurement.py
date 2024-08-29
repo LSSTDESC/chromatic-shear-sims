@@ -63,16 +63,11 @@ class Metadetect(Measure):
         ("psfrec_g", pa.list_(pa.float64())),
         ("psfrec_T", pa.float64()),
         ("mdet_step", pa.string()),
-        ("shear", pa.string()),
-        ("seed", pa.int64()),
     ])
 
     def __init__(self, config):
         self.name = "metadetect"
         self.config = config
-
-    def get_schema(self):
-        return self.schema
 
     def run(self, obs, psf_obs, *, seed=None, **kwargs):
         obs = observations.with_psf_obs(obs, psf_obs)
@@ -83,5 +78,17 @@ class Metadetect(Measure):
             rng,
             **kwargs,
         )
-
         return measurement
+
+    def to_batches(self, measurement):
+        batches = []
+        for mdet_step in measurement.keys():
+            mdet_cat = measurement[mdet_step]
+            data_dict = {name: mdet_cat[name].tolist() for name in mdet_cat.dtype.names}
+            data_dict["mdet_step"] = [mdet_step for _ in range(len(mdet_cat))]
+
+            batch = pa.RecordBatch.from_pydict(data_dict, schema=self.schema)
+            batches.append(batch)
+
+        return batches
+
