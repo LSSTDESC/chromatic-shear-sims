@@ -6,6 +6,9 @@ Chromatic image simulations for shear testing
 
 ```
 conda create --prefix /path/to/prefix --file requirements.txt
+conda env config vars set DSPS_SSP_DATA=$SCRATCH/dsps_ssp_data_singlemet.h5 THROUGHPUT_DIR=$SCRATCH/throughputs
+```
+```
 pip install -e .
 ```
 
