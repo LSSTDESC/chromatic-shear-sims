@@ -4,7 +4,6 @@ import logging
 import multiprocessing
 import threading
 import os
-from pip._vendor.rich.progress import track
 
 import ngmix
 import numpy as np
@@ -14,6 +13,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.feather as ft
 from pyarrow import acero
+from rich.progress import track
 
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder

@@ -16,8 +16,9 @@ dependencies = [
     "ngmix",
     "numpy",
     "pyarrow",
-    "scipy",
     "pyyaml",
+    "rich",
+    "scipy",
 ]
 
 [project.scripts]
