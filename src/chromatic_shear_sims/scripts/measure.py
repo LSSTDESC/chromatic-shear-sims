@@ -20,6 +20,11 @@ from chromatic_shear_sims.simulation import SimulationBuilder
 from . import log_util
 
 
+import os
+os.environ["THROUGHPUTS_DIR"] = "."
+os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
+
+
 def compute_e(results):
     # NOSHEAR
     p_e1_ns = np.average(results["plus"]["noshear"]["e1"])
@@ -1533,7 +1538,7 @@ def main():
     m_error_c2 = np.nanstd(m_bootstrap_c2) * 3
     c_error_c2 = np.nanstd(c_bootstrap_c2) * 3
 
-    print(f"mdet: m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
+    print(f"mdet (0): m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
     print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1:0.3e} [3-sigma]")
     print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2:0.3e} [3-sigma]")
 
@@ -1580,10 +1585,7 @@ def main():
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
     ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
     ax.axvline(m_mean, c="k")
-    # ax.hist(m_bootstrap_chroma, histtype="step", label="calibrated", ec="b")
-    # ax.axvline(m_mean_chroma, c="b")
     ax.set_xlabel("$m$")
-    # ax.legend()
 
     plt.show()
 
@@ -1607,12 +1609,12 @@ def main():
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
+    ax.hist(m_bootstrap, histtype="step", label="0", ec="k")
     ax.axvline(m_mean, c="k")
-    ax.hist(m_bootstrap_c1, histtype="step", label="calibrated", ec="b")
+    ax.hist(m_bootstrap_c1, histtype="step", label="1", ec="b")
     ax.axvline(m_mean_c1, c="b")
     ax.set_xlabel("$m$")
-    ax.legend(loc="upper left")
+    ax.legend(loc="upper right")
 
     plt.show()
 
@@ -1637,12 +1639,12 @@ def main():
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
+    ax.hist(m_bootstrap, histtype="step", label="0", ec="k")
     ax.axvline(m_mean, c="k")
-    ax.hist(m_bootstrap_c2, histtype="step", label="calibrated", ec="r")
+    ax.hist(m_bootstrap_c2, histtype="step", label="2", ec="r")
     ax.axvline(m_mean_c2, c="r")
     ax.set_xlabel("$m$")
-    ax.legend(loc="upper left")
+    ax.legend(loc="upper right")
 
     plt.show()
 
