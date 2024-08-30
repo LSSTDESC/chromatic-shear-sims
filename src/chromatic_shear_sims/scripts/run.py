@@ -15,7 +15,7 @@ from chromatic_shear_sims import utils
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
-from . import log_util
+from . import log_util, name_util
 
 
 def measure_sim(mbobs, psf_mbobs, measure):
@@ -144,10 +144,9 @@ def main():
     seed = args.seed
     seeds = utils.get_seeds(n_sims, seed=seed)
 
-    config_name = os.path.basename(config_file).split(".")[0]
-
-    output_path = f"{args.output}/{config_name}"
+    output_path = name_util.get_output_path(args.output, args.config)
     os.makedirs(output_path, exist_ok=True)
+    run_path = name_util.get_run_path(args.output, args.config, seed)
 
     schema = measure.schema
     schema = schema.append(
@@ -160,7 +159,7 @@ def main():
         pa.field("color_step", pa.string()),
     )
 
-    with pq.ParquetWriter(f"{output_path}/{seed}.parquet", schema=schema) as writer:
+    with pq.ParquetWriter(run_path, schema=schema) as writer:
         with multiprocessing.Pool(
             n_jobs,
             initializer=log_util.initializer,

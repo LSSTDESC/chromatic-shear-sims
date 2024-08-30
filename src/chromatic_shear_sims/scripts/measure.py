@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import threading
 import os
+from pip._vendor.rich.progress import track
 
 import ngmix
 import numpy as np
@@ -17,7 +18,7 @@ from pyarrow import acero
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
-from . import log_util
+from . import log_util, name_util
 
 
 def compute_e(results):
@@ -900,7 +901,7 @@ def pivot_aggregates(res, seeds=None):
     for shear_step in ["plus", "minus"]:
         aggregates[shear_step] = {}
         for mdet_step in ["noshear", "1p", "1m", "2p", "2m"]:
-            print(f"aggregating {shear_step}:{mdet_step}")
+            # print(f"aggregating {shear_step}:{mdet_step}")
             predicate = (
                 (pc.field("shear_step") == shear_step)
                 & (pc.field("mdet_step") == mdet_step)
@@ -1147,7 +1148,7 @@ def pivot_aggregates_chromatic(res, seeds=None):
         for color_step in ["c0", "c1", "c2"]:
             aggregates[shear_step][color_step] = {}
             for mdet_step in ["noshear", "1p", "1m", "2p", "2m"]:
-                print(f"aggregating {shear_step}:{color_step}:{mdet_step}")
+                # print(f"aggregating {shear_step}:{color_step}:{mdet_step}")
                 predicate = (
                     (pc.field("shear_step") == shear_step)
                     & (pc.field("color_step") == color_step)
@@ -1431,8 +1432,8 @@ def main():
     n_jobs = args.n_jobs
     n_resample = args.n_resample
     output_path = args.output
-    config_name = os.path.basename(config_file).split(".")[0]
-    aggregate_path = f"{args.output}/{config_name}_aggregates.feather"
+
+    aggregate_path = name_util.get_aggregate_path(args.output, args.config)
 
     pa.set_cpu_count(n_jobs)
     pa.set_io_thread_count(2 * n_jobs)
@@ -1496,7 +1497,7 @@ def main():
             ),
         )
 
-        for i, res in enumerate(results):
+        for i, res in track(enumerate(results), description="bootstrapping", total=n_resample):
             _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc)
             _m_bootstrap_c1, _c_bootstrap_c1 = compute_bias_chromatic(res, dg, dc, color, order=1)
             _m_bootstrap_c2, _c_bootstrap_c2 = compute_bias_chromatic(res, dg, dc, color, order=2)
@@ -1509,7 +1510,7 @@ def main():
             c_bootstrap_c2.append(_c_bootstrap_c2)
 
             ii = i + 1
-            print(f"finished processing bootstrap resample {ii}")
+            # print(f"finished processing bootstrap resample {i + 1}/{n_resample}")
 
     queue.put(None)
     lp.join()
@@ -1538,104 +1539,49 @@ def main():
 
     m_req = 2e-3
 
-    # fig, axs = plt.subplots(1, 2)
+    m_bootstrap_hist, m_bin_edges = np.histogram(m_bootstrap)
+    m_bootstrap_c1_hist, _ = np.histogram(m_bootstrap_c1, bins=m_bin_edges)
+    m_bootstrap_c2_hist, _ = np.histogram(m_bootstrap_c2, bins=m_bin_edges)
 
-    # axs[0].axvspan(-m_req, m_req, fc="k", alpha=0.1)
-    # axs[0].axvline(4e-4, c="k", alpha=0.1, ls="--")
-    # axs[0].hist(m_bootstrap, histtype="step", label=r"$R$", ec="k")
-    # axs[0].axvline(m_mean, c="k")
-    # axs[0].hist(m_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    # axs[0].axvline(m_mean_chroma, c="b")
-    # axs[0].set_xlabel("$m$")
+    # zeroth-order chromatic correction
 
-    # axs[1].hist(c_bootstrap, histtype="step", label=r"$R$", ec="k")
-    # axs[1].axvline(c_mean, c="k")
-    # axs[1].hist(c_bootstrap_chroma, histtype="step", label=r"$R$ \& $\partial R / \partial c$", ec="b")
-    # axs[1].axvline(c_mean_chroma, c="b")
-    # axs[1].legend()
-    # axs[1].set_xlabel("$c$")
-
-    # plt.savefig("out.pdf")
-
-    fig = plt.figure(figsize=(6, 3))
-    h = [
-        Size.Fixed(2),
-        Size.Fixed(2),
-        Size.Fixed(2),
-    ]
-    v = [
-        Size.Fixed(0.5),
-        Size.Fixed(2),
-        Size.Fixed(0.5),
-    ]
-    divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
-
-    ax = fig.add_axes(
-        divider.get_position(),
-        axes_locator=divider.new_locator(nx=1, ny=1)
-    )
+    fig, ax = plt.subplots(1, 1)
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.hist(m_bootstrap, histtype="step", label="metadetect", ec="k")
+    ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k")
     ax.axvline(m_mean, c="k")
     ax.set_xlabel("$m$")
 
     plt.show()
 
-    fig = plt.figure(figsize=(6, 3))
-    h = [
-        Size.Fixed(2),
-        Size.Fixed(2),
-        Size.Fixed(2),
-    ]
-    v = [
-        Size.Fixed(0.5),
-        Size.Fixed(2),
-        Size.Fixed(0.5),
-    ]
-    divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
+    # first-order chromatic correction
 
-    ax = fig.add_axes(
-        divider.get_position(),
-        axes_locator=divider.new_locator(nx=1, ny=1)
-    )
+
+    fig, ax = plt.subplots(1, 1)
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.hist(m_bootstrap, histtype="step", label="0", ec="k")
+    ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k", label="0")
     ax.axvline(m_mean, c="k")
-    ax.hist(m_bootstrap_c1, histtype="step", label="1", ec="b")
+    ax.stairs(m_bootstrap_c1_hist, m_bin_edges, ec="b", label="1")
     ax.axvline(m_mean_c1, c="b")
     ax.set_xlabel("$m$")
     ax.legend(loc="upper right")
 
     plt.show()
 
+    # second-order chromatic correction
 
-    fig = plt.figure(figsize=(6, 3))
-    h = [
-        Size.Fixed(2),
-        Size.Fixed(2),
-        Size.Fixed(2),
-    ]
-    v = [
-        Size.Fixed(0.5),
-        Size.Fixed(2),
-        Size.Fixed(0.5),
-    ]
-    divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
-
-    ax = fig.add_axes(
-        divider.get_position(),
-        axes_locator=divider.new_locator(nx=1, ny=1)
-    )
+    fig, ax = plt.subplots(1, 1)
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.hist(m_bootstrap, histtype="step", label="0", ec="k")
+    ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k", label="0")
     ax.axvline(m_mean, c="k")
-    ax.hist(m_bootstrap_c2, histtype="step", label="2", ec="r")
+    ax.stairs(m_bootstrap_c1_hist, m_bin_edges, ec="b", label="1")
+    ax.axvline(m_mean_c1, c="b")
+    ax.stairs(m_bootstrap_c2_hist, m_bin_edges, ec="r", label="2")
     ax.axvline(m_mean_c2, c="r")
     ax.set_xlabel("$m$")
     ax.legend(loc="upper right")

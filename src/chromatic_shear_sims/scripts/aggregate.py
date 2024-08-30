@@ -13,7 +13,7 @@ from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 from chromatic_shear_sims.throughputs import load_throughputs
 
-from . import log_util
+from . import log_util, name_util
 
 
 def pre_aggregate(dataset, predicate, colors=None):
@@ -220,10 +220,8 @@ def main():
     pa.set_cpu_count(n_jobs)
     pa.set_io_thread_count(2 * n_jobs)
 
-    config_name = os.path.basename(config_file).split(".")[0]
-
-    output_path = f"{args.output}/{config_name}"
-    aggregate_path = f"{args.output}/{config_name}_aggregates.feather"
+    output_path = name_util.get_output_path(args.output, args.config)
+    aggregate_path = name_util.get_aggregate_path(args.output, args.config)
 
     print(f"aggregating data in {output_path}")
     dataset = ds.dataset(output_path, format="parquet")
