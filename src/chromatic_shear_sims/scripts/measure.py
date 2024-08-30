@@ -1,7 +1,6 @@
 import argparse
 import logging
 import functools
-from logging import handlers
 import multiprocessing
 import threading
 
