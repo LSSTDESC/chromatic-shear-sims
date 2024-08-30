@@ -42,9 +42,9 @@ options:
                         logging level [int; 2]
 ```
 
-`measure-chromatic-shear-sim`
+`run-chromatic-shear-sim`
 ```
-usage: measure-chromatic-shear-sim [-h] [--seed SEED] [--n_sims N_SIMS] [--n_jobs N_JOBS] [--log_level LOG_LEVEL] config
+usage: run-chromatic-shear-sim [-h] [--seed SEED] [--n_sims N_SIMS] [--n_jobs N_JOBS] [--log_level LOG_LEVEL] config
 
 positional arguments:
   config                configuration file [yaml]
@@ -74,6 +74,23 @@ options:
   --mfrac-cut MFRAC_CUT
                         Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.
   --n_jobs N_JOBS       Number of parallel jobs to run [int; 1]
+  --log_level LOG_LEVEL
+                        logging level [int; 2]
+```
+
+`measure-chromatic-shear-sim`
+```
+usage: measure-chromatic-shear-sim [-h] [--seed SEED] [--n_resample N_RESAMPLE] [--n_jobs N_JOBS] [--log_level LOG_LEVEL] config
+
+positional arguments:
+  config                configuration file [yaml]
+
+options:
+  -h, --help            show this help message and exit
+  --seed SEED           RNG seed [int]
+  --n_resample N_RESAMPLE
+                        Number of resample iterations
+  --n_jobs N_JOBS       Number of jobs to run [int; 1]
   --log_level LOG_LEVEL
                         logging level [int; 2]
 ```
