@@ -11,10 +11,6 @@ from chromatic_shear_sims.throughputs import load_throughputs
 
 from . import log_util
 
-import os
-os.environ["THROUGHPUTS_DIR"] = "."
-os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
-
 
 def plot_scene(scene):
 

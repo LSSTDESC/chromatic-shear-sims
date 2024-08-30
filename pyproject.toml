@@ -9,7 +9,7 @@ authors = [
 dynamic = ["version"]
 dependencies = [
     "astropy",
-    "chromatic_weak_lensing",
+    "chromatic_weak_lensing[diffsky,roman-rubin,btsettl,lsst_sim] @ git+https://github.com/sidneymau/chromatic-weak-lensing.git",
     "galsim",
     "matplotlib",
     "metadetect",
@@ -19,7 +19,6 @@ dependencies = [
     "scipy",
     "pyyaml",
 ]
-
 
 [project.scripts]
 plot-scene-chromatic-shear-sim = "chromatic_shear_sims.scripts.plot_scene:main"

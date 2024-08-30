@@ -3,6 +3,7 @@ import logging
 import functools
 import multiprocessing
 import threading
+import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -15,11 +16,6 @@ from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
 from . import log_util
-
-
-import os
-os.environ["THROUGHPUTS_DIR"] = "."
-os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
 
 
 def measure_sim(mbobs, psf_mbobs, measure):
@@ -90,6 +86,11 @@ def get_args():
         help="configuration file [yaml]",
     )
     parser.add_argument(
+        "output",
+        type=str,
+        help="output directory"
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         required=False,
@@ -143,6 +144,11 @@ def main():
     seed = args.seed
     seeds = utils.get_seeds(n_sims, seed=seed)
 
+    config_name = os.path.basename(config_file).split(".")[0]
+
+    output_path = f"{args.output}/{config_name}"
+    os.makedirs(output_path, exist_ok=True)
+
     schema = measure.schema
     schema = schema.append(
         pa.field("seed", pa.int64()),
@@ -154,7 +160,7 @@ def main():
         pa.field("color_step", pa.string()),
     )
 
-    with pq.ParquetWriter(f"{seed}.parquet", schema=schema) as writer:
+    with pq.ParquetWriter(f"{output_path}/{seed}.parquet", schema=schema) as writer:
         with multiprocessing.Pool(
             n_jobs,
             initializer=log_util.initializer,

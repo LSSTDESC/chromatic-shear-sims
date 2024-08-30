@@ -13,10 +13,6 @@ from chromatic_shear_sims.simulation import SimulationBuilder
 
 from . import log_util
 
-import os
-os.environ["THROUGHPUTS_DIR"] = "."
-os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
-
 
 def _apply_selection(meas, model):
     if model == "wmom":

@@ -20,11 +20,6 @@ from chromatic_shear_sims.simulation import SimulationBuilder
 from . import log_util
 
 
-import os
-os.environ["THROUGHPUTS_DIR"] = "."
-os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
-
-
 def compute_e(results):
     # NOSHEAR
     p_e1_ns = np.average(results["plus"]["noshear"]["e1"])
@@ -1390,18 +1385,17 @@ def get_args():
         help="configuration file [yaml]",
     )
     parser.add_argument(
+        "output",
+        type=str,
+        help="output directory"
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         required=False,
         default=None,
         help="RNG seed [int]",
     )
-    # parser.add_argument(
-    #     "--output",
-    #     type=str,
-    #     required=True,
-    #     help="Output directory"
-    # )
     parser.add_argument(
         "--n_resample",
         type=int,
@@ -1432,18 +1426,19 @@ def main():
     log_level = log_util.get_level(args.log_level)
     logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
-    config = args.config
+    config_file = args.config
     seed = args.seed
     n_jobs = args.n_jobs
     n_resample = args.n_resample
-    # output = args.output
+    output_path = args.output
+    config_name = os.path.basename(config_file).split(".")[0]
+    aggregate_path = f"{args.output}/{config_name}_aggregates.feather"
 
     pa.set_cpu_count(n_jobs)
     pa.set_io_thread_count(2 * n_jobs)
 
     rng = np.random.default_rng(seed)
 
-    config_file = args.config
     simulation_builder = SimulationBuilder.from_yaml(config_file)
     measure = measurement.get_measure(
         **simulation_builder.config["measurement"].get("builder"),
@@ -1455,7 +1450,6 @@ def main():
     dc = psf_colors[1] - psf_colors[0]
     color = psf_colors[1]
 
-    aggregate_path = f"None_aggregates.feather"
     print(f"reading aggregates from {aggregate_path}")
     aggregates = ft.read_table(
         aggregate_path,

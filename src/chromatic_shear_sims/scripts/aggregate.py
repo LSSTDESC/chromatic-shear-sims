@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -13,11 +14,6 @@ from chromatic_shear_sims.simulation import SimulationBuilder
 from chromatic_shear_sims.throughputs import load_throughputs
 
 from . import log_util
-
-
-import os
-os.environ["THROUGHPUTS_DIR"] = "."
-os.environ["DSPS_SSP_DATA"] = "dsps_ssp_data_singlemet.h5"
 
 
 def pre_aggregate(dataset, predicate, colors=None):
@@ -176,6 +172,11 @@ def get_args():
         help="configuration file [yaml]",
     )
     parser.add_argument(
+        "output",
+        type=str,
+        help="output directory",
+    )
+    parser.add_argument(
         "--s2n-cut", type=int, default=10,
         help="Signal/noise cut [int; 10]",
     )
@@ -219,10 +220,13 @@ def main():
     pa.set_cpu_count(n_jobs)
     pa.set_io_thread_count(2 * n_jobs)
 
-    dataset_path = "None.parquet"
+    config_name = os.path.basename(config_file).split(".")[0]
 
-    print(f"aggregating data in {dataset_path}")
-    dataset = ds.dataset(dataset_path, format="parquet")
+    output_path = f"{args.output}/{config_name}"
+    aggregate_path = f"{args.output}/{config_name}_aggregates.feather"
+
+    print(f"aggregating data in {output_path}")
+    dataset = ds.dataset(output_path, format="parquet")
 
     predicate = (
         (pc.field("pgauss_flags") == 0)
@@ -241,7 +245,6 @@ def main():
     psf_colors = simulation_builder.config["measurement"].get("colors")
     aggregates = pre_aggregate(dataset, predicate, colors=psf_colors)
 
-    aggregate_path = f"None_aggregates.feather"
     print(f"writing aggregates to {aggregate_path}")
 
     ft.write_feather(
