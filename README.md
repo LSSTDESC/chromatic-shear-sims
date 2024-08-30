@@ -6,6 +6,7 @@ Chromatic image simulations for shear testing
 
 ```
 conda create --prefix /path/to/prefix --file requirements.txt
+pip install -e .
 ```
 
 ## scripts
@@ -48,6 +49,7 @@ usage: run-chromatic-shear-sim [-h] [--seed SEED] [--n_sims N_SIMS] [--n_jobs N_
 
 positional arguments:
   config                configuration file [yaml]
+  output                output directory
 
 options:
   -h, --help            show this help message and exit
@@ -65,6 +67,7 @@ usage: aggregate-chromatic-shear-sim [-h] [--s2n-cut S2N_CUT] [--ormask-cut ORMA
 
 positional arguments:
   config                configuration file [yaml]
+  output                output directory
 
 options:
   -h, --help            show this help message and exit
@@ -84,6 +87,7 @@ usage: measure-chromatic-shear-sim [-h] [--seed SEED] [--n_resample N_RESAMPLE] 
 
 positional arguments:
   config                configuration file [yaml]
+  output                output directory
 
 options:
   -h, --help            show this help message and exit
