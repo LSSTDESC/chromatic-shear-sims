@@ -23,7 +23,7 @@ THROUGHPUTS_URLS = {
     "y": "https://raw.githubusercontent.com/LSSTDESC/lsstdesc-diffsky/rr23_legacy/data/throughputs/lsst/total_y.dat",
 }
 
-THROUGHPUTS_DIR = "."
+THROUGHPUT_DIR = "."
 
 THROUGHPUTS = {
     "u": "total_u.dat",
@@ -37,11 +37,13 @@ THROUGHPUTS = {
 
 def get_throughput_path(band=""):
     throughput = THROUGHPUTS[band]
-    throughputs_dir = os.environ.get("THROUGHPUTS_DIR")
-    if throughputs_dir is None:
-        throughputs_dir = THROUGHPUTS_DIR
+    throughput_dir = os.environ.get("THROUGHPUT_DIR")
+    if throughput_dir is None:
+        throughput_dir = THROUGHPUT_DIR
+    if not os.path.isdir(throughput_dir):
+        os.makedirs(throughput_dir)
     throughput_path = os.path.join(
-        throughputs_dir,
+        throughput_dir,
         throughput,
     )
     return throughput_path
