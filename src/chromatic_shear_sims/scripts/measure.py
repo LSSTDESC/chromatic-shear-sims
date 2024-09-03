@@ -1433,6 +1433,7 @@ def main():
     n_resample = args.n_resample
     output_path = args.output
 
+    config_name = name_util.get_config_name(config_file)
     aggregate_path = name_util.get_aggregate_path(args.output, args.config)
 
     pa.set_cpu_count(n_jobs)
@@ -1552,6 +1553,7 @@ def main():
     ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k")
     ax.axvline(m_mean, c="k")
     ax.set_xlabel("$m$")
+    ax.set_title(config_name)
 
     plt.show()
 
@@ -1568,6 +1570,7 @@ def main():
     ax.axvline(m_mean_c1, c="b")
     ax.set_xlabel("$m$")
     ax.legend(loc="upper right")
+    ax.set_title(config_name)
 
     plt.show()
 
@@ -1585,6 +1588,7 @@ def main():
     ax.axvline(m_mean_c2, c="r")
     ax.set_xlabel("$m$")
     ax.legend(loc="upper right")
+    ax.set_title(config_name)
 
     plt.show()
 
