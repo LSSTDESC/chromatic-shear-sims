@@ -1,3 +1,4 @@
+# from importlib.resources import files
 import functools
 import logging
 import os
@@ -23,8 +24,6 @@ THROUGHPUTS_URLS = {
     "y": "https://raw.githubusercontent.com/LSSTDESC/lsstdesc-diffsky/rr23_legacy/data/throughputs/lsst/total_y.dat",
 }
 
-THROUGHPUT_DIR = "."
-
 THROUGHPUTS = {
     "u": "total_u.dat",
     "g": "total_g.dat",
@@ -37,41 +36,19 @@ THROUGHPUTS = {
 
 def get_throughput_path(band=""):
     throughput = THROUGHPUTS[band]
-    throughput_dir = os.environ.get("THROUGHPUT_DIR")
-    if throughput_dir is None:
-        throughput_dir = THROUGHPUT_DIR
-    if not os.path.isdir(throughput_dir):
-        os.makedirs(throughput_dir)
     throughput_path = os.path.join(
-        throughput_dir,
+        os.path.dirname(__file__),
+        "data",
         throughput,
     )
     return throughput_path
-
-
-def retrieve_throughput(band=""):
-    throughput_path = get_throughput_path(band)
-    url = THROUGHPUTS_URLS[band]
-    out = throughput_path
-    logger.info(f"retrieving {url} > {out}")
-    status = urllib.request.urlretrieve(url, out)
-    return status
-
-
-# def retrieve_throughputs():
-#     statuses = []
-#     for band in BANDS:
-#         status = retrieve_throughput(band)
-#         statuses.append(status)
-#     return statuses
 
 
 @functools.cache
 def load_throughput(band=""):
     throughput_path = get_throughput_path(band)
     if not os.path.exists(throughput_path):
-        warnings.warn(f"{throughput_path} not found; downloading")
-        retrieve_throughput(band)
+        raise ValueError(f"{throughput_path} not found")
     logger.info(f"loading throughput for {band}-band from {throughput_path}")
     throughput = galsim.Bandpass(throughput_path, "nm").thin().withZeropoint("AB")
     return throughput

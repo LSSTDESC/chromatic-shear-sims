@@ -1,3 +1,17 @@
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"chromatic_shear_sims" = [
+    "data/darksky.dat",
+    "data/total_u.dat",
+    "data/total_g.dat",
+    "data/total_r.dat",
+    "data/total_i.dat",
+    "data/total_z.dat",
+    "data/total_y.dat",
+]
+
 [project]
 name = "chromatic-shear-sims"
 license = {file = "LICENSE"}
