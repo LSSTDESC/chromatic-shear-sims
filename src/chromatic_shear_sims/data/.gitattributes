@@ -1,7 +1,7 @@
-darksky.dat filter=lfs diff=lfs merge=lfs -text
-total_u.dat filter=lfs diff=lfs merge=lfs -text
-total_g.dat filter=lfs diff=lfs merge=lfs -text
-total_r.dat filter=lfs diff=lfs merge=lfs -text
-total_i.dat filter=lfs diff=lfs merge=lfs -text
-total_z.dat filter=lfs diff=lfs merge=lfs -text
-total_y.dat filter=lfs diff=lfs merge=lfs -text
+darksky.dat -text
+total_u.dat -text
+total_g.dat -text
+total_r.dat -text
+total_i.dat -text
+total_z.dat -text
+total_y.dat -text
