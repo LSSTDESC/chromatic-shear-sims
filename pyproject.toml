@@ -23,7 +23,8 @@ authors = [
 dynamic = ["version"]
 dependencies = [
     "astropy",
-    "chromatic_weak_lensing[diffsky,roman-rubin,btsettl,lsst_sim] @ git+https://github.com/sidneymau/chromatic-weak-lensing.git",
+    # "chromatic_weak_lensing[diffsky,roman_rubin,btsettl,lsst_sim] @ git+https://github.com/sidneymau/chromatic-weak-lensing.git",
+    "chromatic_weak_lensing[diffsky,roman_rubin,btsettl,lsst_sim]",
     "galsim",
     "matplotlib",
     "metadetect",
