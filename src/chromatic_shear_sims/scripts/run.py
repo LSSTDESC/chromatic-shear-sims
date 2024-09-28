@@ -65,13 +65,19 @@ def task(simulation_builder, measure, seed):
         psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
         batches_dict = measure_sim_pair(obs_dict, psf_obs, measure)
         for shear_step, batches in batches_dict.items():
-            for batch in batches:
-                seed_array = pa.array([seed for _ in range(batch.num_rows)])
-                shear_array = pa.array([shear_step for _ in range(batch.num_rows)])
-                color_array = pa.array([color_step for _ in range(batch.num_rows)])
-                batch = batch.append_column("seed", seed_array)
-                batch = batch.append_column("shear_step", shear_array)
-                batch = batch.append_column("color_step", color_array)
+            # for batch in batches:
+            #     batch = batch.append_column("seed", seed_array)
+            #     batch = batch.append_column("shear_step", shear_array)
+            #     batch = batch.append_column("color_step", color_array)
+            #     all_batches.append(batch)
+            table = pa.Table.from_batches(batches)
+            seed_array = pa.array([seed for _ in range(table.num_rows)])
+            shear_array = pa.array([shear_step for _ in range(table.num_rows)])
+            color_array = pa.array([color_step for _ in range(table.num_rows)])
+            table = table.append_column("seed", seed_array)
+            table = table.append_column("shear_step", shear_array)
+            table = table.append_column("color_step", color_array)
+            for batch in table.to_batches():
                 all_batches.append(batch)
 
     return all_batches
