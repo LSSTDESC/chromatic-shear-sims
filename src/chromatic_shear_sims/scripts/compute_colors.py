@@ -1,8 +1,6 @@
 import argparse
 import logging
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -12,89 +10,89 @@ from pyarrow import acero
 from chromatic_shear_sims import utils
 from chromatic_shear_sims.simulation import SimulationBuilder
 
-from . import log_util
+from . import log_util, name_util, plot_util
 
 
 def do_aggregate(dataset, aggregates, projection=None, predicate=None):
-        """
-        Plan and execute aggregations for a dataset
-        """
-        scan_node = acero.Declaration(
-            "scan",
-            acero.ScanNodeOptions(
-                dataset,
-                columns=projection,
-                filter=predicate,
+    """
+    Plan and execute aggregations for a dataset
+    """
+    scan_node = acero.Declaration(
+        "scan",
+        acero.ScanNodeOptions(
+            dataset,
+            columns=projection,
+            filter=predicate,
+        ),
+    )
+    if predicate is not None:
+        filter_node = acero.Declaration(
+            "filter",
+            acero.FilterNodeOptions(
+                predicate,
             ),
         )
-        if predicate is not None:
-            filter_node = acero.Declaration(
-                "filter",
-                acero.FilterNodeOptions(
-                    predicate,
-                ),
-            )
-        if projection is not None:
-            project_node = acero.Declaration(
-                "project",
-                acero.ProjectNodeOptions(
-                    [v for k, v in projection.items()],
-                    names=[k for k, v in projection.items()],
-                )
-            )
-        aggregate_node = acero.Declaration(
-            "aggregate",
-            acero.AggregateNodeOptions(
-                [
-                    (
-                        agg.get("input"),
-                        agg.get("function"),
-                        agg.get("options"),
-                        agg.get("output"),
-                    )
-                    for agg in aggregates
-                ],
+    if projection is not None:
+        project_node = acero.Declaration(
+            "project",
+            acero.ProjectNodeOptions(
+                [v for k, v in projection.items()],
+                names=[k for k, v in projection.items()],
             )
         )
-        if (predicate is not None) & (projection is not None):
-            seq = [
-                scan_node,
-                filter_node,
-                project_node,
-                aggregate_node,
-            ]
-        elif (predicate is not None):
-            seq = [
-                scan_node,
-                filter_node,
-                aggregate_node,
-            ]
-        elif (projection is not None):
-            seq = [
-                scan_node,
-                project_node,
-                aggregate_node,
-            ]
+    aggregate_node = acero.Declaration(
+        "aggregate",
+        acero.AggregateNodeOptions(
+            [
+                (
+                    agg.get("input"),
+                    agg.get("function"),
+                    agg.get("options"),
+                    agg.get("output"),
+                )
+                for agg in aggregates
+            ],
+        )
+    )
+    if (predicate is not None) & (projection is not None):
+        seq = [
+            scan_node,
+            filter_node,
+            project_node,
+            aggregate_node,
+        ]
+    elif (predicate is not None):
+        seq = [
+            scan_node,
+            filter_node,
+            aggregate_node,
+        ]
+    elif (projection is not None):
+        seq = [
+            scan_node,
+            project_node,
+            aggregate_node,
+        ]
+    else:
+        seq = [
+            scan_node,
+            aggregate_node,
+        ]
+
+    plan = acero.Declaration.from_sequence(seq)
+    print(plan)
+
+    res = plan.to_table(use_threads=True)
+
+    aggregate_dict = res.to_pydict()
+    aggregates_out = {}
+    for k, v in aggregate_dict.items():
+        if len(v) == 1:
+            aggregates_out[k] = v[0]
         else:
-            seq = [
-                scan_node,
-                aggregate_node,
-            ]
+            aggregates_out[k] = v
 
-        plan = acero.Declaration.from_sequence(seq)
-        print(plan)
-
-        res = plan.to_table(use_threads=True)
-
-        aggregate_dict = res.to_pydict()
-        aggregates_out = {}
-        for k, v in aggregate_dict.items():
-            if len(v) == 1:
-                aggregates_out[k] = v[0]
-            else:
-                aggregates_out[k] = v
-
-        return aggregates_out
+    return aggregates_out
 
 
 def do_plot(dataset, aggregates, nbins=100, projection=None, predicate=None):
@@ -114,12 +112,7 @@ def do_plot(dataset, aggregates, nbins=100, projection=None, predicate=None):
         _hist, _ = np.histogram(batch["color"], bins=bin_edges)
         hist += _hist
 
-    fig, axs = plt.subplots(
-        1, 1,
-        sharex="row",
-        sharey="row",
-        constrained_layout=True,
-    )
+    fig, axs = plot_util.subplots(1, 1)
 
     axs.stairs(hist_unfiltered / sum(hist_unfiltered), bin_edges, ls="--", label="full sample")
     axs.stairs(hist / sum(hist), bin_edges, label="maglim sample")
@@ -131,7 +124,7 @@ def do_plot(dataset, aggregates, nbins=100, projection=None, predicate=None):
     axs.set_xlabel("color")
     axs.legend(loc="upper right")
 
-    plt.show()
+    return fig, axs
 
 
 def get_args():
@@ -157,6 +150,7 @@ def main():
     logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
     config_file = args.config
+    config_name = name_util.get_config_name(config_file)
     simulation_builder = SimulationBuilder.from_yaml(config_file)
 
     dataset_path = simulation_builder.galaxy_loader.path
@@ -230,5 +224,8 @@ def main():
     for k, v in aggregate_res.items():
         print(f"{k}: {v}")
 
-    do_plot(dataset, aggregate_res, nbins=100, projection=projection, predicate=predicate)
+    fig, axs = do_plot(dataset, aggregate_res, nbins=100, projection=projection, predicate=predicate)
+
+    figname = f"{config_name}-colors.pdf"
+    fig.savefig(figname)
 

@@ -7,8 +7,6 @@ import os
 
 import ngmix
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import Divider, Size
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.feather as ft
@@ -18,7 +16,7 @@ from rich.progress import track
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
-from . import log_util, name_util
+from . import log_util, name_util, plot_util
 
 
 def compute_e(results):
@@ -1546,7 +1544,7 @@ def main():
 
     # zeroth-order chromatic correction
 
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plot_util.subplots(1, 1)
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
@@ -1555,12 +1553,13 @@ def main():
     ax.set_xlabel("$m$")
     ax.set_title(config_name)
 
-    plt.show()
+    figname = f"{config_name}-m-0.pdf"
+    fig.savefig(figname)
 
     # first-order chromatic correction
 
 
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plot_util.subplots(1, 1)
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
@@ -1572,11 +1571,12 @@ def main():
     ax.legend(loc="upper right")
     ax.set_title(config_name)
 
-    plt.show()
+    figname = f"{config_name}-m-1.pdf"
+    fig.savefig(figname)
 
     # second-order chromatic correction
 
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plot_util.subplots(1, 1)
 
     ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
     ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
@@ -1590,7 +1590,8 @@ def main():
     ax.legend(loc="upper right")
     ax.set_title(config_name)
 
-    plt.show()
+    figname = f"{config_name}-m-2.pdf"
+    fig.savefig(figname)
 
 
 if __name__ == "__main__":

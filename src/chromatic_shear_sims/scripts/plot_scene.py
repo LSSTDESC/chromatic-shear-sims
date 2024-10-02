@@ -1,24 +1,21 @@
 import argparse
 import logging
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 
 from chromatic_shear_sims import utils
 from chromatic_shear_sims.simulation import SimulationBuilder
 from chromatic_shear_sims.throughputs import load_throughputs
 
-from . import log_util
+from . import log_util, name_util, plot_util
 
 
 def plot_scene(scene):
 
-    fig, axs = plt.subplots(
+    fig, axs = plot_util.subplots(
         2, 2,
         sharex="row",
         sharey="row",
-        constrained_layout=True,
     )
 
     throughputs = load_throughputs(bands=["r"])
@@ -51,7 +48,7 @@ def plot_scene(scene):
     # axs[1, 1].set_ylabel("$f_{photons}$ [$photons/nm/cm^2/s$]")
     axs[0, 1].set_title("Stars")
 
-    plt.show()
+    return fig, axs
 
 
 def get_args():
@@ -91,6 +88,7 @@ def main():
     logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
     config_file = args.config
+    config_name = name_util.get_config_name(config_file)
     simulation_builder = SimulationBuilder.from_yaml(config_file)
 
     n_sims = args.n_sims
@@ -104,6 +102,9 @@ def main():
         )
     ):
         print(f"finished simulation {i + 1}/{n_sims}")
-        plot_scene(scene)
+        fig, axs = plot_scene(scene)
+
+        figname = f"{config_name}-scene-{i}.pdf"
+        fig.savefig(figname)
 
     print("simulations completed")
