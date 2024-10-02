@@ -4,14 +4,13 @@ import multiprocessing
 import threading
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 
 from chromatic_shear_sims import utils
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
-from . import log_util
+from . import log_util, name_util, plot_util
 
 
 def _apply_selection(meas, model):
@@ -62,11 +61,10 @@ def plot_sim(mbobs, psf_mbobs, measure=None):
             model,
         )
 
-    fig, axs = plt.subplots(
+    fig, axs = plot_util.subplots(
         2, len(bands),
         sharex="row",
         sharey="row",
-        constrained_layout=True,
     )
 
     norm_field = mpl.colors.Normalize()
@@ -94,7 +92,7 @@ def plot_sim(mbobs, psf_mbobs, measure=None):
     axs[0, 0].set_ylabel("PSF")
     axs[1, 0].set_ylabel("Wide Field")
 
-    plt.show()
+    return fig, axs
 
 
 def plot_sim_pair(mbobs_dict, psf_mbobs, measure=None):
@@ -116,11 +114,10 @@ def plot_sim_pair(mbobs_dict, psf_mbobs, measure=None):
             model,
         )
 
-    fig, axs = plt.subplots(
+    fig, axs = plot_util.subplots(
         3, len(bands),
         sharex="row",
         sharey="row",
-        constrained_layout=True,
     )
 
     norm_field = mpl.colors.Normalize()
@@ -157,7 +154,7 @@ def plot_sim_pair(mbobs_dict, psf_mbobs, measure=None):
     axs[1, 0].set_ylabel("plus")
     axs[2, 0].set_ylabel("minus")
 
-    plt.show()
+    return fig, axs
 
 
 def get_args():
@@ -209,6 +206,7 @@ def main():
     logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
     config_file = args.config
+    config_name = name_util.get_config_name(config_file)
     simulation_builder = SimulationBuilder.from_yaml(config_file)
     if args.detect:
         measure = measurement.get_measure(
@@ -244,8 +242,10 @@ def main():
         ):
             print(f"finished simulation {i + 1}/{n_sims}")
             psf_obs = simulation_builder.make_psf_obs(psf, color=0.8)
-            plot_sim(obs, psf_obs, measure=measure)
-            # plot_sim_pair(obs, psf_obs, measure=measure)
+            fig, axs = plot_sim(obs, psf_obs, measure=measure)
+
+            figname = f"{config_name}-obs-{i}.pdf"
+            fig.savefig(figname)
 
     queue.put(None)
     lp.join()

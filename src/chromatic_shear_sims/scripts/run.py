@@ -5,8 +5,6 @@ import multiprocessing
 import threading
 import os
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
