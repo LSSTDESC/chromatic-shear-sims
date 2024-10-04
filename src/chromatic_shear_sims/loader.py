@@ -34,36 +34,39 @@ def parse_expression(predicate):
 
 
 def parse_filters(filters):
-    def parse_token(token):
-        try:
-            val = ast.literal_eval(token)
-        except:
-            val = token
-        return val
+    if filters is None:
+        return None
+    else:
+        def parse_token(token):
+            try:
+                val = ast.literal_eval(token)
+            except:
+                val = token
+            return val
 
-    # see pq.core._DNF_filter_doc
-    _operators = ["==", "=", "!=", "<=", ">=", "<", ">", "in", "not in"]
-    _pattern = "(" + "|".join(_operators) + ")"
-    pattern = re.compile(_pattern)
-    disjunction = []
-    for _conjunction in filters:
-        conjunction = []
-        for filters_string in _conjunction:
-            filters_tuple = tuple(
-                map(
-                    parse_token,
+        # see pq.core._DNF_filter_doc
+        _operators = ["==", "=", "!=", "<=", ">=", "<", ">", "in", "not in"]
+        _pattern = "(" + "|".join(_operators) + ")"
+        pattern = re.compile(_pattern)
+        disjunction = []
+        for _conjunction in filters:
+            conjunction = []
+            for filters_string in _conjunction:
+                filters_tuple = tuple(
                     map(
-                        str.strip,
-                        pattern.split(
-                            filters_string,
+                        parse_token,
+                        map(
+                            str.strip,
+                            pattern.split(
+                                filters_string,
+                            ),
                         ),
                     ),
-                ),
-            )
-            conjunction.append(filters_tuple)
-        disjunction.append(conjunction)
+                )
+                conjunction.append(filters_tuple)
+            disjunction.append(conjunction)
 
-    return pq.filters_to_expression(disjunction)
+        return pq.filters_to_expression(disjunction)
 
 
 class Loader:
