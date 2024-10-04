@@ -862,7 +862,7 @@ def compute_bias_chromatic(batch, dg, dc, color, order=1):
     R_p, R_m = compute_R_chromatic(batch, dg)
 
     de_p, de_m = compute_de(batch, dg, dc, color, order=order)
-    dR_p, dR_m = compute_dR(batch, dg, dc, color, order=1)
+    dR_p, dR_m = compute_dR(batch, dg, dc, color, order=order)
 
     g_p = np.linalg.inv(R_p + dR_p) @ (e_p + de_p)
     g_m = np.linalg.inv(R_m + dR_m) @ (e_m + de_m)
@@ -1508,9 +1508,6 @@ def main():
             m_bootstrap_c2.append(_m_bootstrap_c2)
             c_bootstrap_c2.append(_c_bootstrap_c2)
 
-            ii = i + 1
-            # print(f"finished processing bootstrap resample {i + 1}/{n_resample}")
-
     queue.put(None)
     lp.join()
 
@@ -1538,7 +1535,11 @@ def main():
 
     m_req = 2e-3
 
-    m_bootstrap_hist, m_bin_edges = np.histogram(m_bootstrap)
+    m_min = np.min([m_bootstrap.min(), m_bootstrap_c1.min(), m_bootstrap_c2.min()])
+    m_max = np.max([m_bootstrap.max(), m_bootstrap_c1.max(), m_bootstrap_c2.max()])
+    m_bin_edges = np.linspace(m_min, m_max, 50)
+    # m_bin_edges = np.arange(m_min, m_max, 5e-4)
+    m_bootstrap_hist, _ = np.histogram(m_bootstrap, bins=m_bin_edges)
     m_bootstrap_c1_hist, _ = np.histogram(m_bootstrap_c1, bins=m_bin_edges)
     m_bootstrap_c2_hist, _ = np.histogram(m_bootstrap_c2, bins=m_bin_edges)
 
