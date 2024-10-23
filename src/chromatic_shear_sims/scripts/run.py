@@ -20,9 +20,11 @@ def measure_sim(mbobs, psf_mbobs, measure):
     bands = mbobs.meta.get("bands")
 
     meas = measure.run(mbobs, psf_mbobs)
-    batches = measure.to_batches(meas)
+    # batches = measure.to_batches(meas)
+    table_dict = measure.to_table_dict(meas)
 
-    return batches
+    # return batches
+    return table_dict
 
 
 def measure_sim_pair(mbobs_dict, psf_mbobs, measure):
@@ -32,53 +34,96 @@ def measure_sim_pair(mbobs_dict, psf_mbobs, measure):
     bands = plus_mbobs.meta.get("bands")
 
     meas_p = measure.run(plus_mbobs, psf_mbobs)
-    batches_p = measure.to_batches(meas_p)
+    # batches_p = measure.to_batches(meas_p)
+    # table_p = measure.to_table(meas_p)
+    table_p_dict = measure.to_table_dict(meas_p)
 
     meas_m = measure.run(minus_mbobs, psf_mbobs)
-    batches_m = measure.to_batches(meas_m)
+    # batches_m = measure.to_batches(meas_m)
+    # table_m = measure.to_table(meas_m)
+    table_m_dict = measure.to_table_dict(meas_m)
 
-    batches_dict = {
-        "plus": batches_p,
-        "minus": batches_m,
+    # batches_dict = {
+    #     "plus": batches_p,
+    #     "minus": batches_m,
+    # }
+    # table_dict = {
+    #     "plus": table_p,
+    #     "minus": table_m,
+    # }
+    table_dicts = {
+        "plus": table_p_dict,
+        "minus": table_m_dict,
     }
 
-    return batches_dict
+    # return batches_dict
+    # return table_dict
+    return table_dicts
 
 
 def task(simulation_builder, measure, seed):
     obs_dict, psf = simulation_builder.make_sim_pair(seed)
-    all_batches = []
-    # for psf_color in [0.5, 0.8, 1.1]:
+    # all_batches = []
+    # tables = []
+    tables = {}
     psf_colors = simulation_builder.config["measurement"].get("colors")
-    for i, psf_color in enumerate(psf_colors):
-        color_step = f"c{i}"
-        # psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
-        # batches = measure_sim(obs, psf_obs, measure)
-        # table = pa.Table.from_batches(batches)
-        # seed_array = pa.array([seeds[i] for _ in range(table.num_rows)])
-        # color_array = pa.array([psf_color for _ in range(table.num_rows)])
-        # table = table.append_column("seed", seed_array)
-        # table = table.append_column("color_step", color_array)
+    psf_obs_dict = {
+        f"c{i}": simulation_builder.make_psf_obs(psf, color=psf_color)
+        for i, psf_color in enumerate(psf_colors)
+    }
 
-        psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
-        batches_dict = measure_sim_pair(obs_dict, psf_obs, measure)
-        for shear_step, batches in batches_dict.items():
-            # for batch in batches:
-            #     batch = batch.append_column("seed", seed_array)
-            #     batch = batch.append_column("shear_step", shear_array)
-            #     batch = batch.append_column("color_step", color_array)
-            #     all_batches.append(batch)
-            table = pa.Table.from_batches(batches)
-            seed_array = pa.array([seed for _ in range(table.num_rows)])
-            shear_array = pa.array([shear_step for _ in range(table.num_rows)])
-            color_array = pa.array([color_step for _ in range(table.num_rows)])
-            table = table.append_column("seed", seed_array)
-            table = table.append_column("shear_step", shear_array)
-            table = table.append_column("color_step", color_array)
-            for batch in table.to_batches():
-                all_batches.append(batch)
+    for shear_step, obs in obs_dict.items():
+        tables[shear_step] = {}
+        for color_step, psf_obs in psf_obs_dict.items():
+            tables[shear_step][color_step] = {}
 
-    return all_batches
+            # psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
+            # batches = measure_sim(obs, psf_obs, measure)
+            # table = pa.Table.from_batches(batches)
+            # seed_array = pa.array([seeds[i] for _ in range(table.num_rows)])
+            # color_array = pa.array([psf_color for _ in range(table.num_rows)])
+            # table = table.append_column("seed", seed_array)
+            # table = table.append_column("color_step", color_array)
+
+            # psf_obs = simulation_builder.make_psf_obs(psf, color=psf_color)
+            # batches_dict = measure_sim_pair(obs_dict, psf_obs, measure)
+            # table_dict = measure_sim_pair(obs_dict, psf_obs, measure)
+            # table_dicts = measure_sim_pair(obs_dict, psf_obs, measure)
+            table_dict = measure_sim(obs, psf_obs, measure)
+
+            # for shear_step, batches in batches_dict.items():
+            #     # for batch in batches:
+            #     #     batch = batch.append_column("seed", seed_array)
+            #     #     batch = batch.append_column("shear_step", shear_array)
+            #     #     batch = batch.append_column("color_step", color_array)
+            #     #     all_batches.append(batch)
+            #     table = pa.Table.from_batches(batches)
+            #     seed_array = pa.array([seed for _ in range(table.num_rows)])
+            #     shear_array = pa.array([shear_step for _ in range(table.num_rows)])
+            #     color_array = pa.array([color_step for _ in range(table.num_rows)])
+            #     table = table.append_column("seed", seed_array)
+            #     table = table.append_column("shear_step", shear_array)
+            #     table = table.append_column("color_step", color_array)
+            #     for batch in table.to_batches():
+            #         all_batches.append(batch)
+
+            # for shear_step, table in table_dict.items():
+            #     seed_array = pa.array([seed for _ in range(table.num_rows)])
+            #     shear_array = pa.array([shear_step for _ in range(table.num_rows)])
+            #     color_array = pa.array([color_step for _ in range(table.num_rows)])
+            #     table = table.append_column("seed", seed_array)
+            #     table = table.append_column("shear_step", shear_array)
+            #     table = table.append_column("color_step", color_array)
+            #     tables.append(table)
+
+            for mdet_step, table in table_dict.items():
+                seed_array = pa.array([seed for _ in range(table.num_rows)])
+                table = table.append_column("seed", seed_array)
+                tables[shear_step][color_step][mdet_step] = table
+
+    # return all_batches
+    # return pa.concat_tables(tables)
+    return tables
 
 
 
@@ -150,37 +195,107 @@ def main():
 
     output_path = name_util.get_output_path(args.output, args.config)
     os.makedirs(output_path, exist_ok=True)
-    run_path = name_util.get_run_path(args.output, args.config, seed)
+    output_path = name_util.get_output_path(args.output, args.config)
+    # run_path = name_util.get_run_path(args.output, args.config, seed)
 
     schema = measure.schema
     schema = schema.append(
         pa.field("seed", pa.int64()),
     )
-    schema = schema.append(
-        pa.field("shear_step", pa.string()),
-    )
-    schema = schema.append(
-        pa.field("color_step", pa.string()),
-    )
+    # schema = schema.append(
+    #     pa.field("shear_step", pa.string()),
+    # )
+    # schema = schema.append(
+    #     pa.field("color_step", pa.string()),
+    # )
 
-    with pq.ParquetWriter(run_path, schema=schema) as writer:
-        with multiprocessing.Pool(
-            n_jobs,
-            initializer=log_util.initializer,
-            initargs=(queue, log_level),
-            maxtasksperchild=max(1, n_sims // n_jobs),
-        ) as pool:
-            for i, batches in enumerate(
-                pool.imap(
-                    # simulation_builder.make_sim,
-                    # simulation_builder.make_sim_pair,
-                    functools.partial(task, simulation_builder, measure),
-                    seeds,
+    psf_colors = simulation_builder.config["measurement"].get("colors")
+
+    shear_steps = ["plus", "minus"]
+    color_steps = [f"c{i}" for i, psf_color in enumerate(psf_colors)]
+    mdet_steps = ["noshear", "1p", "1m", "2p", "2m"]
+
+    writers = {}
+    for shear_step in shear_steps:
+        writers[shear_step] = {}
+        for color_step in color_steps:
+            writers[shear_step][color_step] = {}
+            for mdet_step in mdet_steps:
+                dataset_path = os.path.join(
+                    output_path,
+                    shear_step,
+                    color_step,
+                    mdet_step,
                 )
-            ):
-                print(f"finished simulation {i + 1}/{n_sims}")
-                for batch in batches:
-                    writer.write_batch(batch)
+                writer_path = os.path.join(
+                    dataset_path,
+                    f"{seed}.parquet",
+                )
+                os.makedirs(dataset_path, exist_ok=True)
+                writers[shear_step][color_step][mdet_step] = pq.ParquetWriter(
+                    writer_path,
+                    schema=schema,
+                )
+
+    # with pq.ParquetWriter(run_path, schema=schema) as writer:
+    #     with multiprocessing.Pool(
+    #         n_jobs,
+    #         initializer=log_util.initializer,
+    #         initargs=(queue, log_level),
+    #         maxtasksperchild=max(1, n_sims // n_jobs),
+    #     ) as pool:
+    #         # for i, batches in enumerate(
+    #         for i, table in enumerate(
+    #             pool.imap(
+    #                 functools.partial(task, simulation_builder, measure),
+    #                 seeds,
+    #             )
+    #         ):
+    #             print(f"finished simulation {i + 1}/{n_sims}")
+    #             # for batch in batches:
+    #             #     writer.write_batch(batch)
+    #             # writer.write_table(table)
+
+    with multiprocessing.Pool(
+        n_jobs,
+        initializer=log_util.initializer,
+        initargs=(queue, log_level),
+        maxtasksperchild=max(1, n_sims // n_jobs),
+    ) as pool:
+        # for i, batches in enumerate(
+        for i, tables in enumerate(
+            pool.imap(
+                functools.partial(task, simulation_builder, measure),
+                seeds,
+            )
+        ):
+            print(f"finished simulation {i + 1}/{n_sims}")
+            for shear_step, color_tables in tables.items():
+                for color_step, mdet_tables in color_tables.items():
+                    for mdet_step, mdet_table in mdet_tables.items():
+                        writers[shear_step][color_step][mdet_step].write_table(mdet_table)
+
+
+    for shear_step, shear_writers in writers.items():
+        for color_step, color_writers in shear_writers.items():
+            for mdet_step, mdet_writers in color_writers.items():
+                writers[shear_step][color_step][mdet_step].close()
+
+
+    # with multiprocessing.Pool(
+    #     n_jobs,
+    #     initializer=log_util.initializer,
+    #     initargs=(queue, log_level),
+    #     maxtasksperchild=max(1, n_sims // n_jobs),
+    # ) as pool:
+    #     for i, table in enumerate(
+    #         pool.imap(
+    #             functools.partial(task, simulation_builder, measure),
+    #             seeds,
+    #         )
+    #     ):
+    #         print(f"finished simulation {i + 1}/{n_sims}")
+    #         pq.write_to_dataset(table, run_path, partitioning=["shear_step", "color_step", "mdet_step"])
 
     queue.put(None)
     lp.join()

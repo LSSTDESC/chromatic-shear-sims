@@ -16,14 +16,25 @@ def get_output_path(output_dir, config_file):
 
 def get_run_path(output_dir, config_file, seed):
     output_path = get_output_path(output_dir, config_file)
-    return os.path.join(
-        output_path,
-        f"{seed}.parquet",
+    return output_path
+    # return os.path.join(
+    #     output_path,
+    #     f"{seed}.parquet",
+    # )
+
+def get_aggregate_dataset(output_dir, config_file):
+    config_name = get_config_name(config_file)
+    aggregate_name = f"{config_name}_aggregates"
+    aggregate_path = os.path.join(
+        output_dir,
+        aggregate_name,
     )
+    return aggregate_path
+
 
 def get_aggregate_path(output_dir, config_file):
     config_name = get_config_name(config_file)
-    aggregate_name = f"{config_name}_aggregates.feather"
+    aggregate_name = f"{config_name}_aggregates.arrow"
     aggregate_path = os.path.join(
         output_dir,
         aggregate_name,

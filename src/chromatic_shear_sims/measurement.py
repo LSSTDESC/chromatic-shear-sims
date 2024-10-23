@@ -80,6 +80,32 @@ class Metadetect(Measure):
         )
         return measurement
 
+    def to_table(self, measurement):
+        tables = []
+        for mdet_step in measurement.keys():
+            mdet_cat = measurement[mdet_step]
+            data_dict = {name: mdet_cat[name].tolist() for name in mdet_cat.dtype.names}
+            data_dict["mdet_step"] = [mdet_step for _ in range(len(mdet_cat))]
+
+            _table = pa.Table.from_pydict(data_dict, schema=self.schema)
+            tables.append(_table)
+
+        return pa.concat_tables(tables)
+
+
+    def to_table_dict(self, measurement):
+        table_dict = {}
+        for mdet_step in measurement.keys():
+            mdet_cat = measurement[mdet_step]
+            data_dict = {name: mdet_cat[name].tolist() for name in mdet_cat.dtype.names}
+            data_dict["mdet_step"] = [mdet_step for _ in range(len(mdet_cat))]
+
+            _table = pa.Table.from_pydict(data_dict, schema=self.schema)
+            table_dict[mdet_step] = _table
+
+        return table_dict
+
+
     def to_batches(self, measurement):
         batches = []
         for mdet_step in measurement.keys():
