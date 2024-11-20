@@ -612,8 +612,11 @@ def compute_bias(batch, dg, dc, color_indices=None):
     e_p, e_m = compute_e_chromatic(batch, color_index=color_indices[1])
     R_p, R_m = compute_R_chromatic(batch, dg, color_index=color_indices[1])
 
-    g_p = np.linalg.inv(R_p) @ e_p
-    g_m = np.linalg.inv(R_m) @ e_m
+    # g_p = np.linalg.inv(R_p) @ e_p
+    # g_m = np.linalg.inv(R_m) @ e_m
+
+    g_p = e_p / np.diag(R_p)
+    g_m = e_m / np.diag(R_m)
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
@@ -629,8 +632,11 @@ def compute_bias_chromatic(batch, dg, dc, color, color_indices=None, order=1):
     de_p, de_m = compute_de(batch, dg, dc, color, color_indices=color_indices, order=order)
     dR_p, dR_m = compute_dR(batch, dg, dc, color, color_indices=color_indices, order=order)
 
-    g_p = np.linalg.inv(R_p + dR_p) @ (e_p + de_p)
-    g_m = np.linalg.inv(R_m + dR_m) @ (e_m + de_m)
+    # g_p = np.linalg.inv(R_p + dR_p) @ (e_p + de_p)
+    # g_m = np.linalg.inv(R_m + dR_m) @ (e_m + de_m)
+
+    g_p = (e_p + de_p) / np.diag(R_p + dR_p)
+    g_m = (e_m + de_m) / np.diag(R_m + dR_m)
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
