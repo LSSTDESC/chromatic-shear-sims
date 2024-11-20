@@ -15,11 +15,13 @@ from chromatic_shear_sims.throughputs import load_throughputs
 from . import log_util, name_util
 
 
-def pre_aggregate(dataset_path, predicate):
+# def pre_aggregate(dataset_path, predicate):
+def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
     """
     Aggregate measurements at the image level to accelerate bootstrapping
     """
     throughputs = load_throughputs(bands=["g", "i"])
+    color = colors[color_indices[1]]
 
     dataset = ds.dataset(dataset_path)
 
@@ -45,19 +47,19 @@ def pre_aggregate(dataset_path, predicate):
                 # pc.field("color_step"),
                 # pc.field("mdet_step"),
                 pc.scalar(1),
-                # pc.divide(
-                #     pc.scalar(1),
-                #     pc.add(
-                #         pc.multiply(  # average covariance
-                #             pc.scalar(0.5),
-                #             pc.add(
-                #                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                #                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                #             ),
-                #         ),
-                #         pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
-                #     ),
-                # ),
+                pc.divide(
+                    pc.scalar(1),
+                    pc.add(
+                        pc.multiply(  # average covariance
+                            pc.scalar(0.5),
+                            pc.add(
+                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                            ),
+                        ),
+                        pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
+                    ),
+                ),
                 pc.list_element(pc.field("pgauss_g"), 0),
                 pc.list_element(pc.field("pgauss_g"), 1),
                 pc.add(
@@ -81,6 +83,7 @@ def pre_aggregate(dataset_path, predicate):
                 # "shear_step",
                 # "color_step",
                 # "mdet_step",
+                "count",
                 "weight",
                 "e1",
                 "e2",
@@ -96,6 +99,7 @@ def pre_aggregate(dataset_path, predicate):
                 # pc.field("shear_step"),
                 # pc.field("color_step"),
                 # pc.field("mdet_step"),
+                pc.field("count"),
                 pc.field("weight"),
                 # e1
                 pc.multiply(pc.field("e1"), pc.field("weight")),
@@ -123,32 +127,33 @@ def pre_aggregate(dataset_path, predicate):
                     pc.multiply(pc.field("e2"), pc.power(pc.field("c"), 2)),
                     pc.field("weight")
                 ),
-                # # e1dc
-                # pc.multiply(
-                #     pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
-                #     pc.field("weight")
-                # ),
-                # # e2dc
-                # pc.multiply(
-                #     pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
-                #     pc.field("weight")
-                # ),
-                # # e1dcdc
-                # pc.multiply(
-                #     pc.multiply(pc.field("e1"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
-                #     pc.field("weight")
-                # ),
-                # # e2dcdc
-                # pc.multiply(
-                #     pc.multiply(pc.field("e2"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
-                #     pc.field("weight")
-                # ),
+                # e1dc
+                pc.multiply(
+                    pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                    pc.field("weight")
+                ),
+                # e2dc
+                pc.multiply(
+                    pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                    pc.field("weight")
+                ),
+                # e1dcdc
+                pc.multiply(
+                    pc.multiply(pc.field("e1"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
+                    pc.field("weight")
+                ),
+                # e2dcdc
+                pc.multiply(
+                    pc.multiply(pc.field("e2"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
+                    pc.field("weight")
+                ),
             ],
             names=[
                 "seed",
                 # "shear_step",
                 # "color_step",
                 # "mdet_step",
+                "count",
                 "weight",
                 "weighted_e1",
                 "weighted_e2",
@@ -157,10 +162,10 @@ def pre_aggregate(dataset_path, predicate):
                 "weighted_e2c",
                 "weighted_e1cc",
                 "weighted_e2cc",
-                # "weighted_e1dc",
-                # "weighted_e2dc",
-                # "weighted_e1dcdc",
-                # "weighted_e2dcdc",
+                "weighted_e1dc",
+                "weighted_e2dc",
+                "weighted_e1dcdc",
+                "weighted_e2dcdc",
             ],
         )
     )
@@ -169,6 +174,7 @@ def pre_aggregate(dataset_path, predicate):
         acero.AggregateNodeOptions(
             [
                 # ("seed", "hash_count", None, "count"),
+                ("count", "hash_sum", None, "count_sum"),
                 ("weight", "hash_sum", None, "weight_sum"),
                 ("weighted_e1", "hash_sum", None, "weighted_e1_sum"),
                 ("weighted_e2", "hash_sum", None, "weighted_e2_sum"),
@@ -177,10 +183,10 @@ def pre_aggregate(dataset_path, predicate):
                 ("weighted_e2c", "hash_sum", None, "weighted_e2c_sum"),
                 ("weighted_e1cc", "hash_sum", None, "weighted_e1cc_sum"),
                 ("weighted_e2cc", "hash_sum", None, "weighted_e2cc_sum"),
-                # ("weighted_e1dc", "hash_sum", None, "weighted_e1dc_sum"),
-                # ("weighted_e2dc", "hash_sum", None, "weighted_e2dc_sum"),
-                # ("weighted_e1dcdc", "hash_sum", None, "weighted_e1dcdc_sum"),
-                # ("weighted_e2dcdc", "hash_sum", None, "weighted_e2dcdc_sum"),
+                ("weighted_e1dc", "hash_sum", None, "weighted_e1dc_sum"),
+                ("weighted_e2dc", "hash_sum", None, "weighted_e2dc_sum"),
+                ("weighted_e1dcdc", "hash_sum", None, "weighted_e1dcdc_sum"),
+                ("weighted_e2dcdc", "hash_sum", None, "weighted_e2dcdc_sum"),
             ],
             # keys=["shear_step", "color_step", "mdet_step", "seed"],
             keys=["seed"],
@@ -195,6 +201,7 @@ def pre_aggregate(dataset_path, predicate):
                 # pc.field("color_step"),
                 # pc.field("mdet_step"),
                 # pc.field("count"),
+                pc.field("count_sum"),
                 pc.field("weight_sum"),
                 pc.divide(pc.field("weighted_e1_sum"), pc.field("weight_sum")),
                 pc.divide(pc.field("weighted_e2_sum"), pc.field("weight_sum")),
@@ -203,17 +210,17 @@ def pre_aggregate(dataset_path, predicate):
                 pc.divide(pc.field("weighted_e2c_sum"), pc.field("weight_sum")),
                 pc.divide(pc.field("weighted_e1cc_sum"), pc.field("weight_sum")),
                 pc.divide(pc.field("weighted_e2cc_sum"), pc.field("weight_sum")),
-                # pc.divide(pc.field("weighted_e1dc_sum"), pc.field("weight_sum")),
-                # pc.divide(pc.field("weighted_e2dc_sum"), pc.field("weight_sum")),
-                # pc.divide(pc.field("weighted_e1dcdc_sum"), pc.field("weight_sum")),
-                # pc.divide(pc.field("weighted_e2dcdc_sum"), pc.field("weight_sum")),
+                pc.divide(pc.field("weighted_e1dc_sum"), pc.field("weight_sum")),
+                pc.divide(pc.field("weighted_e2dc_sum"), pc.field("weight_sum")),
+                pc.divide(pc.field("weighted_e1dcdc_sum"), pc.field("weight_sum")),
+                pc.divide(pc.field("weighted_e2dcdc_sum"), pc.field("weight_sum")),
             ],
             names=[
                 "seed",
                 # "shear_step",
                 # "color_step",
                 # "mdet_step",
-                # "count",
+                "count",
                 "weight",
                 "e1",
                 "e2",
@@ -222,10 +229,10 @@ def pre_aggregate(dataset_path, predicate):
                 "e2c",
                 "e1cc",
                 "e2cc",
-                # "e1dc",
-                # "e2dc",
-                # "e1dcdc",
-                # "e2dcdc",
+                "e1dc",
+                "e2dc",
+                "e1dcdc",
+                "e2dcdc",
             ],
         )
     )
@@ -339,7 +346,7 @@ def main():
     )
 
     psf_colors = config["measurement"].get("colors")
-    # psf_color_indices = config["measurement"].get("color_indices")
+    psf_color_indices = config["measurement"].get("color_indices")
 
     shear_steps = ["plus", "minus"]
     color_steps = [f"c{i}" for i, psf_color in enumerate(psf_colors)]
@@ -355,7 +362,8 @@ def main():
                     mdet_step,
                 )
                 print(f"aggregating data in {dataset_path}")
-                _aggregates = pre_aggregate(dataset_path, predicate)
+                # _aggregates = pre_aggregate(dataset_path, predicate)
+                _aggregates = pre_aggregate(dataset_path, predicate, colors=psf_colors, color_indices=psf_color_indices)
 
                 _aggregate_dir = os.path.join(
                     aggregate_dataset,
