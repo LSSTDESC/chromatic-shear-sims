@@ -66,25 +66,6 @@ def recenter(image):
     return shifted_image
 
 
-@functools.cache
-def get_noise_sigma(sky_background, throughput, npixel, ncoadd=1):
-    # get background noise according to a dark sky spectrum
-    sky_background_flux = sky_background.calculateFlux(throughput)
-
-    # need standard deviation of counts in each pixel
-    # for a Poisson distribution, the mean and variance are equal, so
-    # we suppose the standard deviation on counts is the root of the
-    # total flux; then we divide by the number of pixels
-    # we also divide the flux by the number of coadds to get the
-    # right reduction relative to the galaxies
-    # equivalently, we could multiply both fluxes by n
-    sky_background_flux_per_pixel = (sky_background_flux / ncoadd) ** (1/2) / npixel
-
-    logger.info(f"computed noise standard deviation {sky_background_flux_per_pixel} flux per pixel")
-
-    return sky_background_flux_per_pixel
-
-
 def get_mag(flux, throughput):
     zeropoint = throughput.zeropoint
     return -2.5 * np.log10(flux) + zeropoint

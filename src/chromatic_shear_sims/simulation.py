@@ -3,6 +3,8 @@ import logging
 
 import yaml
 
+from chromatic_weak_lensing import Darksky
+
 from chromatic_shear_sims import utils
 from chromatic_shear_sims import observations
 from chromatic_shear_sims.data import Data
@@ -14,7 +16,6 @@ from chromatic_shear_sims.galaxies import GalaxyBuilder, HybridGalaxyBuilder
 from chromatic_shear_sims.positions import PositionBuilder
 from chromatic_shear_sims.stars import StarBuilder, InterpolatedStarBuilder
 from chromatic_shear_sims.throughputs import load_throughputs
-from chromatic_shear_sims.darksky import load_darksky
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,8 @@ class SimulationBuilder:
         self.bands = self.config.get("bands")
 
         self.throughputs = load_throughputs(bands=self.bands)
-        self.sky_background = load_darksky()
+        _darksky = Darksky()
+        self.sky_background = _darksky.sed
 
         if "builder" in self.config["stars"]:
             star_builder = StarBuilder(
