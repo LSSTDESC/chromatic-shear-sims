@@ -782,16 +782,23 @@ def main():
     c_bootstrap_c2 = np.array(c_bootstrap_c2)
 
     # report 3 standard devations as error
-    m_error = np.nanstd(m_bootstrap) * 3
-    c_error = np.nanstd(c_bootstrap) * 3
-    m_error_c1 = np.nanstd(m_bootstrap_c1) * 3
-    c_error_c1 = np.nanstd(c_bootstrap_c1) * 3
-    m_error_c2 = np.nanstd(m_bootstrap_c2) * 3
-    c_error_c2 = np.nanstd(c_bootstrap_c2) * 3
+    m_error = np.nanstd(m_bootstrap)
+    c_error = np.nanstd(c_bootstrap)
+    m_error_c1 = np.nanstd(m_bootstrap_c1)
+    c_error_c1 = np.nanstd(c_bootstrap_c1)
+    m_error_c2 = np.nanstd(m_bootstrap_c2)
+    c_error_c2 = np.nanstd(c_bootstrap_c2)
 
-    print(f"mdet (0): m = {m_mean:0.3e} +/- {m_error:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error:0.3e} [3-sigma]")
-    print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1:0.3e} [3-sigma]")
-    print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2:0.3e} [3-sigma]")
+    outfile = f"{config_name}_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.txt"
+    with open(outfile, "w") as fp:
+        fp.write(f"order, m_mean, m_error, c_mean, c_error\n")
+        fp.write(f"0, {m_mean}, {m_error}, {c_mean}, {c_error}\n")
+        fp.write(f"1, {m_mean_c1}, {m_error_c1}, {c_mean_c1}, {c_error_c1}\n")
+        fp.write(f"2, {m_mean_c2}, {m_error_c2}, {c_mean_c2}, {c_error_c2}\n")
+
+    print(f"mdet (0): m = {m_mean:0.3e} +/- {m_error * 3:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error * 3:0.3e} [3-sigma]")
+    print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1 * 3:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1 * 3:0.3e} [3-sigma]")
+    print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2 * 3:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2 * 3:0.3e} [3-sigma]")
 
     m_req = 2e-3
 
