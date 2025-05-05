@@ -42,8 +42,7 @@ class ImageBuilder:
         return image
 
     def get_noise_sigma(self, sky_background, throughput):
-        noise_sigma = utils.get_noise_sigma(
-            sky_background,
+        noise_sigma = sky_background.get_noise_sigma(
             throughput,
             self.npixel,
             ncoadd=self.ncoadd,

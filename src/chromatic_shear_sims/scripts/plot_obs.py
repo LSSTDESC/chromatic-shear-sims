@@ -135,8 +135,8 @@ def plot_sim_pair(mbobs_dict, psf_mbobs, measure=None):
         psf_image = psf_obs.image
 
         axs[0, i].imshow(psf_image, origin="lower")
-        axs[0, i].axvline((psf_image.shape[0] - 1) / 2, c="gray", ls=":")
-        axs[0, i].axhline((psf_image.shape[1] - 1) / 2, c="gray", ls=":")
+        axs[0, i].axvline((psf_image.shape[0] - 1) / 2, c="k", ls=":")
+        axs[0, i].axhline((psf_image.shape[1] - 1) / 2, c="k", ls=":")
 
         axs[1, i].imshow(np.arcsinh(plus_image * np.sqrt(plus_weight_image)), origin="lower", norm=norm_field)
 
