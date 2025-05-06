@@ -31,8 +31,8 @@ class Scene:
         logger.info(f"making scene with shear g1={g1}, g2={g2}")
         shear = galsim.Shear(g1=g1, g2=g2)
         galaxies = [
-            galaxy.shear(shear)
-            for galaxy in self.galaxies
+            (galaxy.shear(shear), position.shear(shear))
+            for (galaxy, position) in self.galaxies
         ]
         stars = self.stars
         return Scene(galaxies=galaxies, stars=stars)
