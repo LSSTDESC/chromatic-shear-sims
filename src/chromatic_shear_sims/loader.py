@@ -77,11 +77,11 @@ class Loader:
         self.format = self.config.get("format")
         self.seed = self.config.get("seed", None)
 
-        self.predicate_dict = self.config.get("predicate", None)
-        self.predicate = parse_expression(self.predicate_dict)
+        # self.predicate_dict = self.config.get("predicate", None)
+        # self.predicate = parse_expression(self.predicate_dict)
 
-        # self.predicate_filters = self.config.get("predicate", None)
-        # self.predicate = parse_filters(self.predicate_filters)
+        self.predicate_filters = self.config.get("predicate", None)
+        self.predicate = parse_filters(self.predicate_filters)
 
         self.num_rows = self.count_rows()
 
