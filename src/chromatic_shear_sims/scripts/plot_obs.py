@@ -78,8 +78,8 @@ def plot_sim(mbobs, psf_mbobs, measure=None):
         psf_image = psf_obs.image
 
         axs[0, i].imshow(psf_image, origin="lower")
-        axs[0, i].axvline((psf_image.shape[0] - 1) / 2, c="gray", ls=":")
-        axs[0, i].axhline((psf_image.shape[1] - 1) / 2, c="gray", ls=":")
+        axs[0, i].axvline((psf_image.shape[0] - 1) / 2, c="k", ls=":")
+        axs[0, i].axhline((psf_image.shape[1] - 1) / 2, c="k", ls=":")
 
         axs[1, i].imshow(np.arcsinh(image * np.sqrt(weight_image)), origin="lower", norm=norm_field)
 
@@ -191,6 +191,11 @@ def get_args():
         help="run detection",
     )
     parser.add_argument(
+        "--pair",
+        action="store_true",
+        help="do shear pair",
+    )
+    parser.add_argument(
         "--log_level",
         type=int,
         required=False,
@@ -227,6 +232,13 @@ def main():
     seed = args.seed
     seeds = utils.get_seeds(n_sims, seed=seed)
 
+    if args.pair:
+        sim_task = simulation_builder.make_sim_pair
+        plot_task = plot_sim_pair
+    else:
+        sim_task = simulation_builder.make_sim
+        plot_task = plot_sim
+
     with multiprocessing.Pool(
         n_jobs,
         initializer=log_util.initializer,
@@ -235,14 +247,13 @@ def main():
     ) as pool:
         for i, (obs, psf) in enumerate(
             pool.imap(
-                simulation_builder.make_sim,
-                # simulation_builder.make_sim_pair,
+                sim_task,
                 seeds,
             )
         ):
             print(f"finished simulation {i + 1}/{n_sims}")
             psf_obs = simulation_builder.make_psf_obs(psf, color=0.8)
-            fig, axs = plot_sim(obs, psf_obs, measure=measure)
+            fig, axs = plot_task(obs, psf_obs, measure=measure)
 
             figname = f"{config_name}-obs-{seeds[i]}.pdf"
             fig.savefig(figname)
