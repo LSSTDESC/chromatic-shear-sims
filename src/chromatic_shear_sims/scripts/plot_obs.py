@@ -244,7 +244,7 @@ def main():
             psf_obs = simulation_builder.make_psf_obs(psf, color=0.8)
             fig, axs = plot_sim(obs, psf_obs, measure=measure)
 
-            figname = f"{config_name}-obs-{i}.pdf"
+            figname = f"{config_name}-obs-{seeds[i]}.pdf"
             fig.savefig(figname)
 
     queue.put(None)

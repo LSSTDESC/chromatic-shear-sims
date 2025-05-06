@@ -104,7 +104,7 @@ def main():
         print(f"finished simulation {i + 1}/{n_sims}")
         fig, axs = plot_scene(scene)
 
-        figname = f"{config_name}-scene-{i}.pdf"
+        figname = f"{config_name}-scene-{seeds[i]}.pdf"
         fig.savefig(figname)
 
     print("simulations completed")
