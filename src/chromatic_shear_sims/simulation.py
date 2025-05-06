@@ -141,9 +141,10 @@ class SimulationBuilder:
         if stars is not None:
             star_kwargs = self.config["stars"].get("kwargs", {})
             scene_stars = [
-                self.star_builder(stars.get_params(i), **star_kwargs).rotate(
-                    rotation
-                ).shift(position)
+                (
+                    self.star_builder(stars.get_params(i), **star_kwargs).rotate(rotation),
+                    position,
+                )
                 for i, (position, rotation) in enumerate(
                     zip(star_positions, star_rotations)
                 )
@@ -155,25 +156,27 @@ class SimulationBuilder:
             galaxy_kwargs = self.config["galaxies"].get("kwargs", {})
             if self.hybrid:
                 scene_galaxies = [
-                    self.galaxy_builder(
-                        galaxies.get_morphology_params(i),
-                        galaxies.get_obs_params(i),
-                        **galaxy_kwargs
-                    ).rotate(
-                        rotation
-                    ).shift(position)
+                    (
+                        self.galaxy_builder(
+                            galaxies.get_morphology_params(i),
+                            galaxies.get_obs_params(i),
+                            **galaxy_kwargs
+                        ).rotate(rotation),
+                        position,
+                    )
                     for i, (position, rotation) in enumerate(
                         zip(galaxy_positions, galaxy_rotations)
                     )
                 ]
             else:
                 scene_galaxies = [
-                    self.galaxy_builder(
-                        galaxies.get_params(i),
-                        **galaxy_kwargs,
-                    ).rotate(
-                        rotation
-                    ).shift(position)
+                    (
+                        self.galaxy_builder(
+                            galaxies.get_params(i),
+                            **galaxy_kwargs,
+                        ).rotate(rotation),
+                        position,
+                    )
                     for i, (position, rotation) in enumerate(
                         zip(galaxy_positions, galaxy_rotations)
                     )
