@@ -136,26 +136,32 @@ def get_obs(
 
     if scene.ngal > 0:
         _start_time = time.time()
-        for galaxy in scene.galaxies:
+        for (galaxy, position) in scene.galaxies:
             observed = galsim.Convolve([psf.model, galaxy])
-            observed.drawImage(
+            _stamp = observed.drawImage(
                 throughput,
-                image,
-                add_to_image=True,
+                scale=image.scale,
+                center=image.center,
+                offset=position,
             )
+            _bounds = _stamp.bounds & image.bounds
+            image[_bounds] += _stamp[_bounds]
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
         logger.info(f"drew {scene.ngal} galaxies in {_elapsed_time} seconds")
 
     if scene.nstar > 0:
         _start_time = time.time()
-        for star in scene.stars:
+        for (star, position) in scene.stars:
             observed = galsim.Convolve([psf.model, star])
-            observed.drawImage(
+            _stamp = observed.drawImage(
                 throughput,
-                image,
-                add_to_image=True,
+                scale=image.scale,
+                center=image.center,
+                offset=position,
             )
+            _bounds = _stamp.bounds & image.bounds
+            image[_bounds] += _stamp[_bounds]
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
         logger.info(f"drew {scene.nstar} stars in {_elapsed_time} seconds")
