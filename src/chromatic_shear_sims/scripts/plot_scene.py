@@ -22,27 +22,25 @@ def plot_scene(scene):
 
     wl = np.linspace(300, 1200, 1000)
 
-    for galaxy in scene.galaxies:
+    for (galaxy, position) in scene.galaxies:
         spec = galaxy.sed
-        centroid = galaxy.calculateCentroid(throughputs["r"])
         axs[1, 0].plot(wl, spec(wl))
-        axs[0, 0].scatter(centroid.x, centroid.y, s=12)
+        axs[0, 0].scatter(position.x, position.y, s=12)
 
-    for star in scene.stars:
+    for (star, position) in scene.stars:
         spec = star.sed
-        centroid = star.calculateCentroid(throughputs["r"])
         axs[1, 1].plot(wl, spec(wl))
-        axs[0, 1].scatter(centroid.x, centroid.y, s=12)
+        axs[0, 1].scatter(position.x, position.y, s=12)
 
-    axs[0, 0].set_xlabel("[$arcsec$]")
-    axs[0, 0].set_ylabel("[$arcsec$]")
+    axs[0, 0].set_xlabel("[pixels]")
+    axs[0, 0].set_ylabel("[pixels]")
     axs[1, 0].set_yscale("log")
     axs[1, 0].set_xlabel("$\lambda$ [$nm$]")
     axs[1, 0].set_ylabel("$f_{photons}$ [$photons/nm/cm^2/s$]")
     axs[0, 0].set_title("Galaxies")
 
-    axs[0, 1].set_xlabel("[$arcsec$]")
-    # axs[0, 1].set_ylabel("[$arcsec$]")
+    axs[0, 1].set_xlabel("[pixels]")
+    # axs[0, 1].set_ylabel("[pixels]")
     axs[1, 1].set_yscale("log")
     axs[1, 1].set_xlabel("$\lambda$ [$nm$]")
     # axs[1, 1].set_ylabel("$f_{photons}$ [$photons/nm/cm^2/s$]")
