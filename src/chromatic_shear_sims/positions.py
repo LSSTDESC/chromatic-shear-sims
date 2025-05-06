@@ -66,20 +66,20 @@ def _build_lattice(
     return x_lattice_rot[mask], y_lattice_rot[mask]
 
 
-def _to_scene(xs, ys, scale):
+def _to_scene(xs, ys):
     """
-    Convert pixel positions to arcsec positions
+    Convert pixel coordinates to GalSim positions
     """
     return [
         galsim.PositionD(
-            x=x * scale,
-            y=y * scale,
+            x=x,
+            y=y,
         )
         for (x, y) in zip(xs, ys)
     ]
 
 
-def _dither(xs, ys, dither_scale=0.5, seed=None):
+def _dither(xs, ys, dither_scale, seed=None):
     """
     Apply a random uniform dithering to the pixel positions
     """
@@ -92,7 +92,7 @@ def _dither(xs, ys, dither_scale=0.5, seed=None):
         y + rng.uniform(-dither_scale, dither_scale)
         for y in ys
     ]
-    return (xs, ys)
+    return (dither_x, dither_y)
 
 
 def _get_single_pos():
@@ -135,13 +135,11 @@ def _get_hex_pos(separation, xsize, ysize, border=0, seed=None):
 
 def get_positions(
     scene_type,
-    scale=None,
     n=None,
     separation=None,
     xsize=None,
     ysize=None,
-    dither=True,
-    dither_scale=0.5,
+    dither=None,
     border=0,
     seed=None,
 ):
@@ -151,18 +149,17 @@ def get_positions(
         case "random":
             xs, ys = _get_random_pos(n, xsize, ysize, border=border, seed=seed)
         case "hex":
-            pixel_separation = separation / scale
-            xs, ys = _get_hex_pos(pixel_separation, xsize, ysize, border=border, seed=seed)
+            xs, ys = _get_hex_pos(separation, xsize, ysize, border=border, seed=seed)
         case "none":
             xs = []
             ys = []
         case _:
             raise ValueError(f"Scene type {scene_type} not valid!")
 
-    if dither:
-        xs, ys = _dither(xs, ys, dither_scale)
+    if dither is not None:
+        xs, ys = _dither(xs, ys, dither, seed=seed)
 
-    scene_positions = _to_scene(xs, ys, scale)
+    scene_positions = _to_scene(xs, ys)
 
     return scene_positions
 
@@ -187,8 +184,6 @@ class PositionBuilder:
     def from_config(cls, position_config):
         position_config_copy = copy.deepcopy(position_config)
         position_type = position_config_copy.pop("type")
-        # scale = position_config_copy.pop("scale")
-        # return cls(position_type, scale, **position_config_copy)
         return cls(position_type, position_config_copy)
 
     def get_positions(self, seed=None):
