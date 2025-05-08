@@ -27,12 +27,19 @@ class Scene:
     def nstar(self):
         return len(self.stars)
 
-    def with_shear(self, g1, g2):
+    def with_shear(self, g1, g2, shear_scene=True):
         logger.info(f"making scene with shear g1={g1}, g2={g2}")
         shear = galsim.Shear(g1=g1, g2=g2)
-        galaxies = [
-            (galaxy.shear(shear), position.shear(shear))
-            for (galaxy, position) in self.galaxies
-        ]
+        if shear_scene:
+            logger.info(f"shearing full scene")
+            galaxies = [
+                (galaxy.shear(shear), position.shear(shear))
+                for (galaxy, position) in self.galaxies
+            ]
+        else:
+            galaxies = [
+                (galaxy.shear(shear), position)
+                for (galaxy, position) in self.galaxies
+            ]
         stars = self.stars
         return Scene(galaxies=galaxies, stars=stars)

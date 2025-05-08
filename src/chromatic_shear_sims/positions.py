@@ -103,15 +103,16 @@ def _get_single_pos():
 
 def _get_random_pos(n, xsize, ysize, border=0, seed=None):
     rng = np.random.default_rng(seed)
+    N = rng.poisson(n)
     xs = rng.uniform(
         -xsize / 2 + border,
         xsize / 2 - border,
-        n,
+        N,
     )
     ys = rng.uniform(
         -ysize / 2 + border,
         ysize / 2 - border,
-        n,
+        N,
     )
     return (xs, ys)
 
@@ -174,17 +175,19 @@ def get_rotations(n, seed=None):
 
 
 class PositionBuilder:
-    def __init__(self, position_type, position_kwargs):
+    def __init__(self, position_type, position_kwargs, shear_scene=False):
         # positions = get_positions(*args, **kwargs)
         # self.positions = positions
         self.position_type = position_type
         self.position_kwargs = position_kwargs
+        self.shear_scene = shear_scene
 
     @classmethod
     def from_config(cls, position_config):
         position_config_copy = copy.deepcopy(position_config)
         position_type = position_config_copy.pop("type")
-        return cls(position_type, position_config_copy)
+        shear_scene = position_config_copy.pop("shear", False)
+        return cls(position_type, position_config_copy, shear_scene=shear_scene)
 
     def get_positions(self, seed=None):
         return get_positions(

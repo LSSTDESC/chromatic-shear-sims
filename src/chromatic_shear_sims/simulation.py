@@ -228,9 +228,10 @@ class SimulationBuilder:
         scene_seed = utils.get_seed(seed=seed)
 
         scene = self.make_scene(seed=seed)
+        shear_scene = self.galaxy_position_builder.shear_scene
 
-        plus_scene = scene.with_shear(g1=g1, g2=g2)
-        minus_scene = scene.with_shear(g1=-g1, g2=-g2)
+        plus_scene = scene.with_shear(g1=g1, g2=g2, shear_scene=shear_scene)
+        minus_scene = scene.with_shear(g1=-g1, g2=-g2, shear_scene=shear_scene)
 
         plus_mbobs = observations.get_mbobs(
             self.bands,
