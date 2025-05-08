@@ -72,26 +72,38 @@ def parse_filters(filters):
 class Loader:
     def __init__(self, config):
         self.config = copy.copy(config)
-        self.path = self.config.get("path")
 
-        self.format = self.config.get("format")
         self.seed = self.config.get("seed", None)
 
-        # self.predicate_dict = self.config.get("predicate", None)
-        # self.predicate = parse_expression(self.predicate_dict)
+        self.predicate_dict = self.config.get("predicate", None)
+        self.predicate = parse_expression(self.predicate_dict)
+        # self.predicate_filters = self.config.get("predicate", None)
+        # self.predicate = parse_filters(self.predicate_filters)
 
-        self.predicate_filters = self.config.get("predicate", None)
-        self.predicate = parse_filters(self.predicate_filters)
+        self.path = self.config.get("path")
+        self.format = self.config.get("format")
+        self.dataset = ds.dataset(self.path, self.format)
+        self.files = self.dataset.files
 
-        self.num_rows = self.count_rows()
+        logger.info(f"scanning dataset: {self.path}")
+        logger.info(f"applying filter: {self.predicate}")
 
-        logger.info(f"initialized loader for {self.path} with {self.predicate}; found {self.num_rows} rows")
+        num_rows = {}
+        for _file in self.files:
+            _dataset = ds.dataset(_file, format=self.format)
+            num_rows[_file] = _dataset.count_rows(filter=self.predicate)
+            del _dataset
+            logger.info(f"{_file}: {num_rows[_file]} rows")
 
-    def get_scanner(self, columns=None):
+        self.num_rows = num_rows
+        # self.num_rows = self.count_rows()
+
+
+    def get_scanner(self, file, columns=None):
         """
         Load a dataset defined in a config
         """
-        dataset = ds.dataset(self.path, format=self.format)
+        dataset = ds.dataset(file, format=self.format)
         scanner = dataset.scanner(
             columns=columns,
             filter=self.predicate,
@@ -99,15 +111,15 @@ class Loader:
 
         return scanner
 
-    def count_rows(self):
-        """
-        Process a dataset defined in a config
-        """
-        # dataset = ds.dataset(self.path, format=self.format)
-        # num_rows = dataset.count_rows(filter=self.predicate)
-        scanner = self.get_scanner()
-        num_rows = scanner.count_rows()
-        return num_rows
+    # def count_rows(self):
+    #     """
+    #     Process a dataset defined in a config
+    #     """
+    #     # dataset = ds.dataset(self.path, format=self.format)
+    #     # num_rows = dataset.count_rows(filter=self.predicate)
+    #     scanner = self.get_scanner()
+    #     num_rows = scanner.count_rows()
+    #     return num_rows
 
     def get_rng(self, seed=None):
         rng_seed = seed if seed else self.seed
@@ -117,10 +129,10 @@ class Loader:
 
         return rng
 
-    def select(self, n, seed=None):
+    def select(self, file, n, seed=None):
         rng = self.get_rng(seed)
         indices = rng.choice(
-            self.num_rows,
+            self.num_rows[file],
             size=n,
             replace=True,
             shuffle=True,
@@ -129,14 +141,16 @@ class Loader:
         return indices
 
     def sample(self, n, columns=None, seed=None):
-        indices = self.select(n, seed=seed)
-        scanner = self.get_scanner(columns)
+        rng = self.get_rng(seed)
+        file = rng.choice(self.files)
+        indices = self.select(file, n, seed=seed)
+        scanner = self.get_scanner(file, columns)
 
         _start_time = time.time()
         objs = scanner.take(indices).to_pydict()
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
-        logger.info(f"sampled {n} records from {self.path} in {_elapsed_time} seconds")
+        logger.info(f"sampled {n} records from {file} in {_elapsed_time} seconds")
 
         return objs
 
