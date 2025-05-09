@@ -2,8 +2,9 @@ import argparse
 import logging
 import functools
 import multiprocessing
-import threading
 import os
+import threading
+import time
 
 import numpy as np
 import pyarrow as pa
@@ -256,6 +257,7 @@ def main():
     #             #     writer.write_batch(batch)
     #             # writer.write_table(table)
 
+    _start_time = time.time()
     with multiprocessing.Pool(
         n_jobs,
         initializer=log_util.initializer,
@@ -269,7 +271,9 @@ def main():
                 seeds,
             )
         ):
-            print(f"finished simulation {i + 1}/{n_sims}")
+            _end_time = time.time()
+            _elapsed_time = _end_time - _start_time
+            print(f"finished simulation {i + 1}/{n_sims} [{_elapsed_time / 60 :.0f} minutes elapsed]")
             for shear_step, color_tables in tables.items():
                 for color_step, mdet_tables in color_tables.items():
                     for mdet_step, mdet_table in mdet_tables.items():
