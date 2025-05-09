@@ -114,8 +114,8 @@ def do_plot(dataset, aggregates, nbins=100, projection=None, predicate=None):
 
     fig, axs = plot_util.subplots(1, 1)
 
-    axs.stairs(hist_unfiltered / sum(hist_unfiltered), bin_edges, ls="--", label="full sample")
-    axs.stairs(hist / sum(hist), bin_edges, label="maglim sample")
+    axs.stairs(hist_unfiltered / sum(hist_unfiltered), bin_edges, c="k", ls="--", label="full sample")
+    axs.stairs(hist / sum(hist), bin_edges, c="b", label="filtered sample")
     axs.axvline(aggregates["color_mean"], c="b", ls="--", label="mean")
     for i, cq in enumerate(aggregates["color_quantiles"]):
         ql = "quantiles" if (i == 1) else None
