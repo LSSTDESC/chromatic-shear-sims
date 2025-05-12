@@ -1,0 +1,70 @@
+bands: [g, r, i]
+
+image:
+  xsize: &xsize 256
+  ysize: &ysize 256
+  scale: &scale 0.2
+  ncoadd: 100
+
+stars:
+  builder:
+    entrypoint: "chromatic_weak_lensing.simple_star:SimpleStar"
+    interpolate: false
+
+galaxies:
+  builder:
+    # hybrid: false
+    entrypoint: "chromatic_weak_lensing.diffsky:Diffsky"
+    red_limit: 12_000
+  kwargs:
+    morphology: achromatic
+  data:
+    entrypoint: "chromatic_weak_lensing.roman_rubin:RomanRubin"
+  loader:
+    path: "../../../notebooks/roman_rubin"
+    predicate:
+      less:
+        - field: LSST_obs_r
+        - scalar: 26.0
+  positions:
+    type: hex
+    xsize: *xsize
+    ysize: *ysize
+    separation: 64
+    border: 64
+    shear: false
+
+psf:
+  model:
+    type: Gaussian
+    fwhm: 0.7
+  image:
+    xsize: 53
+    ysize: 53
+    scale: *scale
+
+measurement:
+  builder:
+    entrypoint: "chromatic_shear_sims.measurement:Metadetect"
+    config:
+      model: pgauss
+      weight:
+        fwhm: 2.0
+      symmetrize: False
+      metacal:
+        psf: fitgauss
+        types: [noshear, 1p, 1m, 2p, 2m]
+        use_noise_image: true
+      meds:
+        box_padding: 2
+        box_type: iso_radius
+        max_box_size: 48
+        min_box_size: 48
+        rad_fac: 2
+        rad_min: 4
+  colors: [0.2, 0.8, 1.4]
+  color_indices: [0, 1, 2]
+  kwargs:
+    shear_band_combs: [[1]]
+    det_band_combs: [[0, 1, 2]]
+
