@@ -31,12 +31,18 @@ class SimulationBuilder:
         self.sky_background = Darksky()
 
         if "builder" in self.config["stars"]:
+            self.interpolate = self.config["stars"]["builder"].pop("interpolate", True)
             star_builder = StarBuilder(
                 **self.config["stars"]["builder"]
             )
-            psf_star_builder = InterpolatedStarBuilder(
-                **self.config["stars"]["builder"],
-            )
+            if self.interpolate:
+                psf_star_builder = InterpolatedStarBuilder(
+                    **self.config["stars"]["builder"],
+                )
+            else:
+                psf_star_builder = StarBuilder(
+                    **self.config["stars"]["builder"],
+                )
         else:
             star_builder = None
             psf_star_builder = None
@@ -125,24 +131,27 @@ class SimulationBuilder:
             star_rotations = self.star_position_builder.get_rotations_for(star_positions, seed=star_rotation_seed)
 
         if (self.star_data is not None) and (self.star_loader is not None):
-            stars = self.star_data.load(len(star_positions), seed=star_data_seed)
+            star_data = self.star_data.load(len(star_positions), seed=star_data_seed)
         else:
-            stars = None
+            star_data = None
 
         if self.galaxy_position_builder is not None:
             galaxy_positions = self.galaxy_position_builder.get_positions(seed=galaxy_position_seed)
             galaxy_rotations = self.galaxy_position_builder.get_rotations_for(galaxy_positions, seed=galaxy_rotation_seed)
 
         if (self.galaxy_data is not None) and (self.galaxy_loader is not None):
-            galaxies = self.galaxy_data.load(len(galaxy_positions), seed=galaxy_data_seed)
+            galaxy_data = self.galaxy_data.load(len(galaxy_positions), seed=galaxy_data_seed)
         else:
-            galaxies = None
+            galaxy_data = None
 
-        if stars is not None:
+        if self.star_builder is not None:
             star_kwargs = self.config["stars"].get("kwargs", {})
             scene_stars = [
                 (
-                    self.star_builder(stars.get_params(i), **star_kwargs).rotate(rotation),
+                    self.star_builder(
+                        star_data.get_params(i) if star_data is not None else None,
+                        **star_kwargs,
+                    ).rotate(rotation),
                     position,
                 )
                 for i, (position, rotation) in enumerate(
@@ -152,14 +161,14 @@ class SimulationBuilder:
         else:
             scene_stars = []
 
-        if galaxies is not None:
+        if self.galaxy_builder is not None:
             galaxy_kwargs = self.config["galaxies"].get("kwargs", {})
             if self.hybrid:
                 scene_galaxies = [
                     (
                         self.galaxy_builder(
-                            galaxies.get_morphology_params(i),
-                            galaxies.get_obs_params(i),
+                            galaxy_data.get_morphology_params(i) if galaxy_data is not None else None,
+                            galaxy_data.get_obs_params(i) if galaxy_data is not None else None,
                             **galaxy_kwargs
                         ).rotate(rotation),
                         position,
@@ -172,7 +181,7 @@ class SimulationBuilder:
                 scene_galaxies = [
                     (
                         self.galaxy_builder(
-                            galaxies.get_params(i),
+                            galaxy_data.get_params(i) if galaxy_data is not None else None,
                             **galaxy_kwargs,
                         ).rotate(rotation),
                         position,
