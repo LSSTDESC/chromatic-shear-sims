@@ -218,9 +218,9 @@ def main():
     m_error_c2 = np.nanstd(m_bootstrap_c2)
     c_error_c2 = np.nanstd(c_bootstrap_c2)
 
-    print(f"mdet (0): m = {m_mean:0.3e} +/- {m_error * 3:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error * 3:0.3e} [3-sigma]")
-    print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1 * 3:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1 * 3:0.3e} [3-sigma]")
-    print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2 * 3:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2 * 3:0.3e} [3-sigma]")
+    print(f"mdet (0): m = {m_mean:+0.3e} +/- {m_error * 3:0.3e} [3-sigma], c = {c_mean:+0.3e} +/- {c_error * 3:0.3e} [3-sigma]")
+    print(f"drdc (1): m = {m_mean_c1:+0.3e} +/- {m_error_c1 * 3:0.3e} [3-sigma], c = {c_mean_c1:+0.3e} +/- {c_error_c1 * 3:0.3e} [3-sigma]")
+    print(f"drdc (2): m = {m_mean_c2:+0.3e} +/- {m_error_c2 * 3:0.3e} [3-sigma], c = {c_mean_c2:+0.3e} +/- {c_error_c2 * 3:0.3e} [3-sigma]")
 
 
 if __name__ == "__main__":
