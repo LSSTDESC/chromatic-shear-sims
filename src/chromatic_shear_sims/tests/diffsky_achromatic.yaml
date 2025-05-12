@@ -21,7 +21,7 @@ galaxies:
   data:
     entrypoint: "chromatic_weak_lensing.roman_rubin:RomanRubin"
   loader:
-    path: "../../../notebooks/roman_rubin"
+    path: /scratch/users/smau/roman_rubin_2023_v1.1.3_parquet/
     predicate:
       less:
         - field: LSST_obs_r
@@ -30,8 +30,8 @@ galaxies:
     type: hex
     xsize: *xsize
     ysize: *ysize
-    separation: 64
-    border: 64
+    separation: 32
+    border: 32
     shear: false
 
 psf:

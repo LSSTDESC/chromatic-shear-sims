@@ -19,8 +19,8 @@ galaxies:
     type: hex
     xsize: *xsize
     ysize: *ysize
-    separation: 64
-    border: 64
+    separation: 32
+    border: 32
     shear: false
 
 psf:
