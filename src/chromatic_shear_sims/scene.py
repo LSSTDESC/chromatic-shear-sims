@@ -27,7 +27,7 @@ class Scene:
     def nstar(self):
         return len(self.stars)
 
-    def with_shear(self, g1, g2, shear_scene=True):
+    def with_shear(self, g1, g2, shear_scene=False):
         logger.info(f"making scene with shear g1={g1}, g2={g2}")
         shear = galsim.Shear(g1=g1, g2=g2)
         if shear_scene:
