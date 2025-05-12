@@ -13,7 +13,7 @@ stars:
 
 galaxies:
   builder:
-    # hybrid: false
+    hybrid: false
     entrypoint: "chromatic_weak_lensing.diffsky:Diffsky"
     red_limit: 12_000
   kwargs:
