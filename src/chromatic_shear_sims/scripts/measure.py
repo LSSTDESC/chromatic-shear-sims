@@ -11,15 +11,16 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import pyarrow.feather as ft
-from rich.progress import track
 import yaml
+from rich.progress import track
 
 from chromatic_shear_sims import utils
 from . import log_util, name_util, plot_util
 
 
 def task(aggregate_path, dg, dc, color, color_indices, resample=False, seed=None):
-    aggregates = ft.read_table(aggregate_path)
+    # aggregates = ft.read_table(aggregate_path)
+    aggregates = ds.dataset(aggregate_path).to_table()
     if resample:
         rng = np.random.default_rng(seed)
         resample_indices = rng.choice(len(aggregates), len(aggregates), replace=True)

@@ -47,19 +47,20 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                 # pc.field("color_step"),
                 # pc.field("mdet_step"),
                 pc.scalar(1),
-                pc.divide(
-                    pc.scalar(1),
-                    pc.add(
-                        pc.multiply(  # average covariance
-                            pc.scalar(0.5),
-                            pc.add(
-                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                            ),
-                        ),
-                        pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
-                    ),
-                ),
+                pc.scalar(1),
+                # pc.divide(
+                #     pc.scalar(1),
+                #     pc.add(
+                #         pc.multiply(  # average covariance
+                #             pc.scalar(0.5),
+                #             pc.add(
+                #                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                #                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                #             ),
+                #         ),
+                #         pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
+                #     ),
+                # ),
                 pc.list_element(pc.field("pgauss_g"), 0),
                 pc.list_element(pc.field("pgauss_g"), 1),
                 pc.add(
@@ -252,11 +253,11 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
     return res
 
 
-def post_aggregate(aggregate_path):
+def post_aggregate(aggregate_path, format=None, partitioning=None):
     aggregates = ds.dataset(
         aggregate_path,
-        format="feather",
-        partitioning=["shear_step", "color_step", "mdet_step"],
+        format=format,
+        partitioning=partitioning,
     )
 
     # this is a really unfortuante solution of exploiting pandas for it's pivot
@@ -383,7 +384,12 @@ def main():
                 )
 
     print(f"pivoting aggregates")
-    aggregates = post_aggregate(aggregate_dataset)
+    aggregates = post_aggregate(
+        aggregate_dataset,
+        format="feather",
+        partitioning=["shear_step", "color_step", "mdet_step"],
+    )
+
     ft.write_feather(
         aggregates,
         aggregate_path,
