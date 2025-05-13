@@ -10,7 +10,6 @@ import ngmix
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
-import pyarrow.parquet as pq
 import yaml
 from rich.progress import track
 
@@ -18,12 +17,15 @@ from chromatic_shear_sims import utils
 from chromatic_shear_sims import measurement
 from chromatic_shear_sims.simulation import SimulationBuilder
 
-from chromatic_shear_sims.scripts import log_util, name_util
+from chromatic_shear_sims.scripts import log_util
 from chromatic_shear_sims.scripts import (
     run as run_script,
     aggregate as aggregate_script,
     measure as measure_script,
 )
+
+
+multiprocessing.set_start_method("spawn")
 
 
 def get_args():
@@ -86,8 +88,6 @@ def task(
     measure = measurement.get_measure(
         **simulation_builder.config["measurement"].get("builder"),
     )
-
-    multiprocessing.set_start_method("spawn")
 
     queue = multiprocessing.Queue(-1)
 
@@ -178,7 +178,6 @@ def task(
         initializer=log_util.initializer,
         initargs=(queue, log_level),
         maxtasksperchild=max(1, n_resample // n_jobs),
-        # context=ctx,
     ) as pool:
         results = pool.imap(
             functools.partial(measure_script.task, aggregates, dg, dc, color, psf_color_indices, True),
@@ -231,12 +230,17 @@ def task(
 
 
 def test_simple_simple_achromatic():
+    _config_file = os.path.join(
+        os.path.dirname(__file__),
+        "simple-simple-achromatic.yaml",
+    )
+
     (
         (m_mean, m_error),
         (m_mean_c1, m_error_c1),
         (m_mean_c2, m_error_c2),
     ) = task(
-        "simple-simple-achromatic.yaml",
+        _config_file,
         n_sims=8,
         n_jobs=4,
     )
@@ -244,12 +248,17 @@ def test_simple_simple_achromatic():
 
 
 def test_simple_simple_chromatic():
+    _config_file = os.path.join(
+        os.path.dirname(__file__),
+        "simple-simple-chromatic.yaml",
+    )
+
     (
         (m_mean, m_error),
         (m_mean_c1, m_error_c1),
         (m_mean_c2, m_error_c2),
     ) = task(
-        "simple-simple-chromatic.yaml",
+        _config_file,
         n_sims=8,
         n_jobs=4,
     )
