@@ -18,10 +18,11 @@ jobs:
           python-version: 3.11
           channels: conda-forge
           channel-priority: strict
+          conda-remove-defaults: "true"
           show-channel-urls: true
       - name: Install dependencies
         run: |
-          conda install -q --file environment.yaml
+          conda install -q --file requirements.txt
           pip install chromatic_weak_lensing[diffsky,roman_rubin,btsettl,lsst_sim]@git+https://github.com/sidneymau/chromatic-weak-lensing.git
           pip install .
       - name: Lint with flake8
