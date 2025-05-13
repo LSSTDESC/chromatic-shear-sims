@@ -20,7 +20,7 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda env update --file requirements.txt --name base
+        conda env update --file=environment.yaml --name base
         pip install chromatic_weak_lensing[diffsky,roman_rubin,btsettl,lsst_sim]@git+https://github.com/sidneymau/chromatic-weak-lensing.git
         pip install .
     - name: Lint with flake8
