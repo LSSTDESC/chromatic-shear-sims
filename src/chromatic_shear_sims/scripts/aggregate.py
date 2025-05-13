@@ -15,6 +15,9 @@ from chromatic_shear_sims.throughputs import load_throughputs
 from . import log_util, name_util
 
 
+logger = logging.getLogger(__name__)
+
+
 # def pre_aggregate(dataset_path, predicate):
 def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
     """
@@ -247,7 +250,7 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
         post_project_node,
     ]
     plan = acero.Declaration.from_sequence(seq)
-    print(plan)
+    logger.debug(plan)
     res = plan.to_table(use_threads=True)
 
     return res

@@ -18,6 +18,9 @@ from chromatic_shear_sims import utils
 from . import log_util, name_util, plot_util
 
 
+logger = logging.getLogger(__name__)
+
+
 def task(aggregate_path, dg, dc, color, color_indices, resample=False, seed=None):
     # aggregates = ft.read_table(aggregate_path)
     aggregates = ds.dataset(aggregate_path).to_table()

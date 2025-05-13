@@ -25,9 +25,6 @@ from chromatic_shear_sims.scripts import (
 )
 
 
-multiprocessing.set_start_method("spawn")
-
-
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -89,7 +86,10 @@ def task(
         **simulation_builder.config["measurement"].get("builder"),
     )
 
-    queue = multiprocessing.Queue(-1)
+    # multiprocessing.set_start_method("spawn")
+    # queue = multiprocessing.Queue(-1)
+    context = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
+    queue = context.Queue(-1)
 
     lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
@@ -106,7 +106,7 @@ def task(
     psf_color_indices = config["measurement"].get("color_indices")
     dc = (psf_colors[psf_color_indices[2]] - psf_colors[psf_color_indices[0]]) / 2.
     color = psf_colors[psf_color_indices[1]]
-    # print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
+    print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
 
     shear_steps = ["plus", "minus"]
     color_steps = [f"c{i}" for i, psf_color in enumerate(psf_colors)]
@@ -121,7 +121,7 @@ def task(
                 data[shear_step][color_step][mdet_step] = []
 
     _start_time = time.time()
-    with multiprocessing.Pool(
+    with context.Pool(
         n_jobs,
         initializer=log_util.initializer,
         initargs=(queue, log_level),
@@ -136,13 +136,13 @@ def task(
         ):
             _end_time = time.time()
             _elapsed_time = _end_time - _start_time
-            # print(f"finished simulation {i + 1}/{n_sims} [{_elapsed_time / 60 :.0f} minutes elapsed]")
+            print(f"finished simulation {i + 1}/{n_sims} [{_elapsed_time / 60 :.0f} minutes elapsed]")
             for shear_step, color_tables in tables.items():
                 for color_step, mdet_tables in color_tables.items():
                     for mdet_step, mdet_table in mdet_tables.items():
                         data[shear_step][color_step][mdet_step].append(mdet_table)
 
-    # print(f"aggregating data")
+    print(f"aggregating data")
 
     predicate = (
         (pc.field("pgauss_flags") == 0)
@@ -160,7 +160,7 @@ def task(
                 _aggregate = _aggregate.append_column("shear_step", pa.array([shear_step for _ in range(_aggregate.num_rows)]))
                 pre_aggregates.append(_aggregate)
 
-    # print(f"pivoting aggregates")
+    print(f"pivoting aggregates")
     aggregates = aggregate_script.post_aggregate(pre_aggregates)
 
     (m_mean, c_mean), (m_mean_c1, c_mean_c1), (m_mean_c2, c_mean_c2) = measure_script.task(aggregates, dg, dc, color, psf_color_indices)
@@ -172,8 +172,8 @@ def task(
     m_bootstrap_c2 = []
     c_bootstrap_c2 = []
 
-    # print(f"aggregating results from {n_resample} bootstrap resamples...")
-    with multiprocessing.Pool(
+    print(f"aggregating results from {n_resample} bootstrap resamples...")
+    with context.Pool(
         n_jobs,
         initializer=log_util.initializer,
         initargs=(queue, log_level),
@@ -198,7 +198,7 @@ def task(
     queue.put(None)
     lp.join()
 
-    # print(f"finished processing bootstrap resamples")
+    print(f"finished processing bootstrap resamples")
 
     m_bootstrap = np.array(m_bootstrap)
     c_bootstrap = np.array(c_bootstrap)

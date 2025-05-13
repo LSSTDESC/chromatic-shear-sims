@@ -23,7 +23,6 @@ from chromatic_shear_sims import utils
 from . import log_util, name_util, plot_util, measure
 
 
-
 def task(aggregate_path, dg, color_index, resample=False, seed=None):
     aggregates = ft.read_table(aggregate_path)
     if resample:

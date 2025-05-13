@@ -17,6 +17,9 @@ from chromatic_shear_sims.simulation import SimulationBuilder
 from . import log_util, name_util
 
 
+logger = logging.getLogger(__name__)
+
+
 def measure_sim(mbobs, psf_mbobs, measure):
     bands = mbobs.meta.get("bands")
 

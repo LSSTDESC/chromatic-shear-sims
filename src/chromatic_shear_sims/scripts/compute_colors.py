@@ -13,6 +13,9 @@ from chromatic_shear_sims.simulation import SimulationBuilder
 from . import log_util, name_util, plot_util
 
 
+logger = logging.getLogger(__name__)
+
+
 def do_aggregate(dataset, aggregates, projection=None, predicate=None):
     """
     Plan and execute aggregations for a dataset
@@ -80,7 +83,7 @@ def do_aggregate(dataset, aggregates, projection=None, predicate=None):
         ]
 
     plan = acero.Declaration.from_sequence(seq)
-    print(plan)
+    logger.debug(plan)
 
     res = plan.to_table(use_threads=True)
 
