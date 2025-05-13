@@ -71,12 +71,17 @@ def get_args():
     return parser.parse_args()
 
 
-def main():
-    args = get_args()
-    log_level = log_util.get_level(args.log_level)
+def task(
+    config_file,
+    seed=None,
+    n_sims=1,
+    n_resample=1_000,
+    n_jobs=1,
+    log_level=1,
+):
+    log_level = log_util.get_level(log_level)
     logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
-    config_file = args.config
     simulation_builder = SimulationBuilder.from_yaml(config_file)
     measure = measurement.get_measure(
         **simulation_builder.config["measurement"].get("builder"),
@@ -89,10 +94,6 @@ def main():
     lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
 
-    n_jobs = args.n_jobs
-    n_sims = args.n_sims
-    n_resample = args.n_resample
-    seed = args.seed
     seeds = utils.get_seeds(n_sims, seed=seed)
 
     with open(config_file) as fp:
@@ -105,7 +106,7 @@ def main():
     psf_color_indices = config["measurement"].get("color_indices")
     dc = (psf_colors[psf_color_indices[2]] - psf_colors[psf_color_indices[0]]) / 2.
     color = psf_colors[psf_color_indices[1]]
-    print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
+    # print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
 
     shear_steps = ["plus", "minus"]
     color_steps = [f"c{i}" for i, psf_color in enumerate(psf_colors)]
@@ -135,13 +136,13 @@ def main():
         ):
             _end_time = time.time()
             _elapsed_time = _end_time - _start_time
-            print(f"finished simulation {i + 1}/{n_sims} [{_elapsed_time / 60 :.0f} minutes elapsed]")
+            # print(f"finished simulation {i + 1}/{n_sims} [{_elapsed_time / 60 :.0f} minutes elapsed]")
             for shear_step, color_tables in tables.items():
                 for color_step, mdet_tables in color_tables.items():
                     for mdet_step, mdet_table in mdet_tables.items():
                         data[shear_step][color_step][mdet_step].append(mdet_table)
 
-    print(f"aggregating data")
+    # print(f"aggregating data")
 
     predicate = (
         (pc.field("pgauss_flags") == 0)
@@ -159,7 +160,7 @@ def main():
                 _aggregate = _aggregate.append_column("shear_step", pa.array([shear_step for _ in range(_aggregate.num_rows)]))
                 pre_aggregates.append(_aggregate)
 
-    print(f"pivoting aggregates")
+    # print(f"pivoting aggregates")
     aggregates = aggregate_script.post_aggregate(pre_aggregates)
 
     (m_mean, c_mean), (m_mean_c1, c_mean_c1), (m_mean_c2, c_mean_c2) = measure_script.task(aggregates, dg, dc, color, psf_color_indices)
@@ -171,7 +172,7 @@ def main():
     m_bootstrap_c2 = []
     c_bootstrap_c2 = []
 
-    print(f"aggregating results from {n_resample} bootstrap resamples...")
+    # print(f"aggregating results from {n_resample} bootstrap resamples...")
     with multiprocessing.Pool(
         n_jobs,
         initializer=log_util.initializer,
@@ -185,9 +186,6 @@ def main():
         )
 
         for i, res in track(enumerate(results), description="bootstrapping", total=n_resample):
-            # _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc, color_indices=psf_color_indices)
-            # _m_bootstrap_c1, _c_bootstrap_c1 = compute_bias_chromatic(res, dg, dc, color, color_indices=psf_color_indices, order=1)
-            # _m_bootstrap_c2, _c_bootstrap_c2 = compute_bias_chromatic(res, dg, dc, color, color_indices=psf_color_indices, order=2)
             (_m_bootstrap, _c_bootstrap), (_m_bootstrap_c1, _c_bootstrap_c1), (_m_bootstrap_c2, _c_bootstrap_c2) = res
 
             m_bootstrap.append(_m_bootstrap)
@@ -201,7 +199,7 @@ def main():
     queue.put(None)
     lp.join()
 
-    print(f"finished processing bootstrap resamples")
+    # print(f"finished processing bootstrap resamples")
 
     m_bootstrap = np.array(m_bootstrap)
     c_bootstrap = np.array(c_bootstrap)
@@ -210,13 +208,69 @@ def main():
     m_bootstrap_c2 = np.array(m_bootstrap_c2)
     c_bootstrap_c2 = np.array(c_bootstrap_c2)
 
-    # report 3 standard devations as error
     m_error = np.nanstd(m_bootstrap)
     c_error = np.nanstd(c_bootstrap)
     m_error_c1 = np.nanstd(m_bootstrap_c1)
     c_error_c1 = np.nanstd(c_bootstrap_c1)
     m_error_c2 = np.nanstd(m_bootstrap_c2)
     c_error_c2 = np.nanstd(c_bootstrap_c2)
+
+    return (
+        (m_mean, m_error),
+        (m_mean_c1, m_error_c1),
+        (m_mean_c2, m_error_c2),
+    )
+
+
+# def test_diffsky_btsettl_achromatic():
+# def test_diffsky_btsettl_chromatic():
+# def test_diffsky_simple_achromatic():
+# def test_diffsky_simple_chromatic():
+# def test_simple_btsettl_achromatic():
+# def test_simple_btsettl_chromatic():
+
+
+def test_simple_simple_achromatic():
+    (
+        (m_mean, m_error),
+        (m_mean_c1, m_error_c1),
+        (m_mean_c2, m_error_c2),
+    ) = task(
+        "simple-simple-achromatic.yaml",
+        n_sims=8,
+        n_jobs=4,
+    )
+    assert np.abs(m_mean - 4e-4) < (m_error * 3)
+
+
+def test_simple_simple_chromatic():
+    (
+        (m_mean, m_error),
+        (m_mean_c1, m_error_c1),
+        (m_mean_c2, m_error_c2),
+    ) = task(
+        "simple-simple-chromatic.yaml",
+        n_sims=8,
+        n_jobs=4,
+    )
+    assert np.abs(m_mean - 4e-4) < (m_error * 3)
+
+
+def main():
+    args = get_args()
+
+    (
+        (m_mean, m_error),
+        (m_mean_c1, m_error_c1),
+        (m_mean_c2, m_error_c2),
+    ) = task(
+        args.config,
+        seed=args.seed,
+        n_sims=args.n_sims,
+        n_resample=args.n_resample,
+        n_jobs=args.n_jobs,
+        log_level=args.log_level,
+    )
 
     print(f"mdet (0): m = {m_mean:+0.3e} +/- {m_error * 3:0.3e} [3-sigma], c = {c_mean:+0.3e} +/- {c_error * 3:0.3e} [3-sigma]")
     print(f"drdc (1): m = {m_mean_c1:+0.3e} +/- {m_error_c1 * 3:0.3e} [3-sigma], c = {c_mean_c1:+0.3e} +/- {c_error_c1 * 3:0.3e} [3-sigma]")
