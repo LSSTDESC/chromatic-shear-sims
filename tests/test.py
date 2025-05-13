@@ -216,8 +216,11 @@ def task(
 
     return (
         (m_mean, m_error),
+        (c_mean, c_error),
         (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
         (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
     )
 
 
@@ -237,8 +240,11 @@ def test_simple_simple_achromatic():
 
     (
         (m_mean, m_error),
+        (c_mean, c_error),
         (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
         (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
     ) = task(
         _config_file,
         n_sims=8,
@@ -255,8 +261,11 @@ def test_simple_simple_chromatic():
 
     (
         (m_mean, m_error),
+        (c_mean, c_error),
         (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
         (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
     ) = task(
         _config_file,
         n_sims=8,
@@ -270,8 +279,11 @@ def main():
 
     (
         (m_mean, m_error),
+        (c_mean, c_error),
         (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
         (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
     ) = task(
         args.config,
         seed=args.seed,
