@@ -22,8 +22,13 @@ logger = logging.getLogger(__name__)
 
 
 def task(aggregate_path, dg, dc, color, color_indices, resample=False, seed=None):
-    # aggregates = ft.read_table(aggregate_path)
-    aggregates = ds.dataset(aggregate_path).to_table()
+    if isinstance(aggregate_path, str):
+        if os.path.isfile(aggregate_path):
+            aggregates = ft.read_table(aggregate_path)
+        else:
+            aggregates = ds.dataset(aggregate_path).to_table()
+    else:
+        aggregates = ds.dataset(aggregate_path).to_table()
     if resample:
         rng = np.random.default_rng(seed)
         resample_indices = rng.choice(len(aggregates), len(aggregates), replace=True)

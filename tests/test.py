@@ -226,10 +226,6 @@ def task(
 
 # def test_diffsky_btsettl_achromatic():
 # def test_diffsky_btsettl_chromatic():
-# def test_diffsky_simple_achromatic():
-# def test_diffsky_simple_chromatic():
-# def test_simple_btsettl_achromatic():
-# def test_simple_btsettl_chromatic():
 
 
 def test_simple_simple_achromatic():
@@ -247,10 +243,10 @@ def test_simple_simple_achromatic():
         (c_mean_c2, c_error_c2),
     ) = task(
         _config_file,
-        n_sims=8,
+        n_sims=100,
         n_jobs=4,
     )
-    assert np.abs(m_mean - 4e-4) < (m_error * 3)
+    assert np.abs(m_mean) < np.abs(m_error * 3)
 
 
 def test_simple_simple_chromatic():
@@ -268,10 +264,94 @@ def test_simple_simple_chromatic():
         (c_mean_c2, c_error_c2),
     ) = task(
         _config_file,
-        n_sims=8,
+        n_sims=100,
         n_jobs=4,
     )
-    assert np.abs(m_mean - 4e-4) < (m_error * 3)
+    assert np.abs(m_mean) < np.abs(m_error * 3)
+
+
+def test_diffsky_simple_achromatic():
+    _config_file = os.path.join(
+        os.path.dirname(__file__),
+        "diffsky-simple-chromatic.yaml",
+    )
+
+    (
+        (m_mean, m_error),
+        (c_mean, c_error),
+        (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
+        (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
+    ) = task(
+        _config_file,
+        n_sims=100,
+        n_jobs=4,
+    )
+    assert np.abs(m_mean) < np.abs(m_error * 3)
+
+
+def test_diffsky_simple_chromatic():
+    _config_file = os.path.join(
+        os.path.dirname(__file__),
+        "diffsky-simple-chromatic.yaml",
+    )
+
+    (
+        (m_mean, m_error),
+        (c_mean, c_error),
+        (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
+        (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
+    ) = task(
+        _config_file,
+        n_sims=100,
+        n_jobs=4,
+    )
+    assert np.abs(m_mean) < np.abs(m_error * 3)
+
+
+def test_simple_btsettl_achromatic():
+    _config_file = os.path.join(
+        os.path.dirname(__file__),
+        "simple-btsettl-achromatic.yaml",
+    )
+
+    (
+        (m_mean, m_error),
+        (c_mean, c_error),
+        (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
+        (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
+    ) = task(
+        _config_file,
+        n_sims=100,
+        n_jobs=4,
+    )
+    assert np.abs(m_mean) < np.abs(m_error * 3)
+
+
+def test_simple_btsettl_chromatic():
+    _config_file = os.path.join(
+        os.path.dirname(__file__),
+        "simple-btsettl-chromatic.yaml",
+    )
+
+    (
+        (m_mean, m_error),
+        (c_mean, c_error),
+        (m_mean_c1, m_error_c1),
+        (c_mean_c1, c_error_c1),
+        (m_mean_c2, m_error_c2),
+        (c_mean_c2, c_error_c2),
+    ) = task(
+        _config_file,
+        n_sims=100,
+        n_jobs=4,
+    )
+    assert np.abs(m_mean) < np.abs(m_error * 3)
 
 
 def main():
