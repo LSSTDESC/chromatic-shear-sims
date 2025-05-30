@@ -1,5 +1,6 @@
 import argparse
 import functools
+import itertools
 import logging
 import multiprocessing
 import threading
@@ -724,6 +725,9 @@ def main():
 
     psf_colors = config["measurement"].get("colors")
     psf_color_indices = config["measurement"].get("color_indices")
+    # color_indices = list(range(len(psf_colors)))
+    # psf_color_indices_combinations = list(itertools.combinations(color_indices, 3))
+
     dc = (psf_colors[psf_color_indices[2]] - psf_colors[psf_color_indices[0]]) / 2.
     color = psf_colors[psf_color_indices[1]]
     print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
@@ -736,10 +740,8 @@ def main():
     # m_mean_c2, c_mean_c2 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=psf_color_indices, order=2)
     (m_mean, c_mean), (m_mean_c1, c_mean_c1), (m_mean_c2, c_mean_c2) = task(aggregate_path, dg, dc, color, psf_color_indices)
 
-    multiprocessing.set_start_method("spawn")
-    # ctx = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
-    # queue = ctx.Queue(-1)
-    queue = multiprocessing.Queue(-1)
+    context = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
+    queue = context.Queue(-1)
 
     lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
@@ -752,12 +754,11 @@ def main():
     c_bootstrap_c2 = []
 
     print(f"aggregating results from {n_resample} bootstrap resamples...")
-    with multiprocessing.Pool(
+    with context.Pool(
         n_jobs,
         initializer=log_util.initializer,
         initargs=(queue, log_level),
         maxtasksperchild=max(1, n_resample // n_jobs),
-        # context=ctx,
     ) as pool:
         results = pool.imap(
             functools.partial(task, aggregate_path, dg, dc, color, psf_color_indices, True),
@@ -798,7 +799,8 @@ def main():
     m_error_c2 = np.nanstd(m_bootstrap_c2)
     c_error_c2 = np.nanstd(c_bootstrap_c2)
 
-    outfile = f"{config_name}_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.txt"
+    outfile = f"{config_name}_m.txt"
+    # outfile = f"{config_name}_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.txt"
     with open(outfile, "w") as fp:
         fp.write(f"order, m_mean, m_error, c_mean, c_error\n")
         fp.write(f"0, {m_mean}, {m_error}, {c_mean}, {c_error}\n")
@@ -831,7 +833,8 @@ def main():
     ax.set_xlabel("$m$")
     ax.set_title(config_name)
 
-    figname = f"{config_name}_m-0_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
+    figname = f"{config_name}_m_0.pdf"
+    # figname = f"{config_name}_m-0_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
     fig.savefig(figname)
 
     # first-order chromatic correction
@@ -849,7 +852,8 @@ def main():
     ax.legend(loc="upper right")
     ax.set_title(config_name)
 
-    figname = f"{config_name}_m-1_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
+    figname = f"{config_name}_m_1.pdf"
+    # figname = f"{config_name}_m-1_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
     fig.savefig(figname)
 
     # second-order chromatic correction
@@ -868,7 +872,8 @@ def main():
     ax.legend(loc="upper right")
     ax.set_title(config_name)
 
-    figname = f"{config_name}_m-2_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
+    figname = f"{config_name}_m_2.pdf"
+    # figname = f"{config_name}_m-2_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
     fig.savefig(figname)
 
 

@@ -185,9 +185,8 @@ def main():
         **simulation_builder.config["measurement"].get("builder"),
     )
 
-    multiprocessing.set_start_method("spawn")
-
-    queue = multiprocessing.Queue(-1)
+    context = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
+    queue = context.Queue(-1)
 
     lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
@@ -261,7 +260,7 @@ def main():
     #             # writer.write_table(table)
 
     _start_time = time.time()
-    with multiprocessing.Pool(
+    with context.Pool(
         n_jobs,
         initializer=log_util.initializer,
         initargs=(queue, log_level),

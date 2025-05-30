@@ -1,6 +1,8 @@
 import argparse
+import concurrent.futures
 import logging
 import os
+from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -16,6 +18,21 @@ from . import log_util, name_util
 
 
 logger = logging.getLogger(__name__)
+
+
+def check_files(dataset_path):
+    logger.debug(f"checking {dataset_path}")
+    _invalid_files = []
+    for path in Path(dataset_path).glob("*.parquet"):
+        if path.stem not in _invalid_files:
+            try:
+                pq.ParquetFile(path)
+            except pa.ArrowInvalid:
+                _invalid_files.append(path)
+        else:
+            _invalid_files.append(path)
+
+    return _invalid_files
 
 
 # def pre_aggregate(dataset_path, predicate):
@@ -341,8 +358,6 @@ def main():
     aggregate_dataset = name_util.get_aggregate_dataset(args.output, args.config)
     aggregate_path = name_util.get_aggregate_path(args.output, args.config)
 
-    print(f"aggregating data in {output_path}")
-
     predicate = (
         (pc.field("pgauss_flags") == 0)
         & (pc.field("pgauss_s2n") > args.s2n_cut)
@@ -355,6 +370,54 @@ def main():
     shear_steps = ["plus", "minus"]
     color_steps = [f"c{i}" for i, psf_color in enumerate(psf_colors)]
     mdet_steps = ["noshear", "1p", "1m", "2p", "2m"]
+
+    print(f"checking files in {output_path}")
+
+    futures = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for shear_step in shear_steps:
+            for color_step in color_steps:
+                for mdet_step in mdet_steps:
+                    dataset_path = os.path.join(
+                        output_path,
+                        shear_step,
+                        color_step,
+                        mdet_step,
+                    )
+                    # print(f"checking {dataset_path}")
+                    # for path in Path(dataset_path).glob("*.parquet"):
+                    #     if path.stem not in invalid_files:
+                    #         try:
+                    #             pq.ParquetFile(path)
+                    #         except pa.ArrowInvalid:
+                    #             invalid_files.append(path)
+                    #     else:
+                    #         invalid_files.append(path)
+
+                    # _invalid_files = task(dataset_path)
+                    # for _invalid_file in _invalid_files:
+                    #     invalid_files.append(_invalid_file)
+
+                    _future = executor.submit(check_files, dataset_path)
+                    futures.append(_future)
+
+    concurrent.futures.wait(futures)
+
+    invalid_files = []
+    for future in futures:
+        result = future.result()
+        for _invalid_file in result:
+            invalid_files.append(_invalid_file)
+
+    print(f"found {len(invalid_files)} invalid files")
+
+    for invalid_file in invalid_files:
+        print(f"removing {invalid_file}")
+        os.remove(invalid_file)
+
+    print("done checking files")
+
+    print(f"aggregating data in {output_path}")
 
     for shear_step in shear_steps:
         for color_step in color_steps:

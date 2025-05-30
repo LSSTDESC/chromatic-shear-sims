@@ -220,9 +220,8 @@ def main():
     else:
         measure = None
 
-    multiprocessing.set_start_method("spawn")
-
-    queue = multiprocessing.Queue(-1)
+    context = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
+    queue = context.Queue(-1)
 
     lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
     lp.start()
@@ -239,7 +238,7 @@ def main():
         sim_task = simulation_builder.make_sim
         plot_task = plot_sim
 
-    with multiprocessing.Pool(
+    with context.Pool(
         n_jobs,
         initializer=log_util.initializer,
         initargs=(queue, log_level),
