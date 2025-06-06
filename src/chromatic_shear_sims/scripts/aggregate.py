@@ -35,13 +35,13 @@ def check_files(dataset_path):
     return _invalid_files
 
 
-# def pre_aggregate(dataset_path, predicate):
-def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
+# def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
+def pre_aggregate(dataset_path, predicate):
     """
     Aggregate measurements at the image level to accelerate bootstrapping
     """
     throughputs = load_throughputs(bands=["g", "i"])
-    color = colors[color_indices[1]]
+    # color = colors[color_indices[1]]
 
     dataset = ds.dataset(dataset_path)
 
@@ -148,26 +148,26 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                     pc.multiply(pc.field("e2"), pc.power(pc.field("c"), 2)),
                     pc.field("weight")
                 ),
-                # e1dc
-                pc.multiply(
-                    pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
-                    pc.field("weight")
-                ),
-                # e2dc
-                pc.multiply(
-                    pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
-                    pc.field("weight")
-                ),
-                # e1dcdc
-                pc.multiply(
-                    pc.multiply(pc.field("e1"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
-                    pc.field("weight")
-                ),
-                # e2dcdc
-                pc.multiply(
-                    pc.multiply(pc.field("e2"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
-                    pc.field("weight")
-                ),
+                # # e1dc
+                # pc.multiply(
+                #     pc.multiply(pc.field("e1"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                #     pc.field("weight")
+                # ),
+                # # e2dc
+                # pc.multiply(
+                #     pc.multiply(pc.field("e2"), pc.subtract(pc.field("c"), pc.scalar(color))),
+                #     pc.field("weight")
+                # ),
+                # # e1dcdc
+                # pc.multiply(
+                #     pc.multiply(pc.field("e1"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
+                #     pc.field("weight")
+                # ),
+                # # e2dcdc
+                # pc.multiply(
+                #     pc.multiply(pc.field("e2"), pc.power(pc.subtract(pc.field("c"), pc.scalar(color)), 2)),
+                #     pc.field("weight")
+                # ),
             ],
             names=[
                 "seed",
@@ -183,10 +183,10 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                 "weighted_e2c",
                 "weighted_e1cc",
                 "weighted_e2cc",
-                "weighted_e1dc",
-                "weighted_e2dc",
-                "weighted_e1dcdc",
-                "weighted_e2dcdc",
+                # "weighted_e1dc",
+                # "weighted_e2dc",
+                # "weighted_e1dcdc",
+                # "weighted_e2dcdc",
             ],
         )
     )
@@ -204,10 +204,10 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                 ("weighted_e2c", "hash_sum", None, "weighted_e2c_sum"),
                 ("weighted_e1cc", "hash_sum", None, "weighted_e1cc_sum"),
                 ("weighted_e2cc", "hash_sum", None, "weighted_e2cc_sum"),
-                ("weighted_e1dc", "hash_sum", None, "weighted_e1dc_sum"),
-                ("weighted_e2dc", "hash_sum", None, "weighted_e2dc_sum"),
-                ("weighted_e1dcdc", "hash_sum", None, "weighted_e1dcdc_sum"),
-                ("weighted_e2dcdc", "hash_sum", None, "weighted_e2dcdc_sum"),
+                # ("weighted_e1dc", "hash_sum", None, "weighted_e1dc_sum"),
+                # ("weighted_e2dc", "hash_sum", None, "weighted_e2dc_sum"),
+                # ("weighted_e1dcdc", "hash_sum", None, "weighted_e1dcdc_sum"),
+                # ("weighted_e2dcdc", "hash_sum", None, "weighted_e2dcdc_sum"),
             ],
             # keys=["shear_step", "color_step", "mdet_step", "seed"],
             keys=["seed"],
@@ -231,10 +231,10 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                 pc.divide(pc.field("weighted_e2c_sum"), pc.field("weight_sum")),
                 pc.divide(pc.field("weighted_e1cc_sum"), pc.field("weight_sum")),
                 pc.divide(pc.field("weighted_e2cc_sum"), pc.field("weight_sum")),
-                pc.divide(pc.field("weighted_e1dc_sum"), pc.field("weight_sum")),
-                pc.divide(pc.field("weighted_e2dc_sum"), pc.field("weight_sum")),
-                pc.divide(pc.field("weighted_e1dcdc_sum"), pc.field("weight_sum")),
-                pc.divide(pc.field("weighted_e2dcdc_sum"), pc.field("weight_sum")),
+                # pc.divide(pc.field("weighted_e1dc_sum"), pc.field("weight_sum")),
+                # pc.divide(pc.field("weighted_e2dc_sum"), pc.field("weight_sum")),
+                # pc.divide(pc.field("weighted_e1dcdc_sum"), pc.field("weight_sum")),
+                # pc.divide(pc.field("weighted_e2dcdc_sum"), pc.field("weight_sum")),
             ],
             names=[
                 "seed",
@@ -250,10 +250,10 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                 "e2c",
                 "e1cc",
                 "e2cc",
-                "e1dc",
-                "e2dc",
-                "e1dcdc",
-                "e2dcdc",
+                # "e1dc",
+                # "e2dc",
+                # "e1dcdc",
+                # "e2dcdc",
             ],
         )
     )
@@ -365,7 +365,7 @@ def main():
     )
 
     psf_colors = config["measurement"].get("colors")
-    psf_color_indices = config["measurement"].get("color_indices")
+    # psf_color_indices = config["measurement"].get("color_indices")
 
     shear_steps = ["plus", "minus"]
     color_steps = [f"c{i}" for i, psf_color in enumerate(psf_colors)]
@@ -429,8 +429,8 @@ def main():
                     mdet_step,
                 )
                 print(f"aggregating data in {dataset_path}")
-                # _aggregates = pre_aggregate(dataset_path, predicate)
-                _aggregates = pre_aggregate(dataset_path, predicate, colors=psf_colors, color_indices=psf_color_indices)
+                _aggregates = pre_aggregate(dataset_path, predicate)
+                # _aggregates = pre_aggregate(dataset_path, predicate, colors=psf_colors, color_indices=psf_color_indices)
 
                 _aggregate_dir = os.path.join(
                     aggregate_dataset,
