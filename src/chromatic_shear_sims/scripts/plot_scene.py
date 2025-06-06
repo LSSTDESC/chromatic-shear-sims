@@ -10,7 +10,7 @@ from chromatic_shear_sims.throughputs import load_throughputs
 from . import log_util, name_util, plot_util
 
 
-def plot_scene(scene):
+def plot_scene(scene, sky_background=None):
 
     fig, axs = plot_util.subplots(
         2, 2,
@@ -21,6 +21,10 @@ def plot_scene(scene):
     throughputs = load_throughputs(bands=["r"])
 
     wl = np.linspace(300, 1200, 1000)
+
+    if sky_background is not None:
+        axs[1, 0].plot(wl, sky_background(wl), c="k")
+        axs[1, 1].plot(wl, sky_background(wl), c="k")
 
     for (galaxy, position) in scene.galaxies:
         spec = galaxy.sed
@@ -77,6 +81,11 @@ def get_args():
         default=2,
         help="logging level [int; 2]",
     )
+    # parser.add_argument(
+    #     "--display",
+    #     action="store_true",
+    #     help="display output",
+    # )
     return parser.parse_args()
 
 
@@ -100,7 +109,7 @@ def main():
         )
     ):
         print(f"finished simulation {i + 1}/{n_sims}")
-        fig, axs = plot_scene(scene)
+        fig, axs = plot_scene(scene, sky_background=simulation_builder.sky_background)
 
         figname = f"{config_name}-scene-{seeds[i]}.pdf"
         fig.savefig(figname)

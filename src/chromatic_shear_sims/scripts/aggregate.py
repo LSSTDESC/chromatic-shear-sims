@@ -67,20 +67,20 @@ def pre_aggregate(dataset_path, predicate, colors=None, color_indices=None):
                 # pc.field("color_step"),
                 # pc.field("mdet_step"),
                 pc.scalar(1),
-                pc.scalar(1),
-                # pc.divide(
-                #     pc.scalar(1),
-                #     pc.add(
-                #         pc.multiply(  # average covariance
-                #             pc.scalar(0.5),
-                #             pc.add(
-                #                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                #                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                #             ),
-                #         ),
-                #         pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
-                #     ),
-                # ),
+                # pc.scalar(1),
+                pc.divide(
+                    pc.scalar(1),
+                    pc.add(
+                        pc.multiply(  # average covariance
+                            pc.scalar(0.5),
+                            pc.add(
+                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                            ),
+                        ),
+                        pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
+                    ),
+                ),
                 pc.list_element(pc.field("pgauss_g"), 0),
                 pc.list_element(pc.field("pgauss_g"), 1),
                 pc.add(

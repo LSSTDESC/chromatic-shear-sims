@@ -6,6 +6,11 @@ import galsim
 
 logger = logging.getLogger(__name__)
 
+gsparams = galsim.GSParams(
+    maximum_fft_size=16384,
+    kvalue_accuracy=1e-8,
+    maxk_threshold=1e-5,
+)
 
 class PSF:
     def __init__(self, config, seed=None):
@@ -18,7 +23,7 @@ class PSF:
             "rng": grng,
         }
         psf, _ = galsim.config.BuildGSObject(config, "psf", logger=logger)
-        self.model = psf
+        self.model = psf.withGSParams(gsparams)
 
     def __eq__(self, other):
         return self.model == other.model

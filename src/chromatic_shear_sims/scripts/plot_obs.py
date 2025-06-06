@@ -202,6 +202,11 @@ def get_args():
         default=2,
         help="logging level [int; 2]",
     )
+    # parser.add_argument(
+    #     "--display",
+    #     action="store_true",
+    #     help="display output",
+    # )
     return parser.parse_args()
 
 

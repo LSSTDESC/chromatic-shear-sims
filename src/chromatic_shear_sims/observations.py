@@ -11,6 +11,12 @@ from chromatic_shear_sims import utils
 
 logger = logging.getLogger(__name__)
 
+gsparams = galsim.GSParams(
+    maximum_fft_size=16384,
+    kvalue_accuracy=1e-8,
+    maxk_threshold=1e-5,
+)
+
 
 def get_ormask(xsize, ysize):
     return np.full((xsize, ysize), int(0))
@@ -137,7 +143,7 @@ def get_obs(
     if scene.ngal > 0:
         _start_time = time.time()
         for (galaxy, position) in scene.galaxies:
-            observed = galsim.Convolve([psf.model, galaxy])
+            observed = galsim.Convolve([psf.model, galaxy]).withGSParams(gsparams)
             _stamp = observed.drawImage(
                 throughput,
                 scale=image.scale,
@@ -153,7 +159,7 @@ def get_obs(
     if scene.nstar > 0:
         _start_time = time.time()
         for (star, position) in scene.stars:
-            observed = galsim.Convolve([psf.model, star])
+            observed = galsim.Convolve([psf.model, star]).withGSParams(gsparams)
             _stamp = observed.drawImage(
                 throughput,
                 scale=image.scale,
