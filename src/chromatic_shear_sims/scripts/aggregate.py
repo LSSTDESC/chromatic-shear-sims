@@ -75,10 +75,11 @@ def pre_aggregate(dataset_path, predicate):
                             pc.scalar(0.5),
                             pc.add(
                                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
-                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 0), 0),
+                                pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 1), 1),
                             ),
                         ),
-                        pc.power(pc.scalar(0.2), 2),  # intrinsic scatter term
+                        # pc.power(pc.scalar(0.3), 2),  # intrinsic scatter term
+                        pc.power(pc.scalar(0.07), 2),  # eq. 15 of https://arxiv.org/abs/2303.03947
                     ),
                 ),
                 pc.list_element(pc.field("pgauss_g"), 0),
@@ -273,6 +274,36 @@ def pre_aggregate(dataset_path, predicate):
     return res
 
 
+def aggregate_task(aggregate_dataset, output_path, shear_step, color_step, mdet_step, predicate):
+    dataset_path = os.path.join(
+        output_path,
+        shear_step,
+        color_step,
+        mdet_step,
+    )
+    print(f"aggregating data in {dataset_path}")
+    _aggregates = pre_aggregate(dataset_path, predicate)
+
+    _aggregate_dir = os.path.join(
+        aggregate_dataset,
+        shear_step,
+        color_step,
+        mdet_step,
+    )
+    _aggregate_path = os.path.join(
+        _aggregate_dir,
+        f"aggregates.arrow",
+    )
+    os.makedirs(_aggregate_dir, exist_ok=True)
+    print(f"writing aggregates to {_aggregate_path}")
+    ft.write_feather(
+        _aggregates,
+        _aggregate_path,
+    )
+
+    return 0
+
+
 def post_aggregate(aggregate_path, format=None, partitioning=None):
     aggregates = ds.dataset(
         aggregate_path,
@@ -401,8 +432,6 @@ def main():
                     _future = executor.submit(check_files, dataset_path)
                     futures.append(_future)
 
-    concurrent.futures.wait(futures)
-
     invalid_files = []
     for future in futures:
         result = future.result()
@@ -419,35 +448,53 @@ def main():
 
     print(f"aggregating data in {output_path}")
 
-    for shear_step in shear_steps:
-        for color_step in color_steps:
-            for mdet_step in mdet_steps:
-                dataset_path = os.path.join(
-                    output_path,
-                    shear_step,
-                    color_step,
-                    mdet_step,
-                )
-                print(f"aggregating data in {dataset_path}")
-                _aggregates = pre_aggregate(dataset_path, predicate)
-                # _aggregates = pre_aggregate(dataset_path, predicate, colors=psf_colors, color_indices=psf_color_indices)
+    pa.set_cpu_count(16)
+    pa.set_io_thread_count(16)
 
-                _aggregate_dir = os.path.join(
-                    aggregate_dataset,
-                    shear_step,
-                    color_step,
-                    mdet_step,
-                )
-                _aggregate_path = os.path.join(
-                    _aggregate_dir,
-                    f"aggregates.arrow",
-                )
-                os.makedirs(_aggregate_dir, exist_ok=True)
-                print(f"writing aggregates to {_aggregate_path}")
-                ft.write_feather(
-                    _aggregates,
-                    _aggregate_path,
-                )
+    futures = []
+    with concurrent.futures.ProcessPoolExecutor(2) as executor:
+        for shear_step in shear_steps:
+            for color_step in color_steps:
+                for mdet_step in mdet_steps:
+                    # dataset_path = os.path.join(
+                    #     output_path,
+                    #     shear_step,
+                    #     color_step,
+                    #     mdet_step,
+                    # )
+                    # print(f"aggregating data in {dataset_path}")
+                    # _aggregates = pre_aggregate(dataset_path, predicate)
+                    # # _aggregates = pre_aggregate(dataset_path, predicate, colors=psf_colors, color_indices=psf_color_indices)
+
+                    # _aggregate_dir = os.path.join(
+                    #     aggregate_dataset,
+                    #     shear_step,
+                    #     color_step,
+                    #     mdet_step,
+                    # )
+                    # _aggregate_path = os.path.join(
+                    #     _aggregate_dir,
+                    #     f"aggregates.arrow",
+                    # )
+                    # os.makedirs(_aggregate_dir, exist_ok=True)
+                    # print(f"writing aggregates to {_aggregate_path}")
+                    # ft.write_feather(
+                    #     _aggregates,
+                    #     _aggregate_path,
+                    # )
+                    _future = executor.submit(
+                        aggregate_task,
+                        aggregate_dataset,
+                        output_path,
+                        shear_step,
+                        color_step,
+                        mdet_step,
+                        predicate,
+                    )
+                    futures.append(_future)
+
+    for future in futures:
+        assert future.result() == 0
 
     print(f"pivoting aggregates")
     aggregates = post_aggregate(
