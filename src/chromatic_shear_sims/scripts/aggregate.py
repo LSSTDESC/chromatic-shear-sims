@@ -79,9 +79,9 @@ def pre_aggregate(dataset_path, predicate):
                             ),
                         ),
                         # pc.power(pc.scalar(0.43), 2),  # intrinsic scatter term
-                        pc.power(pc.scalar(0.1), 2),  #  TEST
+                        # pc.power(pc.scalar(0.1), 2),  #  TEST
                         # pc.power(pc.scalar(0.07), 2),  # e.g., eq. 15 of https://arxiv.org/abs/2303.03947
-                        # pc.power(pc.scalar(0.01), 2),  #  NOTE THIS ONE WORKS
+                        pc.power(pc.scalar(0.01), 2),  #  NOTE THIS ONE WORKS
                         # pc.power(pc.scalar(0.001), 2),  # NOTE THIS ONE SEEMS SLIGHTLY WORSE
                         # pc.power(pc.scalar(0.0001), 2),  # NOTE unbiased, but broad errorbar
                     ),
