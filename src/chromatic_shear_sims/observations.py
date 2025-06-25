@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 gsparams = galsim.GSParams(
     maximum_fft_size=16384,
-    kvalue_accuracy=1e-8,
-    maxk_threshold=1e-5,
+    # kvalue_accuracy=1e-8,
+    # maxk_threshold=1e-5,
 )
 
 
@@ -144,20 +144,20 @@ def get_obs(
         _start_time = time.time()
         for (galaxy, position) in scene.galaxies:
             observed = galsim.Convolve([psf.model, galaxy]).withGSParams(gsparams)
-            # _stamp = observed.drawImage(
-            #     throughput,
-            #     scale=image.scale,
-            #     center=image.center,
-            #     offset=position,
-            # )
-            # _bounds = _stamp.bounds & image.bounds
-            # image[_bounds] += _stamp[_bounds]
-            observed = observed.shift(position.x * image.scale, position.y * image.scale)
-            observed.drawImage(
+            _stamp = observed.drawImage(
                 throughput,
-                image,
-                add_to_image=True,
+                scale=image.scale,
+                center=image.center,
+                offset=position,
             )
+            _bounds = _stamp.bounds & image.bounds
+            image[_bounds] += _stamp[_bounds]
+            # observed = observed.shift(position.x * image.scale, position.y * image.scale)
+            # observed.drawImage(
+            #     throughput,
+            #     image,
+            #     add_to_image=True,
+            # )
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
         logger.info(f"drew {scene.ngal} galaxies in {_elapsed_time} seconds")
@@ -166,20 +166,20 @@ def get_obs(
         _start_time = time.time()
         for (star, position) in scene.stars:
             observed = galsim.Convolve([psf.model, star]).withGSParams(gsparams)
-            # _stamp = observed.drawImage(
-            #     throughput,
-            #     scale=image.scale,
-            #     center=image.center,
-            #     offset=position,
-            # )
-            # _bounds = _stamp.bounds & image.bounds
-            # image[_bounds] += _stamp[_bounds]
-            observed = observed.shift(position.x * image.scale, position.y * image.scale)
-            observed.drawImage(
+            _stamp = observed.drawImage(
                 throughput,
-                image,
-                add_to_image=True,
+                scale=image.scale,
+                center=image.center,
+                offset=position,
             )
+            _bounds = _stamp.bounds & image.bounds
+            image[_bounds] += _stamp[_bounds]
+            # observed = observed.shift(position.x * image.scale, position.y * image.scale)
+            # observed.drawImage(
+            #     throughput,
+            #     image,
+            #     add_to_image=True,
+            # )
         _end_time = time.time()
         _elapsed_time = _end_time - _start_time
         logger.info(f"drew {scene.nstar} stars in {_elapsed_time} seconds")

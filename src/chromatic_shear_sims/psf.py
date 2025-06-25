@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 gsparams = galsim.GSParams(
     maximum_fft_size=16384,
-    kvalue_accuracy=1e-8,
-    maxk_threshold=1e-5,
+    # kvalue_accuracy=1e-8,
+    # maxk_threshold=1e-5,
 )
 
 class PSF:
