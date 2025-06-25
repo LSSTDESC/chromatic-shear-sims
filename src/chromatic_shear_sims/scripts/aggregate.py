@@ -78,8 +78,12 @@ def pre_aggregate(dataset_path, predicate):
                                 pc.list_element(pc.list_element(pc.field("pgauss_g_cov"), 1), 1),
                             ),
                         ),
-                        # pc.power(pc.scalar(0.3), 2),  # intrinsic scatter term
-                        pc.power(pc.scalar(0.07), 2),  # eq. 15 of https://arxiv.org/abs/2303.03947
+                        # pc.power(pc.scalar(0.43), 2),  # intrinsic scatter term
+                        pc.power(pc.scalar(0.1), 2),  #  TEST
+                        # pc.power(pc.scalar(0.07), 2),  # e.g., eq. 15 of https://arxiv.org/abs/2303.03947
+                        # pc.power(pc.scalar(0.01), 2),  #  NOTE THIS ONE WORKS
+                        # pc.power(pc.scalar(0.001), 2),  # NOTE THIS ONE SEEMS SLIGHTLY WORSE
+                        # pc.power(pc.scalar(0.0001), 2),  # NOTE unbiased, but broad errorbar
                     ),
                 ),
                 pc.list_element(pc.field("pgauss_g"), 0),
@@ -366,6 +370,13 @@ def get_args():
         help="Cut to make on mfrac. Given in percentages and comma separated. Cut keeps all objects less than the given value.",
     )
     parser.add_argument(
+        "--n_jobs",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of jobs to run [int; 1]",
+    )
+    parser.add_argument(
         "--log_level",
         type=int,
         required=False,
@@ -381,6 +392,7 @@ def main():
     logging.basicConfig(format=log_util.FORMAT, level=log_level)
 
     config_file = args.config
+    n_jobs = args.n_jobs
 
     with open(config_file) as fp:
         config = yaml.safe_load(fp)
@@ -448,11 +460,14 @@ def main():
 
     print(f"aggregating data in {output_path}")
 
-    pa.set_cpu_count(16)
-    pa.set_io_thread_count(16)
+    _cpu_count = pa.cpu_count()
+    _io_thread_count = pa.io_thread_count()
+
+    pa.set_cpu_count(max(_cpu_count // n_jobs, 1))
+    pa.set_io_thread_count(max(_io_thread_count // n_jobs, 1))
 
     futures = []
-    with concurrent.futures.ProcessPoolExecutor(2) as executor:
+    with concurrent.futures.ProcessPoolExecutor(n_jobs) as executor:
         for shear_step in shear_steps:
             for color_step in color_steps:
                 for mdet_step in mdet_steps:

@@ -34,7 +34,7 @@ def task(aggregate_path, dg, dc, color, color_indices, resample=False, seed=None
         rng = np.random.default_rng(seed)
         resample_indices = rng.choice(len(aggregates), len(aggregates), replace=True)
         aggregates = aggregates.take(resample_indices)
-    m_bootstrap, c_bootstrap = compute_bias(aggregates, dg, dc, color_indices=color_indices)
+    m_bootstrap, c_bootstrap = compute_bias(aggregates, dg, color_indices=color_indices)
     m_bootstrap_c1, c_bootstrap_c1 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=color_indices, order=1)
     m_bootstrap_c2, c_bootstrap_c2 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=color_indices, order=2)
     return (
@@ -618,15 +618,16 @@ def compute_dR(results, dg, dc, color, color_indices=None, order=1):
     )
 
 
-def compute_bias(batch, dg, dc, color_indices=None):
+def compute_bias(batch, dg, color_indices=None):
     e_p, e_m = compute_e_chromatic(batch, color_index=color_indices[1])
     R_p, R_m = compute_R_chromatic(batch, dg, color_index=color_indices[1])
 
     # g_p = np.linalg.inv(R_p) @ e_p
     # g_m = np.linalg.inv(R_m) @ e_m
-
-    g_p = e_p / np.diag(R_p)
-    g_m = e_m / np.diag(R_m)
+    # g_p = e_p / np.diag(R_p)
+    # g_m = e_m / np.diag(R_m)
+    g_p = e_p / np.mean(np.diag(R_p))
+    g_m = e_m / np.mean(np.diag(R_m))
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
@@ -644,9 +645,10 @@ def compute_bias_chromatic(batch, dg, dc, color, color_indices=None, order=1):
 
     # g_p = np.linalg.inv(R_p + dR_p) @ (e_p + de_p)
     # g_m = np.linalg.inv(R_m + dR_m) @ (e_m + de_m)
-
-    g_p = (e_p + de_p) / np.diag(R_p + dR_p)
-    g_m = (e_m + de_m) / np.diag(R_m + dR_m)
+    # g_p = (e_p + de_p) / np.diag(R_p + dR_p)
+    # g_m = (e_m + de_m) / np.diag(R_m + dR_m)
+    g_p = (e_p + de_p) / np.mean(np.diag(R_p + dR_p))
+    g_m = (e_m + de_m) / np.mean(np.diag(R_m + dR_m))
 
     m = (g_p - g_m)[0] / 2 / 0.02 - 1
 
@@ -724,157 +726,167 @@ def main():
     dg = ngmix.metacal.DEFAULT_STEP
 
     psf_colors = config["measurement"].get("colors")
-    psf_color_indices = config["measurement"].get("color_indices")
-    # color_indices = list(range(len(psf_colors)))
+    # psf_color_indices = config["measurement"].get("color_indices")
+
+    color_indices = list(range(len(psf_colors)))
     # psf_color_indices_combinations = list(itertools.combinations(color_indices, 3))
+    psf_color_indices_combinations = list(filter(lambda x: x[2] - x[1] == x[1] - x[0], itertools.combinations(color_indices, 3)))
 
-    dc = (psf_colors[psf_color_indices[2]] - psf_colors[psf_color_indices[0]]) / 2.
-    color = psf_colors[psf_color_indices[1]]
-    print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
+    for psf_color_indices in psf_color_indices_combinations:
 
-    print(f"reading aggregates from {aggregate_path}")
+        dc = (psf_colors[psf_color_indices[2]] - psf_colors[psf_color_indices[0]]) / 2.
+        color = psf_colors[psf_color_indices[1]]
+        print(f"psf_colors: {[psf_colors[i] for i in psf_color_indices]}")
 
-    # aggregates = ft.read_table(aggregate_path)
-    # m_mean, c_mean = compute_bias(aggregates, dg, dc, color_indices=psf_color_indices)
-    # m_mean_c1, c_mean_c1 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=psf_color_indices, order=1)
-    # m_mean_c2, c_mean_c2 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=psf_color_indices, order=2)
-    (m_mean, c_mean), (m_mean_c1, c_mean_c1), (m_mean_c2, c_mean_c2) = task(aggregate_path, dg, dc, color, psf_color_indices)
+        print(f"reading aggregates from {aggregate_path}")
 
-    context = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
-    queue = context.Queue(-1)
+        # aggregates = ft.read_table(aggregate_path)
+        # m_mean, c_mean = compute_bias(aggregates, dg, dc, color_indices=psf_color_indices)
+        # m_mean_c1, c_mean_c1 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=psf_color_indices, order=1)
+        # m_mean_c2, c_mean_c2 = compute_bias_chromatic(aggregates, dg, dc, color, color_indices=psf_color_indices, order=2)
+        (m_mean, c_mean), (m_mean_c1, c_mean_c1), (m_mean_c2, c_mean_c2) = task(aggregate_path, dg, dc, color, psf_color_indices)
 
-    lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
-    lp.start()
+        context = multiprocessing.get_context("spawn")  # spawn is ~ fork-exec
+        queue = context.Queue(-1)
 
-    m_bootstrap = []
-    c_bootstrap = []
-    m_bootstrap_c1 = []
-    c_bootstrap_c1 = []
-    m_bootstrap_c2 = []
-    c_bootstrap_c2 = []
+        lp = threading.Thread(target=log_util.logger_thread, args=(queue,))
+        lp.start()
 
-    print(f"aggregating results from {n_resample} bootstrap resamples...")
-    with context.Pool(
-        n_jobs,
-        initializer=log_util.initializer,
-        initargs=(queue, log_level),
-        maxtasksperchild=max(1, n_resample // n_jobs),
-    ) as pool:
-        results = pool.imap(
-            functools.partial(task, aggregate_path, dg, dc, color, psf_color_indices, True),
-            utils.get_seeds(n_resample, seed=seed)
-        )
+        m_bootstrap = []
+        c_bootstrap = []
+        m_bootstrap_c1 = []
+        c_bootstrap_c1 = []
+        m_bootstrap_c2 = []
+        c_bootstrap_c2 = []
 
-        for i, res in track(enumerate(results), description="bootstrapping", total=n_resample):
-            # _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc, color_indices=psf_color_indices)
-            # _m_bootstrap_c1, _c_bootstrap_c1 = compute_bias_chromatic(res, dg, dc, color, color_indices=psf_color_indices, order=1)
-            # _m_bootstrap_c2, _c_bootstrap_c2 = compute_bias_chromatic(res, dg, dc, color, color_indices=psf_color_indices, order=2)
-            (_m_bootstrap, _c_bootstrap), (_m_bootstrap_c1, _c_bootstrap_c1), (_m_bootstrap_c2, _c_bootstrap_c2) = res
+        print(f"aggregating results from {n_resample} bootstrap resamples...")
+        with context.Pool(
+            n_jobs,
+            initializer=log_util.initializer,
+            initargs=(queue, log_level),
+            # maxtasksperchild=max(1, n_resample // n_jobs),
+        ) as pool:
+            results = pool.imap(
+                functools.partial(task, aggregate_path, dg, dc, color, psf_color_indices, True),
+                utils.get_seeds(n_resample, seed=seed)
+            )
 
-            m_bootstrap.append(_m_bootstrap)
-            c_bootstrap.append(_c_bootstrap)
-            m_bootstrap_c1.append(_m_bootstrap_c1)
-            c_bootstrap_c1.append(_c_bootstrap_c1)
-            m_bootstrap_c2.append(_m_bootstrap_c2)
-            c_bootstrap_c2.append(_c_bootstrap_c2)
+            for i, res in track(enumerate(results), description="bootstrapping", total=n_resample):
+                # _m_bootstrap, _c_bootstrap = compute_bias(res, dg, dc, color_indices=psf_color_indices)
+                # _m_bootstrap_c1, _c_bootstrap_c1 = compute_bias_chromatic(res, dg, dc, color, color_indices=psf_color_indices, order=1)
+                # _m_bootstrap_c2, _c_bootstrap_c2 = compute_bias_chromatic(res, dg, dc, color, color_indices=psf_color_indices, order=2)
+                (_m_bootstrap, _c_bootstrap), (_m_bootstrap_c1, _c_bootstrap_c1), (_m_bootstrap_c2, _c_bootstrap_c2) = res
 
-    queue.put(None)
-    lp.join()
+                m_bootstrap.append(_m_bootstrap)
+                c_bootstrap.append(_c_bootstrap)
+                m_bootstrap_c1.append(_m_bootstrap_c1)
+                c_bootstrap_c1.append(_c_bootstrap_c1)
+                m_bootstrap_c2.append(_m_bootstrap_c2)
+                c_bootstrap_c2.append(_c_bootstrap_c2)
 
-    print(f"finished processing bootstrap resamples")
+        queue.put(None)
+        lp.join()
 
-
-    m_bootstrap = np.array(m_bootstrap)
-    c_bootstrap = np.array(c_bootstrap)
-    m_bootstrap_c1 = np.array(m_bootstrap_c1)
-    c_bootstrap_c1 = np.array(c_bootstrap_c1)
-    m_bootstrap_c2 = np.array(m_bootstrap_c2)
-    c_bootstrap_c2 = np.array(c_bootstrap_c2)
-
-    # report 3 standard devations as error
-    m_error = np.nanstd(m_bootstrap)
-    c_error = np.nanstd(c_bootstrap)
-    m_error_c1 = np.nanstd(m_bootstrap_c1)
-    c_error_c1 = np.nanstd(c_bootstrap_c1)
-    m_error_c2 = np.nanstd(m_bootstrap_c2)
-    c_error_c2 = np.nanstd(c_bootstrap_c2)
-
-    outfile = f"{config_name}_m.txt"
-    # outfile = f"{config_name}_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.txt"
-    with open(outfile, "w") as fp:
-        fp.write(f"order, m_mean, m_error, c_mean, c_error\n")
-        fp.write(f"0, {m_mean}, {m_error}, {c_mean}, {c_error}\n")
-        fp.write(f"1, {m_mean_c1}, {m_error_c1}, {c_mean_c1}, {c_error_c1}\n")
-        fp.write(f"2, {m_mean_c2}, {m_error_c2}, {c_mean_c2}, {c_error_c2}\n")
-
-    print(f"mdet (0): m = {m_mean:0.3e} +/- {m_error * 3:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error * 3:0.3e} [3-sigma]")
-    print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1 * 3:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1 * 3:0.3e} [3-sigma]")
-    print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2 * 3:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2 * 3:0.3e} [3-sigma]")
-
-    m_req = 2e-3
-
-    m_min = np.min([m_bootstrap.min(), m_bootstrap_c1.min(), m_bootstrap_c2.min()])
-    m_max = np.max([m_bootstrap.max(), m_bootstrap_c1.max(), m_bootstrap_c2.max()])
-    nbins = 50
-    m_bin_edges = np.linspace(m_min, m_max, nbins + 1)
-    # m_bin_edges = np.arange(m_min, m_max, 5e-4)
-    m_bootstrap_hist, _ = np.histogram(m_bootstrap, bins=m_bin_edges)
-    m_bootstrap_c1_hist, _ = np.histogram(m_bootstrap_c1, bins=m_bin_edges)
-    m_bootstrap_c2_hist, _ = np.histogram(m_bootstrap_c2, bins=m_bin_edges)
-
-    # zeroth-order chromatic correction
-
-    fig, ax = plot_util.subplots(1, 1)
-
-    ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
-    ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k")
-    ax.axvline(m_mean, c="k")
-    ax.set_xlabel("$m$")
-    ax.set_title(config_name)
-
-    figname = f"{config_name}_m_0.pdf"
-    # figname = f"{config_name}_m-0_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
-    fig.savefig(figname)
-
-    # first-order chromatic correction
+        print(f"finished processing bootstrap resamples")
 
 
-    fig, ax = plot_util.subplots(1, 1)
+        m_bootstrap = np.array(m_bootstrap)
+        c_bootstrap = np.array(c_bootstrap)
+        m_bootstrap_c1 = np.array(m_bootstrap_c1)
+        c_bootstrap_c1 = np.array(c_bootstrap_c1)
+        m_bootstrap_c2 = np.array(m_bootstrap_c2)
+        c_bootstrap_c2 = np.array(c_bootstrap_c2)
 
-    ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
-    ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k", label="0")
-    ax.axvline(m_mean, c="k")
-    ax.stairs(m_bootstrap_c1_hist, m_bin_edges, ec="b", label="1")
-    ax.axvline(m_mean_c1, c="b")
-    ax.set_xlabel("$m$")
-    ax.legend(loc="upper right")
-    ax.set_title(config_name)
+        # report 3 standard devations as error
+        m_error = np.nanstd(m_bootstrap)
+        c_error = np.nanstd(c_bootstrap)
+        m_error_c1 = np.nanstd(m_bootstrap_c1)
+        c_error_c1 = np.nanstd(c_bootstrap_c1)
+        m_error_c2 = np.nanstd(m_bootstrap_c2)
+        c_error_c2 = np.nanstd(c_bootstrap_c2)
 
-    figname = f"{config_name}_m_1.pdf"
-    # figname = f"{config_name}_m-1_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
-    fig.savefig(figname)
+        # outfile = f"{config_name}_m.txt"
+        outfile = f"{config_name}_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.txt"
+        with open(outfile, "w") as fp:
+            fp.write(f"order, m_mean, m_error, c_mean, c_error\n")
+            fp.write(f"0, {m_mean}, {m_error}, {c_mean}, {c_error}\n")
+            fp.write(f"1, {m_mean_c1}, {m_error_c1}, {c_mean_c1}, {c_error_c1}\n")
+            fp.write(f"2, {m_mean_c2}, {m_error_c2}, {c_mean_c2}, {c_error_c2}\n")
 
-    # second-order chromatic correction
+        print(f"mdet (0): m = {m_mean:0.3e} +/- {m_error * 3:0.3e} [3-sigma], c = {c_mean:0.3e} +/- {c_error * 3:0.3e} [3-sigma]")
+        print(f"drdc (1): m = {m_mean_c1:0.3e} +/- {m_error_c1 * 3:0.3e} [3-sigma], c = {c_mean_c1:0.3e} +/- {c_error_c1 * 3:0.3e} [3-sigma]")
+        print(f"drdc (2): m = {m_mean_c2:0.3e} +/- {m_error_c2 * 3:0.3e} [3-sigma], c = {c_mean_c2:0.3e} +/- {c_error_c2 * 3:0.3e} [3-sigma]")
 
-    fig, ax = plot_util.subplots(1, 1)
+        m_req = 2e-3
 
-    ax.axvspan(-m_req, m_req, fc="k", alpha=0.1)
-    ax.axvline(4e-4, c="k", alpha=0.1, ls="--")
-    ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k", label="0")
-    ax.axvline(m_mean, c="k")
-    ax.stairs(m_bootstrap_c1_hist, m_bin_edges, ec="b", label="1")
-    ax.axvline(m_mean_c1, c="b")
-    ax.stairs(m_bootstrap_c2_hist, m_bin_edges, ec="r", label="2")
-    ax.axvline(m_mean_c2, c="r")
-    ax.set_xlabel("$m$")
-    ax.legend(loc="upper right")
-    ax.set_title(config_name)
+        m_min = np.min([m_bootstrap.min(), m_bootstrap_c1.min(), m_bootstrap_c2.min()])
+        m_max = np.max([m_bootstrap.max(), m_bootstrap_c1.max(), m_bootstrap_c2.max()])
+        nbins = 50
+        m_bin_edges = np.linspace(m_min, m_max, nbins + 1)
+        # m_bin_edges = np.arange(m_min, m_max, 5e-4)
+        m_bootstrap_hist, _ = np.histogram(m_bootstrap, bins=m_bin_edges)
+        m_bootstrap_c1_hist, _ = np.histogram(m_bootstrap_c1, bins=m_bin_edges)
+        m_bootstrap_c2_hist, _ = np.histogram(m_bootstrap_c2, bins=m_bin_edges)
 
-    figname = f"{config_name}_m_2.pdf"
-    # figname = f"{config_name}_m-2_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
-    fig.savefig(figname)
+        # zeroth-order chromatic correction
+
+        fig, ax = plot_util.subplots(1, 1)
+
+        ax.axvspan(-m_req, m_req, fc="lightgray")
+        ax.axvline(0, c="k", ls=":")
+        ax.axvline(4e-4, c="k", ls="--")
+        ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k")
+        ax.axvline(m_mean, c="k")
+        ax.set_xlabel("$m$")
+        fig_title = f"{config_name} [{psf_color_indices[0]}, {psf_color_indices[1]}, {psf_color_indices[2]}]"
+        ax.set_title(fig_title)
+
+        # figname = f"{config_name}_m-0.pdf"
+        figname = f"{config_name}_m-0_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
+        fig.savefig(figname)
+
+        # first-order chromatic correction
+
+
+        fig, ax = plot_util.subplots(1, 1)
+
+        ax.axvspan(-m_req, m_req, fc="lightgray")
+        ax.axvline(0, c="k", ls=":")
+        ax.axvline(4e-4, c="k", ls="--")
+        ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k", label="0")
+        ax.axvline(m_mean, c="k")
+        ax.stairs(m_bootstrap_c1_hist, m_bin_edges, ec="b", label="1")
+        ax.axvline(m_mean_c1, c="b")
+        ax.set_xlabel("$m$")
+        ax.legend(loc="upper right")
+        fig_title = f"{config_name} [{psf_color_indices[0]}, {psf_color_indices[1]}, {psf_color_indices[2]}]"
+        ax.set_title(fig_title)
+
+        # figname = f"{config_name}_m-1.pdf"
+        figname = f"{config_name}_m-1_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
+        fig.savefig(figname)
+
+        # second-order chromatic correction
+
+        fig, ax = plot_util.subplots(1, 1)
+
+        ax.axvspan(-m_req, m_req, fc="lightgray")
+        ax.axvline(0, c="k", ls=":")
+        ax.axvline(4e-4, c="k", ls="--")
+        ax.stairs(m_bootstrap_hist, m_bin_edges, ec="k", label="0")
+        ax.axvline(m_mean, c="k")
+        ax.stairs(m_bootstrap_c1_hist, m_bin_edges, ec="b", label="1")
+        ax.axvline(m_mean_c1, c="b")
+        ax.stairs(m_bootstrap_c2_hist, m_bin_edges, ec="r", label="2")
+        ax.axvline(m_mean_c2, c="r")
+        ax.set_xlabel("$m$")
+        ax.legend(loc="upper right")
+        fig_title = f"{config_name} [{psf_color_indices[0]}, {psf_color_indices[1]}, {psf_color_indices[2]}]"
+        ax.set_title(fig_title)
+
+        # figname = f"{config_name}_m-2.pdf"
+        figname = f"{config_name}_m-2_colors-{psf_color_indices[0]}-{psf_color_indices[1]}-{psf_color_indices[2]}.pdf"
+        fig.savefig(figname)
 
 
 if __name__ == "__main__":
