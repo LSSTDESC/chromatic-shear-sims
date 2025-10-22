@@ -154,7 +154,7 @@ def task(
     for shear_step in shear_steps:
         for color_step in color_steps:
             for mdet_step in mdet_steps:
-                _aggregate = aggregate_script.pre_aggregate(data[shear_step][color_step][mdet_step], predicate, colors=psf_colors, color_indices=psf_color_indices)
+                _aggregate = aggregate_script.pre_aggregate(data[shear_step][color_step][mdet_step], predicate)
                 _aggregate = _aggregate.append_column("mdet_step", pa.array([mdet_step for _ in range(_aggregate.num_rows)]))
                 _aggregate = _aggregate.append_column("color_step", pa.array([color_step for _ in range(_aggregate.num_rows)]))
                 _aggregate = _aggregate.append_column("shear_step", pa.array([shear_step for _ in range(_aggregate.num_rows)]))
@@ -222,10 +222,6 @@ def task(
         (m_mean_c2, m_error_c2),
         (c_mean_c2, c_error_c2),
     )
-
-
-# def test_diffsky_btsettl_achromatic():
-# def test_diffsky_btsettl_chromatic():
 
 
 def test_simple_simple_achromatic():
@@ -352,6 +348,10 @@ def test_simple_btsettl_chromatic():
         n_jobs=4,
     )
     assert np.abs(m_mean) < np.abs(m_error * 3)
+
+
+# def test_diffsky_btsettl_achromatic():
+# def test_diffsky_btsettl_chromatic():
 
 
 def main():

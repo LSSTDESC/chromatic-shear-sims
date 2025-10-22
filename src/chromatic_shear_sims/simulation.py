@@ -225,7 +225,7 @@ class SimulationBuilder:
     def make_obs(self, psf, seed=None):
         scene_seed = utils.get_seed(seed=seed)
 
-        scene = self.make_scene(seed=seed)
+        scene = self.make_scene(seed=scene_seed)
 
         mbobs = observations.get_mbobs(
             self.bands,
@@ -242,7 +242,7 @@ class SimulationBuilder:
     def make_obs_pair(self, psf, g1=0.00, g2=0.00, seed=None):
         scene_seed = utils.get_seed(seed=seed)
 
-        scene = self.make_scene(seed=seed)
+        scene = self.make_scene(seed=scene_seed)
         shear_scene = self.galaxy_position_builder.shear_scene
 
         plus_scene = scene.with_shear(g1=g1, g2=g2, shear_scene=shear_scene)

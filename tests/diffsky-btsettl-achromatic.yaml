@@ -9,7 +9,6 @@ image:
 stars:
   builder:
     entrypoint: "chromatic_weak_lensing.btsettl:BTSettl"
-    interpolate: true
 
 galaxies:
   builder:
@@ -30,8 +29,8 @@ galaxies:
     type: hex
     xsize: *xsize
     ysize: *ysize
-    separation: 32
-    border: 32
+    separation: 64
+    border: 64
     shear: false
 
 psf:

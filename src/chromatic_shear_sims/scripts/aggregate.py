@@ -405,6 +405,8 @@ def main():
         (pc.field("pgauss_flags") == 0)
         & (pc.field("pgauss_s2n") > args.s2n_cut)
         & (pc.field("pgauss_T_ratio") > 0.5)
+        & (pc.greater(pc.list_element(pc.field("pgauss_band_flux"), 0), 0))
+        & (pc.greater(pc.list_element(pc.field("pgauss_band_flux"), 2), 0))
     )
 
     psf_colors = config["measurement"].get("colors")
